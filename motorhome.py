@@ -1,109 +1,305 @@
 #!/usr/bin/env python3
 
-from PySide2.QtCore import *
-from PySide2.QtGui import *
-from PySide2.QtWidgets import *
+from PyQt5.QtWidgets import QApplication, QMainWindow, QDesktopWidget, QWidget, QTextEdit, QLabel, QVBoxLayout, QGridLayout, QTabWidget
+from PyQt5.QtGui import QImage, QPixmap, QFont, QFontMetrics
+from PyQt5.QtCore import Qt, QTimer, QThread, QUrl, QSize, pyqtSignal, pyqtSlot
+from PyQt5 import QtWidgets, QtCore, QtGui
+
+from PyQt5.QtWebKitWidgets import QWebView, QWebPage
+from PyQt5.QtWebKit import QWebSettings
+from PyQt5.QtNetwork import *
+
 from datetime import datetime
+import threading
+from threading import Thread
 import cv2
-import qimage2ndarray
 import qdarkgraystyle
+import socket
+import psutil
+import os
 import sys
+import time
+import queue
+import os.path
 
-class MainApp(QWidget):
+camera = 0 #dev/video0..2
+frames = queue.Queue(128)
+video_size = QSize(864, 480)
+fps = 0
 
-    def __init__(self):
+class playbackThread(QThread):
+    changePixmap = pyqtSignal(QImage)
+
+    def __init__(self, *args, **kwargs):
         super().__init__()
-        self.setStyleSheet("background-color: black;") 
-        self.setWindowTitle("Motorhome Info")
-        self.video_size = QSize(1280, 720)
-        self.setup_ui()
-        self.setup_camera()
-        self.showFullScreen()
+        self.active = True
 
-    def setup_ui(self):
-        """Initialize widgets."""
-        TabWidget = QTabWidget(self)
+    def run(self):
+        global frames
+        global frame_cnt
+        global fps
 
-        page1 = QWidget()
-        page1.setGeometry(0, 0, self.video_size.width(), self.video_size.height())
-        self.image_label = QLabel()
-        self.image_label.setFixedSize(self.video_size)
-        vbox1 = QVBoxLayout()
-        vbox1.addWidget(self.image_label)
-        page1.setLayout(vbox1)
+        self.cap = cv2.VideoCapture(camera)
+        if not self.cap.isOpened():
+            self.stop()
+            raise Exception("Could not open camera")
 
-        page2 = QWidget()
-        page2.setGeometry(0, 0, self.video_size.width(), self.video_size.height())
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, video_size.width())
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, video_size.height())
+        self.cap.set(cv2.CAP_PROP_FPS, 20)
 
-        page3 = QWidget()
-        page3.setGeometry(0, 0, self.video_size.width(), self.video_size.height())
+        self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = float(self.cap.get(cv2.CAP_PROP_FPS))
+        print("video:  " + str(self.width) + "x" + str(self.height) + "@" + str(fps))
 
-        self.dc_index = TabWidget.addTab(page1, "Dash Cam")
-        self.tp_index = TabWidget.addTab(page2, "Tire Pressure")
-        self.warn_index = TabWidget.addTab(page3, "Warnings") 
+        start_time = time.time()
+        while self.active:
+            ret, frame = self.cap.read()
+            if ret:
+                if not frames.full():
+                    frames.put_nowait(frame)
 
-    def setup_camera(self):
-        """Initialize camera"""
-        self.timer_init = QTimer()
-        self.timer_init.timeout.connect(self.setup_camera)
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
+                self.changePixmap.emit(image)
 
-        self.capture = cv2.VideoCapture(2)
+    def stop(self):
+        self.active = False
+        self.cap.release()
 
-        if (not self.capture.isOpened()):
-            self.timer_init.start(5*1000)
-            return
-        else:
-            self.timer_init.stop()
-
-        self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, self.video_size.width())
-        self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, self.video_size.height())
-        self.fps = 30.0
-        self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        self.prefix = "dashcam_"
+class recordThread(QThread):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        self.fourcc = cv2.VideoWriter_fourcc(*'MJPG')
         self.ts = 0
+        self.prefix = "dashcam_"
+        self.active = True
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.display_video_stream)
-        self.timer.start(10)
-
-    def update_file(self, prefix):
+    def update_filename(self):
         now = datetime.now()
         ts_new = now.timestamp()
 
         if ((ts_new - self.ts) >= 5*60):
             date_time = now.strftime("%m%d%Y_%H_%M_%S")
-            filename=self.prefix + date_time + ".avi"
-            self.out = cv2.VideoWriter(filename, self.fourcc, self.fps,
-                                       (self.video_size.width(), self.video_size.height()))
+            filename = os.path.join("/home/pi/motorhome/videos/", self.prefix + date_time + ".avi")
+            self.out = cv2.VideoWriter(filename, self.fourcc, fps, (video_size.width(), video_size.height()))
             self.ts = ts_new
 
-    def display_video_stream(self):
-        """Read frame from camera and repaint QLabel widget"""
-        check, frame = self.capture.read()
+    def run(self):
+        global fps
 
-        if check:
-            self.update_file("dashcam_")
+        while self.active:
+            if not frames.empty():
+                self.update_filename()
+                frame = frames.get()
+                self.out.write(frame)
 
-            # write the frame
-            self.out.write(frame)
+    def stop(self):
+        self.active = False
+        self.out.release()
 
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
-            image = qimage2ndarray.array2qimage(frame)  #memory leak workaround
-            self.image_label.setPixmap(QPixmap.fromImage(image))
-        else:
-            self.timer.stop()
-            self.setup_camera()
+class MainApp(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setStyleSheet("background-color: black;")
+        self.setWindowTitle("Motorhome Info")
+        self.warns = self.Warnings()
+        self.warning = "No messages"
+        self.resolution = QDesktopWidget().availableGeometry(-1)
+        self.setup_ui()
+        self.setup_record()
+        self.setup_playback()
+        self.setup_warns()
+#        self.showFullScreen()
+        self.showMaximized()
+
+    def setup_ui(self):
+        #Initialize widgets
+        self.centralWidget = QWidget()
+
+        self.TabWidget = QTabWidget(self)
+        self.TabWidget.setFont(QFont("Sanserif", 16))
+
+        pages = [QWidget(), QWidget(), QWidget(), QWidget()]
+
+        pages[0].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+        self.image_label = QLabel()
+        self.image_label.setAlignment(Qt.AlignCenter)
+        vbox1 = QVBoxLayout()
+        vbox1.addWidget(self.image_label)
+        pages[0].setLayout(vbox1)
+
+        pages[1].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+        pressure = "-- bar"
+        temperature = "-- C"
+        self.fl_label = QLabel(pressure + "\n" + temperature)
+        self.fr_label = QLabel(pressure + "\n" + temperature)
+        self.rl_label = QLabel(pressure + "\n" + temperature)
+        self.rr_label = QLabel(pressure + "\n" + temperature)
+
+        font = self.fl_label.font()
+        font.setPointSize(32)
+        font.setBold(True)
+        self.fl_label.setFont(font)
+        self.fr_label.setFont(font)
+        self.rl_label.setFont(font)
+        self.rr_label.setFont(font)
+
+        self.fl_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.fr_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.rl_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.rr_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        pixmap = QPixmap("/home/pi/motorhome/res/tire.png").scaled(128, 128, Qt.KeepAspectRatio)
+
+        tire1_label = QLabel()
+        tire1_label.setPixmap(pixmap)
+        tire1_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+
+        tire2_label = QLabel()
+        tire2_label.setPixmap(pixmap)
+        tire2_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        tire3_label = QLabel()
+        tire3_label.setPixmap(pixmap)
+        tire3_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+
+        tire4_label = QLabel()
+        tire4_label.setPixmap(pixmap)
+        tire4_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        vbox2 = QGridLayout()
+        vbox2.addWidget(self.fl_label, 0, 0)
+        vbox2.addWidget(tire1_label, 0, 1)
+        vbox2.addWidget(tire2_label, 0, 2)
+        vbox2.addWidget(self.fr_label, 0, 3)
+        vbox2.addWidget(self.rl_label, 1, 0)
+        vbox2.addWidget(tire3_label, 1, 1)
+        vbox2.addWidget(tire4_label, 1, 2)
+        vbox2.addWidget(self.rr_label, 1, 3)
+        pages[1].setLayout(vbox2)
+
+        pages[2].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+        self.warn_edit = QTextEdit()
+        font = self.warn_edit.font()
+        font.setPointSize(16)
+        self.warn_edit.setFont(font)
+        self.warn_edit.setReadOnly(True)
+
+        font_metrics = QFontMetrics(font)
+        RowHeight = font_metrics.lineSpacing()
+        self.warn_edit.setFixedHeight(10 * RowHeight)
+        self.warn_edit.setAlignment(Qt.AlignVCenter)
+
+        vbox3 = QVBoxLayout()
+        vbox3.addWidget(self.warn_edit)
+        pages[2].setLayout(vbox3)
+
+        self.timer_warning = QTimer()
+        self.timer_warning.timeout.connect(self.update_warnings)
+        self.timer_warning.start(100)
+
+        font = self.fl_label.font()
+        font.setPointSize(16)
+        font.setBold(True)
+
+        centralLayout = QVBoxLayout()
+        centralLayout.addWidget(self.TabWidget, 1)
+
+        self.dc_index = self.TabWidget.addTab(pages[0], "Dash Cam")
+        self.tp_index = self.TabWidget.addTab(pages[1], "Tire Pressure")
+        self.warn_index = self.TabWidget.addTab(pages[2], "Messages")
+
+        self.TabWidget.setStyleSheet('''
+            QTabBar::tab:selected {background-color: black;}
+            QTabBar::tab:selected {font: 16pt bold}
+            ''')
+
+        self.centralWidget.setLayout(centralLayout)
+        self.setCentralWidget(self.centralWidget)
+
+    @QtCore.pyqtSlot(QImage)
+    def setImage(self, image):
+        pixmap = QPixmap.fromImage(image).scaled(self.resolution.width()-100,
+                                                 self.resolution.height()-100,
+                                                 Qt.KeepAspectRatio)
+        self.image_label.setPixmap(pixmap)
+
+    def setup_playback(self):
+        #Initialize camera playback
+        self.playback = playbackThread(self)
+        self.playback.changePixmap.connect(self.setImage)
+        self.playback.start()
+        self.is_recording = False
+
+    def setup_record(self):
+        #write video
+        self.record = recordThread(self)
+        self.record.start()
+        self.is_recording = True
+
+    def update_warnings(self):
+        self.warn_edit.setText(self.warning)
+        self.warn_edit.setAlignment(Qt.AlignCenter)
+        self.warn_edit.setReadOnly(True)
+
+    def sensor_handler(self, client):
+        while True:
+            sensor = client.recv(32).decode('utf-8')
+            if sensor:
+                sensor = sensor.split(',')
+                if sensor[0] == 'Stairs':
+                    if sensor[1] == '1':
+                        self.TabWidget.setCurrentIndex(self.warn_index)
+                        self.warning = "Stairs down"
+                    else:
+                        self.warning = "No warnings"
+                elif sensor[0] == 'FL':
+                    self.fl_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+                elif sensor[0] == 'FR':
+                    self.fr_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+                elif sensor[0] == 'RL':
+                    self.rl_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+                elif sensor[0] == 'RR':
+                    self.rr_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+        client.close()
+
+    def get_warns(self):
+        # create a local socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            # bind the socket to the port
+            sock.bind(('localhost', 5000))
+            # listen for incoming connections
+            sock.listen(5)
+            print("Server started...")
+
+            while True:
+                client, addr = sock.accept()
+                threading.Thread(target=self.sensor_handler, args=(client,)).start()
+
+    def setup_warns(self):
+        # warnings server
+        self.warns.worker = Thread(target=self.get_warns, args=())
+        self.warns.worker.setDaemon(True)
+        self.warns.worker.start()
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-            self.timer.stop()
-            self.capture.release()
+            self.playback.stop()
 
-            try:
-                self.out.release()
-            except:
-                print("camera capture not available")
-            self.close()
+            if self.is_recording:
+                self.record.stop()
+            current_pid = os.getpid()
+
+            #ugly but efficient
+            system = psutil.Process(current_pid)
+            system.terminate()
+
+    class Warnings:
+        def __init__(self, warns=0):
+            self.warns = warns
+            self.worker = 0
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
