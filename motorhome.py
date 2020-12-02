@@ -21,6 +21,7 @@ import sys
 import time
 import queue
 import os.path
+import pathlib
 
 camera = 2 #dev/video0..2
 frames = queue.Queue(128)
@@ -28,6 +29,7 @@ frames = queue.Queue(128)
 video_size = QSize(1280, 720)
 fps = 30
 prefix = "/home/mika/sw/motorhome"
+cleanup_timeout = 5 # timeout in min
 
 class playbackThread(QThread):
     changePixmap = pyqtSignal(QImage)
@@ -116,6 +118,7 @@ class MainApp(QMainWindow):
         self.setup_record()
         self.setup_playback()
         self.setup_warns()
+        self.setup_cleanup()
 #        self.showFullScreen()
         self.showMaximized()
 
@@ -244,6 +247,13 @@ class MainApp(QMainWindow):
         self.record.start()
         self.is_recording = True
 
+    def setup_cleanup(self):
+        #do cleanup first
+        self.cleanup_videos()
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.cleanup_videos)
+        self.timer.start(cleanup_timeout*60*1000)
+
     def update_warnings(self):
         self.warn_edit.setText(self.warning)
         self.warn_edit.setAlignment(Qt.AlignCenter)
@@ -289,6 +299,24 @@ class MainApp(QMainWindow):
         self.warns.worker.setDaemon(True)
         self.warns.worker.start()
 
+    def cleanup_videos(self):
+
+        path = prefix + "/videos"
+        for video_file in pathlib.Path(path).glob('*.avi'):
+             video = str(video_file).replace(path + "/dashcam_", "", 1)
+             month = video[0:2]
+             day = video[2:4]
+             year = video[4:8]
+             hr = video[9:11]
+             min = video[12:14]
+             sec = video[15:17] + '.0'
+             date_time_str = year + '-'+ month + '-' + day + ' ' + hr + ':' + min + ':' + sec
+             date_time_obj = datetime.strptime(date_time_str, '%Y-%m-%d %H:%M:%S.%f')
+
+             if datetime.now().timestamp() - date_time_obj.timestamp() > 60*60:
+                 print("removing " + str(video_file))
+                 os.remove(str(video_file))
+
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
             self.playback.stop()
@@ -296,6 +324,9 @@ class MainApp(QMainWindow):
             if self.is_recording:
                 self.record.stop()
             current_pid = os.getpid()
+
+            if self.timer.isActive():
+                self.timer.stop()
 
             #ugly but efficient
             system = psutil.Process(current_pid)
