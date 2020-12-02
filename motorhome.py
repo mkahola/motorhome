@@ -22,10 +22,12 @@ import time
 import queue
 import os.path
 
-camera = 0 #dev/video0..2
+camera = 2 #dev/video0..2
 frames = queue.Queue(128)
-video_size = QSize(864, 480)
-fps = 0
+#video_size = QSize(864, 480)
+video_size = QSize(1280, 720)
+fps = 30
+prefix = "/home/mika/sw/motorhome"
 
 class playbackThread(QThread):
     changePixmap = pyqtSignal(QImage)
@@ -46,12 +48,12 @@ class playbackThread(QThread):
 
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, video_size.width())
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, video_size.height())
-        self.cap.set(cv2.CAP_PROP_FPS, 20)
+        self.cap.set(cv2.CAP_PROP_FPS, fps)
 
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = float(self.cap.get(cv2.CAP_PROP_FPS))
-        print("video:  " + str(self.width) + "x" + str(self.height) + "@" + str(fps))
+        print("video: " + str(self.width) + "x" + str(self.height) + "@" + str(fps))
 
         start_time = time.time()
         while self.active:
@@ -61,6 +63,9 @@ class playbackThread(QThread):
                     frames.put_nowait(frame)
 
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                font = cv2.FONT_HERSHEY_DUPLEX
+                datestr = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+                cv2.putText(frame, datestr, (5, video_size.height()-10), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
                 image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
                 self.changePixmap.emit(image)
 
@@ -82,7 +87,7 @@ class recordThread(QThread):
 
         if ((ts_new - self.ts) >= 5*60):
             date_time = now.strftime("%m%d%Y_%H_%M_%S")
-            filename = os.path.join("/home/pi/motorhome/videos/", self.prefix + date_time + ".avi")
+            filename = os.path.join(prefix + "/videos/", self.prefix + date_time + ".avi")
             self.out = cv2.VideoWriter(filename, self.fourcc, fps, (video_size.width(), video_size.height()))
             self.ts = ts_new
 
@@ -151,7 +156,7 @@ class MainApp(QMainWindow):
         self.rl_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         self.rr_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
-        pixmap = QPixmap("/home/pi/motorhome/res/tire.png").scaled(128, 128, Qt.KeepAspectRatio)
+        pixmap = QPixmap(prefix + "/res/tire.png").scaled(128, 128, Qt.KeepAspectRatio)
 
         tire1_label = QLabel()
         tire1_label.setPixmap(pixmap)
