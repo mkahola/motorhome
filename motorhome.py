@@ -23,12 +23,12 @@ import queue
 import os.path
 import pathlib
 
-camera = 2 #dev/video0..2
-frames = queue.Queue(128)
-#video_size = QSize(864, 480)
-video_size = QSize(1280, 720)
-fps = 30
-prefix = "/home/mika/sw/motorhome"
+camera = 0 #dev/video0..2
+video_size = QSize(864, 480)
+#video_size = QSize(1280, 720)
+fps = 20
+frames = queue.Queue(512)
+prefix = "/home/pi/motorhome"
 cleanup_timeout = 5 # timeout in min
 
 class playbackThread(QThread):
@@ -58,18 +58,24 @@ class playbackThread(QThread):
         print("video: " + str(self.width) + "x" + str(self.height) + "@" + str(fps))
 
         start_time = time.time()
+        i = 0
         while self.active:
             ret, frame = self.cap.read()
             if ret:
-                if not frames.full():
-                    frames.put_nowait(frame)
-
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 font = cv2.FONT_HERSHEY_DUPLEX
                 datestr = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
                 cv2.putText(frame, datestr, (5, video_size.height()-10), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+
+                if not frames.full() and (i == 0):
+                    frames.put_nowait(frame)
+                elif frames.full():
+                    print("fifo full")
+
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
                 self.changePixmap.emit(image)
+
+                i = (i + 1) % 2
 
     def stop(self):
         self.active = False
@@ -78,7 +84,8 @@ class playbackThread(QThread):
 class recordThread(QThread):
     def __init__(self, *args, **kwargs):
         super().__init__()
-        self.fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+        #self.fourcc = cv2.VideoWriter_fourcc(*'MJPG')
+        self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
         self.ts = 0
         self.prefix = "dashcam_"
         self.active = True
@@ -90,15 +97,18 @@ class recordThread(QThread):
         if ((ts_new - self.ts) >= 5*60):
             date_time = now.strftime("%m%d%Y_%H_%M_%S")
             filename = os.path.join(prefix + "/videos/", self.prefix + date_time + ".avi")
-            self.out = cv2.VideoWriter(filename, self.fourcc, fps, (video_size.width(), video_size.height()))
+            print("changing filename to " + filename)
+            self.out = cv2.VideoWriter(filename, self.fourcc, fps/2, (video_size.width(), video_size.height()))
             self.ts = ts_new
 
     def run(self):
         global fps
+        global frames
 
         while self.active:
+            self.update_filename()
+
             if not frames.empty():
-                self.update_filename()
                 frame = frames.get()
                 self.out.write(frame)
 
@@ -323,6 +333,7 @@ class MainApp(QMainWindow):
 
             if self.is_recording:
                 self.record.stop()
+
             current_pid = os.getpid()
 
             if self.timer.isActive():
