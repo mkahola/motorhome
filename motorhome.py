@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QDesktopWidget, QWidget, QTextEdit, QLabel, QVBoxLayout, QGridLayout, QTabWidget
-from PyQt5.QtGui import QImage, QPixmap, QFont, QFontMetrics
-from PyQt5.QtCore import Qt, QTimer, QThread, QUrl, QSize, pyqtSignal, pyqtSlot
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 from PyQt5 import QtWidgets, QtCore, QtGui
 
-from PyQt5.QtWebKitWidgets import QWebView, QWebPage
-from PyQt5.QtWebKit import QWebSettings
-from PyQt5.QtNetwork import *
+#from PyQt5.QtWebKitWidgets import QWebView, QWebPage
+#from PyQt5.QtWebKit import QWebSettings
+#from PyQt5.QtNetwork import *
 
 from datetime import datetime
 import threading
@@ -21,100 +21,11 @@ import sys
 import time
 import queue
 import os.path
-import pathlib
 
-camera = 0 #dev/video0..2
+camera = 20 #virtual device
 video_size = QSize(864, 480)
-#video_size = QSize(1280, 720)
 fps = 20
-frames = queue.Queue(512)
 prefix = "/home/pi/motorhome"
-cleanup_timeout = 5 # timeout in min
-
-class playbackThread(QThread):
-    changePixmap = pyqtSignal(QImage)
-
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-        self.active = True
-
-    def run(self):
-        global frames
-        global frame_cnt
-        global fps
-
-        self.cap = cv2.VideoCapture(camera)
-        if not self.cap.isOpened():
-            self.stop()
-            raise Exception("Could not open camera")
-
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, video_size.width())
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, video_size.height())
-        self.cap.set(cv2.CAP_PROP_FPS, fps)
-
-        self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = float(self.cap.get(cv2.CAP_PROP_FPS))
-        print("video: " + str(self.width) + "x" + str(self.height) + "@" + str(fps))
-
-        start_time = time.time()
-        i = 0
-        while self.active:
-            ret, frame = self.cap.read()
-            if ret:
-                font = cv2.FONT_HERSHEY_DUPLEX
-                datestr = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-                cv2.putText(frame, datestr, (5, video_size.height()-10), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
-
-                if not frames.full() and (i == 0):
-                    frames.put_nowait(frame)
-                elif frames.full():
-                    print("fifo full")
-
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
-                self.changePixmap.emit(image)
-
-                i = (i + 1) % 2
-
-    def stop(self):
-        self.active = False
-        self.cap.release()
-
-class recordThread(QThread):
-    def __init__(self, *args, **kwargs):
-        super().__init__()
-        #self.fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-        self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
-        self.ts = 0
-        self.prefix = "dashcam_"
-        self.active = True
-
-    def update_filename(self):
-        now = datetime.now()
-        ts_new = now.timestamp()
-
-        if ((ts_new - self.ts) >= 5*60):
-            date_time = now.strftime("%m%d%Y_%H_%M_%S")
-            filename = os.path.join(prefix + "/videos/", self.prefix + date_time + ".avi")
-            print("changing filename to " + filename)
-            self.out = cv2.VideoWriter(filename, self.fourcc, fps/2, (video_size.width(), video_size.height()))
-            self.ts = ts_new
-
-    def run(self):
-        global fps
-        global frames
-
-        while self.active:
-            self.update_filename()
-
-            if not frames.empty():
-                frame = frames.get()
-                self.out.write(frame)
-
-    def stop(self):
-        self.active = False
-        self.out.release()
 
 class MainApp(QMainWindow):
     def __init__(self):
@@ -125,10 +36,8 @@ class MainApp(QMainWindow):
         self.warning = "No messages"
         self.resolution = QDesktopWidget().availableGeometry(-1)
         self.setup_ui()
-        self.setup_record()
-        self.setup_playback()
+        self.setup_camera()
         self.setup_warns()
-        self.setup_cleanup()
 #        self.showFullScreen()
         self.showMaximized()
 
@@ -237,32 +146,49 @@ class MainApp(QMainWindow):
         self.centralWidget.setLayout(centralLayout)
         self.setCentralWidget(self.centralWidget)
 
-    @QtCore.pyqtSlot(QImage)
-    def setImage(self, image):
-        pixmap = QPixmap.fromImage(image).scaled(self.resolution.width()-100,
-                                                 self.resolution.height()-100,
-                                                 Qt.KeepAspectRatio)
-        self.image_label.setPixmap(pixmap)
+    def setup_camera(self):
+        global fps
+        global video_size
 
-    def setup_playback(self):
-        #Initialize camera playback
-        self.playback = playbackThread(self)
-        self.playback.changePixmap.connect(self.setImage)
-        self.playback.start()
-        self.is_recording = False
-
-    def setup_record(self):
-        #write video
-        self.record = recordThread(self)
-        self.record.start()
-        self.is_recording = True
-
-    def setup_cleanup(self):
-        #do cleanup first
-        self.cleanup_videos()
         self.timer = QTimer()
-        self.timer.timeout.connect(self.cleanup_videos)
-        self.timer.start(cleanup_timeout*60*1000)
+        self.timer.timeout.connect(self.display_video_stream)
+
+        #Initialize camera playback
+        self.cap = cv2.VideoCapture(camera)
+
+        if (not self.cap.isOpened()):
+            return
+
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, video_size.width())
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, video_size.height())
+        self.cap.set(cv2.CAP_PROP_FPS, fps)
+
+        self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = float(self.cap.get(cv2.CAP_PROP_FPS))
+        print("video: " + str(self.width) + "x" + str(self.height) + "@" + str(fps))
+
+        self.timer.start(1000/fps - 5)
+
+    def display_video_stream(self):
+        global video_size
+
+        #"Read frame from camera
+        ret, frame = self.cap.read()
+
+        if ret:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            font = cv2.FONT_HERSHEY_DUPLEX
+            datestr = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+            cv2.putText(frame, datestr, (5, video_size.height()-10), font, 1, (255, 255, 0), 2, cv2
+.LINE_AA)
+
+            image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
+            pixmap = QPixmap.fromImage(image).scaled(self.resolution.width()-100,
+                                                     self.resolution.height()-100,
+                                                     Qt.KeepAspectRatio)
+            self.image_label.setPixmap(pixmap)
 
     def update_warnings(self):
         self.warn_edit.setText(self.warning)
@@ -329,10 +255,7 @@ class MainApp(QMainWindow):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-            self.playback.stop()
-
-            if self.is_recording:
-                self.record.stop()
+            self.cap.release()
 
             current_pid = os.getpid()
 
