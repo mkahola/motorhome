@@ -231,13 +231,11 @@ class MainApp(QMainWindow):
         if event.key() == Qt.Key_Escape:
             self.cap.release()
 
-            current_pid = os.getpid()
-
             if self.timer.isActive():
                 self.timer.stop()
 
             #ugly but efficient
-            system = psutil.Process(current_pid)
+            system = psutil.Process(os.getpid())
             system.terminate()
 
     class Warnings:
