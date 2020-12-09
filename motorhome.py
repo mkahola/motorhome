@@ -23,8 +23,6 @@ import queue
 import os.path
 
 camera = 20 #virtual device
-video_size = QSize(864, 480)
-fps = 20
 prefix = "/home/pi/motorhome"
 
 class MainApp(QMainWindow):
@@ -166,22 +164,21 @@ class MainApp(QMainWindow):
         self.timer.start(1000/fps)
 
     def display_video_stream(self):
-        global video_size
+        scale = 80
 
-        #"Read frame from camera
+        #Read frame from camera
         ret, frame = self.cap.read()
 
         if ret:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
             font = cv2.FONT_HERSHEY_DUPLEX
             datestr = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-            cv2.putText(frame, datestr, (5, video_size.height()-10), font, 1, (255, 255, 0), 2, cv2
+            cv2.putText(frame, datestr, (5, frame.shape[0]-10), font, 1, (255, 255, 0), 2, cv2
 .LINE_AA)
 
             image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
-            pixmap = QPixmap.fromImage(image).scaled(self.resolution.width()-100,
-                                                     self.resolution.height()-100,
+            pixmap = QPixmap.fromImage(image).scaled(self.resolution.width()*scale/100,
+                                                     self.resolution.height()*scale/100,
                                                      Qt.KeepAspectRatio)
             self.image_label.setPixmap(pixmap)
 
