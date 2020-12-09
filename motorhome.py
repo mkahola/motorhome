@@ -147,28 +147,23 @@ class MainApp(QMainWindow):
         self.setCentralWidget(self.centralWidget)
 
     def setup_camera(self):
-        global fps
-        global video_size
-
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.display_video_stream)
-
         #Initialize camera playback
         self.cap = cv2.VideoCapture(camera)
 
-        if (not self.cap.isOpened()):
-            return
+        try:
+            self.cap.isOpened()
+        except:
+            self.cap.release()
+            exit('Failure')
 
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, video_size.width())
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, video_size.height())
-        self.cap.set(cv2.CAP_PROP_FPS, fps)
-
-        self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = float(self.cap.get(cv2.CAP_PROP_FPS))
-        print("video: " + str(self.width) + "x" + str(self.height) + "@" + str(fps))
+        print("video: " + str(width) + "x" + str(height) + "@" + str(fps))
 
-        self.timer.start(1000/fps - 5)
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.display_video_stream)
+        self.timer.start(1000/fps)
 
     def display_video_stream(self):
         global video_size
