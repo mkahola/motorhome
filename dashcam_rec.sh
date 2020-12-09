@@ -9,7 +9,8 @@ ffmpeg -f v4l2 \
        -framerate $FPS \
        -video_size $VIDEO_SIZE \
        -i $1 \
-       -vb 1M \
+       -vb 512k \
+       -c:v h264_omx \
        -filter_complex \
        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:\
        fontcolor=yellow@0.8:\
@@ -17,6 +18,6 @@ ffmpeg -f v4l2 \
        -f segment \
        -segment_time 300 \
        -strftime 1 \
-       "/home/pi/motorhome/videos/dashcam_%Y-%m-%d_%H-%M-%S.avi"
+       "/home/pi/motorhome/videos/dashcam_%Y-%m-%d_%H-%M-%S.mp4"
 #       -f /dev/video21 > /dev/null 2>&1
 
