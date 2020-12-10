@@ -1,5 +1,5 @@
 #!/bin/bash
-VIDEO_SIZE=864x480
+VIDEO_SIZE=1280x720
 FPS=20
 
 # set fps
@@ -14,7 +14,7 @@ ffmpeg -f v4l2 \
        -filter_complex \
        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:\
        fontcolor=yellow@0.8:\
-       text='%{localtime\:%d-%m-%Y %T}:x=5:y=450:fontsize=24'"\
+       text='%{localtime\:%d-%m-%Y %T}:x=25:y=450:fontsize=24'"\
        -f segment \
        -segment_time 300 \
        -strftime 1 \

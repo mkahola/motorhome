@@ -1,9 +1,9 @@
 #!/bin/bash
-VIDEO_SIZE=864x480
+VIDEO_SIZE=1280x720
 FPS=20
 
 # load module
-sudo modprobe v4l2loopback video_nr=20,21
+sudo modprobe v4l2loopback video_nr=20,21 exclusive_caps=1
 
 v4l2loopback-ctl set-timeout-image -t 3000 /dev/video20 /home/pi/mmotorhome/res/timeout.png
 v4l2loopback-ctl set-timeout-image -t 3000 /dev/video21 /home/pi/mmotorhome/res/timeout.png
