@@ -161,7 +161,12 @@ class MainApp(QMainWindow):
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.display_video_stream)
-        self.timer.start(1000/fps)
+
+        try:
+            self.timer.start(1000/fps)
+        except ZeroDivisionError:
+            self.cap.release()
+            exit('Failure')
 
     def display_video_stream(self):
         scale = 80
