@@ -14,7 +14,7 @@ ffmpeg -f v4l2 \
        -filter_complex \
        "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:\
        fontcolor=yellow@0.8:\
-       text='%{localtime\:%d-%m-%Y %T}:x=25:y=450:fontsize=24'"\
+       text='%{localtime\:%d-%m-%Y %T}:x=25:y=700:fontsize=20'"\
        -f segment \
        -segment_time 300 \
        -strftime 1 \
