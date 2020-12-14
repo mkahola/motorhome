@@ -10,7 +10,8 @@ v4l2loopback-ctl set-fps $FPS /dev/video21
 v4l2loopback-ctl set-timeout-image -t 3000 /dev/video20 /home/pi/mmotorhome/res/timeout.png
 v4l2loopback-ctl set-timeout-image -t 3000 /dev/video21 /home/pi/mmotorhome/res/timeout.png
 
-ffmpeg -f v4l2 \
+ffmpeg -re \
+       -f v4l2 \
        -framerate $FPS \
        -video_size $VIDEO_SIZE \
        -i /dev/video0 \

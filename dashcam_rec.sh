@@ -1,7 +1,8 @@
 #!/bin/bash
 SEG_TIME=300 # segment time in sec
 
-/usr/bin/ffmpeg -f v4l2 \
+/usr/bin/ffmpeg -re \
+                -f v4l2 \
                 -i $1 \
                 -vb 512k \
                 -c:v h264_omx \
