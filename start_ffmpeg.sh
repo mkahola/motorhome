@@ -2,8 +2,10 @@
 VIDEO_SIZE=1280x720
 FPS=20
 
-# load module
-sudo modprobe v4l2loopback video_nr=20,21 exclusive_caps=1
+#v4l2loopback-ctl set-caps "video/x-raw, format=UYVY, width=1280, height=720" /dev/video20
+#v4l2loopback-ctl set-caps "video/x-raw, format=UYVY, width=1280, height=720" /dev/video21
+v4l2loopback-ctl set-fps $FPS /dev/video20
+v4l2loopback-ctl set-fps $FPS /dev/video21
 
 v4l2loopback-ctl set-timeout-image -t 3000 /dev/video20 /home/pi/mmotorhome/res/timeout.png
 v4l2loopback-ctl set-timeout-image -t 3000 /dev/video21 /home/pi/mmotorhome/res/timeout.png
@@ -13,5 +15,9 @@ ffmpeg -f v4l2 \
        -video_size $VIDEO_SIZE \
        -i /dev/video0 \
        -f v4l2 /dev/video20 \
-       -f v4l2 /dev/video21 > /dev/null 2>&1
+       -framerate $FPS \
+       -video_size $VIDEO_SIZE \
+       -f v4l2 /dev/video21 \
+       -framerate $FPS \
+       -video_size $VIDEO_SIZE > /dev/null 2>&1
 

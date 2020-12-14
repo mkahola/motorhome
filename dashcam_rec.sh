@@ -1,23 +1,16 @@
 #!/bin/bash
-VIDEO_SIZE=1280x720
-FPS=20
+SEG_TIME=300 # segment time in sec
 
-# set fps
-v4l2loopback-ctl set-fps $FPS $1
-
-ffmpeg -f v4l2 \
-       -framerate $FPS \
-       -video_size $VIDEO_SIZE \
-       -i $1 \
-       -vb 512k \
-       -c:v h264_omx \
-       -filter_complex \
-       "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:\
-       fontcolor=yellow@0.8:\
-       text='%{localtime\:%d-%m-%Y %T}:x=25:y=700:fontsize=20'"\
-       -f segment \
-       -segment_time 300 \
-       -strftime 1 \
-       "/home/pi/motorhome/videos/dashcam_%Y-%m-%d_%H-%M-%S.mp4"
-#       -f /dev/video21 > /dev/null 2>&1
-
+/usr/bin/ffmpeg -f v4l2 \
+                -i $1 \
+                -vb 512k \
+                -c:v h264_omx \
+                -filter_complex \
+                "drawtext=fontfile=/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf:\
+                fontcolor=yellow@0.8:\
+                text='%{localtime\:%d-%m-%Y %T}:x=5:y=680:fontsize=30'"\
+                -f segment \
+                -segment_time $SEG_TIME \
+                -strftime 1 \
+                "/home/pi/motorhome/videos/dashcam_%Y-%m-%d_%H-%M-%S.mp4" 
+#> /dev/null 2>&1
