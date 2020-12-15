@@ -192,6 +192,32 @@ class MainApp(QMainWindow):
         self.warn_edit.setAlignment(Qt.AlignCenter)
         self.warn_edit.setReadOnly(True)
 
+    def set_tpms(self, sensor):
+        if sensor[0] == 'FL':
+            if sensor[3] == '1':
+                self.fl_label.setStyleSheet("color:yellow")
+            else:
+                self.fl_label.setStyleSheet("color:green")
+            self.fl_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+        elif sensor[0] == 'FR':
+            if sensor[3] == '1':
+                self.fr_label.setStyleSheet("color:yellow")
+            else:
+                self.fr_label.setStyleSheet("color:green")
+            self.fr_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+        elif sensor[0] == 'RL':
+            if sensor[3] == '1':
+                self.rl_label.setStyleSheet("color:yellow")
+            else:
+                self.rl_label.setStyleSheet("color:green")
+            self.rl_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+        elif sensor[0] == 'RR':
+            if sensor[3] == '1':
+                self.rr_label.setStyleSheet("color:yellow")
+            else:
+                self.rr_label.setStyleSheet("color:green")
+            self.rr_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+
     def sensor_handler(self, client):
         while True:
             sensor = client.recv(32).decode('utf-8')
@@ -203,14 +229,8 @@ class MainApp(QMainWindow):
                         self.warning = "Stairs down"
                     else:
                         self.warning = "No warnings"
-                elif sensor[0] == 'FL':
-                    self.fl_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
-                elif sensor[0] == 'FR':
-                    self.fr_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
-                elif sensor[0] == 'RL':
-                    self.rl_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
-                elif sensor[0] == 'RR':
-                    self.rr_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+                elif sensor[0] == 'FL' or sensor[0] == 'FR' or sensor[0] == 'RL' or sensor[0] == 'RR':
+                    self.set_tpms(sensor)
         client.close()
 
     def get_warns(self):
