@@ -21,6 +21,8 @@ import sys
 import time
 import queue
 import os.path
+import configparser
+from pathlib import Path
 
 camera = 20 #virtual device
 prefix = "/home/pi/motorhome"
@@ -36,6 +38,7 @@ class MainApp(QMainWindow):
         self.setup_ui()
         self.setup_camera()
         self.setup_warns()
+        self.getTPMSwarn()
 #        self.showFullScreen()
         self.showMaximized()
 
@@ -46,7 +49,7 @@ class MainApp(QMainWindow):
         self.TabWidget = QTabWidget(self)
         self.TabWidget.setFont(QFont("Sanserif", 16))
 
-        pages = [QWidget(), QWidget(), QWidget(), QWidget()]
+        pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
 
         pages[0].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
         self.image_label = QLabel()
@@ -121,20 +124,40 @@ class MainApp(QMainWindow):
         vbox3.addWidget(self.warn_edit)
         pages[2].setLayout(vbox3)
 
-        self.timer_warning = QTimer()
-        self.timer_warning.timeout.connect(self.update_warnings)
-        self.timer_warning.start(100)
-
         font = self.fl_label.font()
         font.setPointSize(16)
         font.setBold(True)
 
+        # Tire pressure warnig level
+        pages[3].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+        self.low_pressure = QSlider(Qt.Horizontal, self)
+        self.low_pressure.setFocusPolicy(Qt.NoFocus)
+        self.low_pressure.setRange(10, 50)
+        self.low_pressure.setPageStep(1)
+        self.low_pressure.valueChanged.connect(self.changePressureLevel)
+        self.low_pressure.sliderReleased.connect(self.updateConfig)
+        self.ptitle_label = QLabel("TPMS warn level", self)
+        self.ptitle_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.ptitle_label.setFont(QFont("Sanserif", 16))
+        self.pslider_label = QLabel(" 1 bar", self)
+        self.pslider_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.pslider_label.setMinimumWidth(60)
+        self.pslider_label.setFont(QFont("Sanserif", 16))
+        vbox4 = QHBoxLayout()
+        vbox4.addWidget(self.ptitle_label)
+        vbox4.addSpacing(10)
+        vbox4.addWidget(self.low_pressure)
+        vbox4.addSpacing(10)
+        vbox4.addWidget(self.pslider_label)
+        pages[3].setLayout(vbox4)
+
         centralLayout = QVBoxLayout()
         centralLayout.addWidget(self.TabWidget, 1)
 
-        self.dc_index = self.TabWidget.addTab(pages[0], "Dash Cam")
+        self.dc_index = self.TabWidget.addTab(pages[0], "Dashcam")
         self.tp_index = self.TabWidget.addTab(pages[1], "Tire Pressure")
         self.warn_index = self.TabWidget.addTab(pages[2], "Messages")
+        self.settings_index = self.TabWidget.addTab(pages[3], "Settings")
 
         self.TabWidget.setStyleSheet('''
             QTabBar::tab:selected {background-color: black;}
@@ -143,6 +166,11 @@ class MainApp(QMainWindow):
 
         self.centralWidget.setLayout(centralLayout)
         self.setCentralWidget(self.centralWidget)
+
+        # timers
+        self.timer_warning = QTimer()
+        self.timer_warning.timeout.connect(self.update_warnings)
+        self.timer_warning.start(100)
 
     def setup_camera(self):
         #Initialize camera playback
@@ -192,25 +220,55 @@ class MainApp(QMainWindow):
         self.warn_edit.setAlignment(Qt.AlignCenter)
         self.warn_edit.setReadOnly(True)
 
-    def set_tpms(self, sensor):
+    def changePressureLevel(self, value):
+        self.pslider_label.setText(str(value/10) + " bar")
+
+    def getTPMSwarn(self):
+        conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
+        config = configparser.ConfigParser()
+        config.read(conf_file)
+
+        val = float(config['DEFAULT']['warn'])
+        val = int(val * 10)
+
+        self.low_pressure.setValue(val)
+
+        return val
+
+    def updateConfig(self):
+        conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
+        print(conf_file)
+        config = configparser.ConfigParser()
+        config.read(conf_file)
+
+        Default = config['DEFAULT']
+        Default['warn'] = str(self.low_pressure.value()/10)
+
+        with open(conf_file, 'w') as configfile:
+            config.write(configfile)
+
+    def setTPMS(self, sensor):
         if sensor[0] == 'FL':
             if sensor[3] == '1':
                 self.fl_label.setStyleSheet("color:yellow")
             else:
                 self.fl_label.setStyleSheet("color:green")
-            self.fl_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+            self.fl_label.setText(sensor[1]  + " bar\n" + sensor[2] + " C")
+
         elif sensor[0] == 'FR':
             if sensor[3] == '1':
                 self.fr_label.setStyleSheet("color:yellow")
             else:
                 self.fr_label.setStyleSheet("color:green")
-            self.fr_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+            self.fr_label.setText(sensor[1]  + " bar\n" + sensor[2] + " C")
+
         elif sensor[0] == 'RL':
             if sensor[3] == '1':
                 self.rl_label.setStyleSheet("color:yellow")
             else:
                 self.rl_label.setStyleSheet("color:green")
-            self.rl_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+            self.rl_label.setText(sensor[1]  + " bar\n" + sensor[2] + " C")
+
         elif sensor[0] == 'RR':
             if sensor[3] == '1':
                 self.rr_label.setStyleSheet("color:yellow")
@@ -230,7 +288,7 @@ class MainApp(QMainWindow):
                     else:
                         self.warning = "No warnings"
                 elif sensor[0] == 'FL' or sensor[0] == 'FR' or sensor[0] == 'RL' or sensor[0] == 'RR':
-                    self.set_tpms(sensor)
+                    self.setTPMS(sensor)
         client.close()
 
     def get_warns(self):
