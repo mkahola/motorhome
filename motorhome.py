@@ -27,6 +27,12 @@ from pathlib import Path
 camera = 20 #virtual device
 prefix = "/home/pi/motorhome"
 
+messages = ['Tire pressure low on front left tire',
+            'Tire pressure low on front right tire',
+            'Tire pressure low on rear left tire',
+            'Tire pressure low on rear right tire',
+            'Stairs down']
+
 class MainApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -43,22 +49,29 @@ class MainApp(QMainWindow):
         self.showMaximized()
 
     def setup_ui(self):
+        global messages
+
+        self.tpmsFLflag = False
+        self.tpmsFRflag = False
+        self.tpmsRLflag = False
+        self.tpmsRRflag = False
+
         #Initialize widgets
         self.centralWidget = QWidget()
 
         self.TabWidget = QTabWidget(self)
         self.TabWidget.setFont(QFont("Sanserif", 16))
 
-        pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
+        self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
 
-        pages[0].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+        self.pages[0].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignCenter)
         vbox1 = QVBoxLayout()
         vbox1.addWidget(self.image_label)
-        pages[0].setLayout(vbox1)
+        self.pages[0].setLayout(vbox1)
 
-        pages[1].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+        self.pages[1].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
         pressure = "-- bar"
         temperature = "-- C"
         self.fl_label = QLabel(pressure + "\n" + temperature)
@@ -106,30 +119,23 @@ class MainApp(QMainWindow):
         vbox2.addWidget(tire3_label, 1, 1)
         vbox2.addWidget(tire4_label, 1, 2)
         vbox2.addWidget(self.rr_label, 1, 3)
-        pages[1].setLayout(vbox2)
+        self.pages[1].setLayout(vbox2)
 
-        pages[2].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
-        self.warn_edit = QTextEdit()
-        font = self.warn_edit.font()
-        font.setPointSize(16)
-        self.warn_edit.setFont(font)
-        self.warn_edit.setReadOnly(True)
-
-        font_metrics = QFontMetrics(font)
-        RowHeight = font_metrics.lineSpacing()
-        self.warn_edit.setFixedHeight(10 * RowHeight)
-        self.warn_edit.setAlignment(Qt.AlignVCenter)
-
+        # messages
+        self.pages[2].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+        self.msg_list = QListWidget()
+        self.msg_list.setFont(QFont("Sanserif", 16))
+        self.msg_model = QStandardItemModel(self.msg_list)
         vbox3 = QVBoxLayout()
-        vbox3.addWidget(self.warn_edit)
-        pages[2].setLayout(vbox3)
+        vbox3.addWidget(self.msg_list)
+        self.pages[2].setLayout(vbox3)
 
         font = self.fl_label.font()
         font.setPointSize(16)
         font.setBold(True)
 
         # Tire pressure warnig level
-        pages[3].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+        self.pages[3].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
         self.low_pressure = QSlider(Qt.Horizontal, self)
         self.low_pressure.setFocusPolicy(Qt.NoFocus)
         self.low_pressure.setRange(10, 50)
@@ -149,15 +155,15 @@ class MainApp(QMainWindow):
         vbox4.addWidget(self.low_pressure)
         vbox4.addSpacing(10)
         vbox4.addWidget(self.pslider_label)
-        pages[3].setLayout(vbox4)
+        self.pages[3].setLayout(vbox4)
 
         centralLayout = QVBoxLayout()
         centralLayout.addWidget(self.TabWidget, 1)
 
-        self.dc_index = self.TabWidget.addTab(pages[0], "Dashcam")
-        self.tp_index = self.TabWidget.addTab(pages[1], "Tire Pressure")
-        self.warn_index = self.TabWidget.addTab(pages[2], "Messages")
-        self.settings_index = self.TabWidget.addTab(pages[3], "Settings")
+        self.dc_index = self.TabWidget.addTab(self.pages[0], "Dashcam")
+        self.tp_index = self.TabWidget.addTab(self.pages[1], "Tire Pressure")
+        self.warn_index = self.TabWidget.addTab(self.pages[2], "Messages(0)")
+        self.settings_index = self.TabWidget.addTab(self.pages[3], "Settings")
 
         self.TabWidget.setStyleSheet('''
             QTabBar::tab:selected {background-color: black;}
@@ -166,11 +172,6 @@ class MainApp(QMainWindow):
 
         self.centralWidget.setLayout(centralLayout)
         self.setCentralWidget(self.centralWidget)
-
-        # timers
-        self.timer_warning = QTimer()
-        self.timer_warning.timeout.connect(self.update_warnings)
-        self.timer_warning.start(100)
 
     def setup_camera(self):
         #Initialize camera playback
@@ -215,11 +216,6 @@ class MainApp(QMainWindow):
                                                      Qt.KeepAspectRatio)
             self.image_label.setPixmap(pixmap)
 
-    def update_warnings(self):
-        self.warn_edit.setText(self.warning)
-        self.warn_edit.setAlignment(Qt.AlignCenter)
-        self.warn_edit.setReadOnly(True)
-
     def changePressureLevel(self, value):
         self.pslider_label.setText(str(value/10) + " bar")
 
@@ -247,47 +243,76 @@ class MainApp(QMainWindow):
         with open(conf_file, 'w') as configfile:
             config.write(configfile)
 
+    def appendMessage(self, flag, msg):
+        if flag == False:
+            item = QListWidgetItem(msg)
+            item.setTextAlignment(Qt.AlignCenter)
+            self.msg_list.addItem(item)
+            return True
+
+        return False
+
+    def removeMessage(self, flag, msg):
+        if flag:
+            item = self.msg_list.findItems(msg, Qt.MatchExactly)
+            print(item[0].text())
+            row = self.msg_list.row(item[0])
+            self.msg_list.takeItem(row)
+            return False
+
+        return True
+
     def setTPMS(self, sensor):
         if sensor[0] == 'FL':
             if sensor[3] == '1':
                 self.fl_label.setStyleSheet("color:yellow")
+                self.tpmsFLflag = self.appendMessage(self.tpmsFLflag,
+                                                     messages[0])
             else:
                 self.fl_label.setStyleSheet("color:green")
+                self.tpmsFLflag = self.removeMessage(self.tpmsFLflag,
+                                                     messages[0])
             self.fl_label.setText(sensor[1]  + " bar\n" + sensor[2] + " C")
-
         elif sensor[0] == 'FR':
             if sensor[3] == '1':
                 self.fr_label.setStyleSheet("color:yellow")
+                self.tpmsFRflag = self.appendMessage(self.tpmsFRflag,
+                                                     messages[1])
             else:
                 self.fr_label.setStyleSheet("color:green")
+                self.tpmsFRflag = self.removeMessage(self.tpmsFRflag,
+                                                     messages[1])
             self.fr_label.setText(sensor[1]  + " bar\n" + sensor[2] + " C")
-
         elif sensor[0] == 'RL':
             if sensor[3] == '1':
                 self.rl_label.setStyleSheet("color:yellow")
+                self.tpmsRLflag = self.appendMessage(self.tpmsRLflag,
+                                                     messages[2])
             else:
                 self.rl_label.setStyleSheet("color:green")
+                self.tpmsRLflag = self.removeMessage(self.tpmsRLflag,
+                                                     messages[2])
             self.rl_label.setText(sensor[1]  + " bar\n" + sensor[2] + " C")
-
         elif sensor[0] == 'RR':
             if sensor[3] == '1':
                 self.rr_label.setStyleSheet("color:yellow")
+                self.tpmsRRflag = self.appendMessage(self.tpmsRRflag,
+                                                     messages[3])
             else:
                 self.rr_label.setStyleSheet("color:green")
+                self.tpmsRRflag = self.removeMessage(self.tpmsRRflag,
+                                                     messages[3])
             self.rr_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+
+        self.msg_title = "Messages(" + str(self.msg_list.count()) + ")"
+        self.warn_index = self.TabWidget.setTabText(2, self.msg_title)
 
     def sensor_handler(self, client):
         while True:
             sensor = client.recv(32).decode('utf-8')
             if sensor:
                 sensor = sensor.split(',')
-                if sensor[0] == 'Stairs':
-                    if sensor[1] == '1':
-                        self.TabWidget.setCurrentIndex(self.warn_index)
-                        self.warning = "Stairs down"
-                    else:
-                        self.warning = "No warnings"
-                elif sensor[0] == 'FL' or sensor[0] == 'FR' or sensor[0] == 'RL' or sensor[0] == 'RR':
+                if sensor[0] == 'FL' or sensor[0] == 'FR' or sensor[0] == 'RL' or sensor[0] == 'RR':
                     self.setTPMS(sensor)
         client.close()
 
@@ -314,8 +339,11 @@ class MainApp(QMainWindow):
         if event.key() == Qt.Key_Escape:
             self.cap.release()
 
-            if self.timer.isActive():
+            try:
                 self.timer.stop()
+            except:
+                print("display timer not running")
+                pass
 
             #ugly but efficient
             system = psutil.Process(os.getpid())
