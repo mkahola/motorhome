@@ -24,8 +24,9 @@ import os.path
 import configparser
 from pathlib import Path
 
-camera = 20 #virtual device
-prefix = "/home/pi/motorhome"
+from tires import Tires
+
+camera = 0 #virtual device
 
 messages = ['Tire pressure low on front left tire',
             'Tire pressure low on front right tire',
@@ -51,6 +52,7 @@ class MainApp(QMainWindow):
     def setup_ui(self):
         global messages
 
+        self.tire = Tires()
         self.tpmsFLflag = False
         self.tpmsFRflag = False
         self.tpmsRLflag = False
@@ -92,7 +94,9 @@ class MainApp(QMainWindow):
         self.rl_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         self.rr_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
-        pixmap = QPixmap(prefix + "/res/tire.png").scaled(128, 128, Qt.KeepAspectRatio)
+
+        prefix = str(Path.home()) + "/.motorhome/res/"
+        pixmap = QPixmap(prefix + "tire.png").scaled(128, 128, Qt.KeepAspectRatio)
 
         tire1_label = QLabel()
         tire1_label.setPixmap(pixmap)
@@ -157,8 +161,16 @@ class MainApp(QMainWindow):
         vbox4.addWidget(self.pslider_label)
         self.pages[3].setLayout(vbox4)
 
+        # warn lights
+        self.tpms_warn_off = QPixmap(prefix + "tpms_warn_off.png").scaled(64, 64, Qt.KeepAspectRatio)
+        self.tpms_warn_on = QPixmap(prefix + "tpms_warn_on.png").scaled(64, 64, Qt.KeepAspectRatio)
+        self.tpmsWarnLabel = QLabel()
+        self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
+        self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
+
         centralLayout = QVBoxLayout()
         centralLayout.addWidget(self.TabWidget, 1)
+        centralLayout.addWidget(self.tpmsWarnLabel)
 
         self.dc_index = self.TabWidget.addTab(self.pages[0], "Dashcam")
         self.tp_index = self.TabWidget.addTab(self.pages[1], "Tire Pressure")
@@ -181,7 +193,8 @@ class MainApp(QMainWindow):
             self.cap.isOpened()
         except:
             self.cap.release()
-            exit('Failure')
+            return
+#            exit('Failure')
 
         width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -192,10 +205,11 @@ class MainApp(QMainWindow):
         self.timer.timeout.connect(self.display_video_stream)
 
         try:
-            self.timer.start(1000/fps)
+            self.timer.start(int(1000/fps))
         except ZeroDivisionError:
             self.cap.release()
-            exit('Failure')
+            return
+#            exit('Failure')
 
     def display_video_stream(self):
         scale = 80
@@ -211,23 +225,29 @@ class MainApp(QMainWindow):
 .LINE_AA)
 
             image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
-            pixmap = QPixmap.fromImage(image).scaled(self.resolution.width()*scale/100,
-                                                     self.resolution.height()*scale/100,
+            pixmap = QPixmap.fromImage(image).scaled(int(self.resolution.width()*scale/100),
+                                                     int(self.resolution.height()*scale/100),
                                                      Qt.KeepAspectRatio)
             self.image_label.setPixmap(pixmap)
 
     def changePressureLevel(self, value):
-        self.pslider_label.setText(str(value/10) + " bar")
+        self.tire.setWarnPressure(value/10.0)
+        self.pslider_label.setText(str(self.tire.warnPressure) + " bar")
 
     def getTPMSwarn(self):
         conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
         config = configparser.ConfigParser()
-        config.read(conf_file)
 
-        val = float(config['DEFAULT']['warn'])
-        val = int(val * 10)
+        try:
+            config.read(conf_file)
 
-        self.low_pressure.setValue(val)
+            val = float(config['DEFAULT']['warn'])
+            val = int(val * 10)
+
+            self.low_pressure.setValue(val)
+            self.tire.warnPressure = val/10.0
+        except:
+            return 48
 
         return val
 
@@ -254,15 +274,19 @@ class MainApp(QMainWindow):
 
     def removeMessage(self, flag, msg):
         if flag:
-            item = self.msg_list.findItems(msg, Qt.MatchExactly)
-            print(item[0].text())
-            row = self.msg_list.row(item[0])
-            self.msg_list.takeItem(row)
-            return False
-
-        return True
+            try:
+                item = self.msg_list.findItems(msg, Qt.MatchExactly)
+                row = self.msg_list.row(item[0])
+                self.msg_list.takeItem(row)
+                return False
+            except IndexError:
+                pass
+        return flag
 
     def setTPMS(self, sensor):
+        self.tire.setPressure(sensor[0], sensor[1])
+        self.tire.setTemperature(sensor[0], sensor[2])
+
         if sensor[0] == 'FL':
             if sensor[3] == '1':
                 self.fl_label.setStyleSheet("color:yellow")
@@ -272,7 +296,7 @@ class MainApp(QMainWindow):
                 self.fl_label.setStyleSheet("color:green")
                 self.tpmsFLflag = self.removeMessage(self.tpmsFLflag,
                                                      messages[0])
-            self.fl_label.setText(sensor[1]  + " bar\n" + sensor[2] + " C")
+            self.fl_label.setText(str(self.tire.FrontLeftPressure)  + " bar\n" + str(self.tire.FrontLeftTemp) + " C")
         elif sensor[0] == 'FR':
             if sensor[3] == '1':
                 self.fr_label.setStyleSheet("color:yellow")
@@ -282,7 +306,7 @@ class MainApp(QMainWindow):
                 self.fr_label.setStyleSheet("color:green")
                 self.tpmsFRflag = self.removeMessage(self.tpmsFRflag,
                                                      messages[1])
-            self.fr_label.setText(sensor[1]  + " bar\n" + sensor[2] + " C")
+            self.fr_label.setText(str(self.tire.FrontRightPressure)  + " bar\n" + str(self.tire.FrontRightTemp) + " C")
         elif sensor[0] == 'RL':
             if sensor[3] == '1':
                 self.rl_label.setStyleSheet("color:yellow")
@@ -292,7 +316,7 @@ class MainApp(QMainWindow):
                 self.rl_label.setStyleSheet("color:green")
                 self.tpmsRLflag = self.removeMessage(self.tpmsRLflag,
                                                      messages[2])
-            self.rl_label.setText(sensor[1]  + " bar\n" + sensor[2] + " C")
+            self.rl_label.setText(str(self.tire.RearLeftPressure)  + " bar\n" + str(self.tire.RearLeftTemp) + " C")
         elif sensor[0] == 'RR':
             if sensor[3] == '1':
                 self.rr_label.setStyleSheet("color:yellow")
@@ -302,10 +326,18 @@ class MainApp(QMainWindow):
                 self.rr_label.setStyleSheet("color:green")
                 self.tpmsRRflag = self.removeMessage(self.tpmsRRflag,
                                                      messages[3])
-            self.rr_label.setText(sensor[1] + " bar\n" + sensor[2] + " C")
+            self.rr_label.setText(str(self.tire.RearRightPressure)  + " bar\n" + str(self.tire.RearRightTemp) + " C")
 
         self.msg_title = "Messages(" + str(self.msg_list.count()) + ")"
         self.warn_index = self.TabWidget.setTabText(2, self.msg_title)
+
+        # turn on/off TPMS warn light
+        if self.tpmsFLflag or self.tpmsFRflag or self.tpmsRLflag or self.tpmsRRflag:
+            self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
+            self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
+        else:
+            self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
+            self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
 
     def sensor_handler(self, client):
         while True:

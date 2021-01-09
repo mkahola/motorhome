@@ -6,7 +6,7 @@ import time
 import random
 
 def check_tp(tp):
-    if tp < 4.8:
+    if tp < 2.8:
         return 1
     else:
         return 0
