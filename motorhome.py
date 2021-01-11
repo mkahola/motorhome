@@ -193,7 +193,8 @@ class MainApp(QMainWindow):
             self.cap.isOpened()
         except:
             self.cap.release()
-            exit('Failure')
+            return
+#            exit('Failure')
 
         width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -207,7 +208,8 @@ class MainApp(QMainWindow):
             self.timer.start(int(1000/fps))
         except ZeroDivisionError:
             self.cap.release()
-            exit('Failure')
+            return
+#            exit('Failure')
 
     def display_video_stream(self):
         scale = 70
@@ -251,7 +253,6 @@ class MainApp(QMainWindow):
 
     def updateConfig(self):
         conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
-        print(conf_file)
         config = configparser.ConfigParser()
         config.read(conf_file)
 
@@ -268,7 +269,7 @@ class MainApp(QMainWindow):
             self.msg_list.addItem(item)
             return True
 
-        return False
+        return flag
 
     def removeMessage(self, flag, msg):
         if flag:
