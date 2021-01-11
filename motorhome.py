@@ -193,8 +193,7 @@ class MainApp(QMainWindow):
             self.cap.isOpened()
         except:
             self.cap.release()
-            return
-#            exit('Failure')
+            exit('Failure')
 
         width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -208,8 +207,7 @@ class MainApp(QMainWindow):
             self.timer.start(int(1000/fps))
         except ZeroDivisionError:
             self.cap.release()
-            return
-#            exit('Failure')
+            exit('Failure')
 
     def display_video_stream(self):
         scale = 70
