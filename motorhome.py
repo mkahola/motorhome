@@ -26,7 +26,7 @@ from pathlib import Path
 
 from tires import Tires
 
-camera = 0 #virtual device
+camera = 20 #virtual device
 
 messages = ['Tire pressure low on front left tire',
             'Tire pressure low on front right tire',
@@ -162,8 +162,8 @@ class MainApp(QMainWindow):
         self.pages[3].setLayout(vbox4)
 
         # warn lights
-        self.tpms_warn_off = QPixmap(prefix + "tpms_warn_off.png").scaled(64, 64, Qt.KeepAspectRatio)
-        self.tpms_warn_on = QPixmap(prefix + "tpms_warn_on.png").scaled(64, 64, Qt.KeepAspectRatio)
+        self.tpms_warn_off = QPixmap(prefix + "tpms_warn_off.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.tpms_warn_on = QPixmap(prefix + "tpms_warn_on.png").scaled(32, 32, Qt.KeepAspectRatio)
         self.tpmsWarnLabel = QLabel()
         self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
         self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
@@ -193,8 +193,7 @@ class MainApp(QMainWindow):
             self.cap.isOpened()
         except:
             self.cap.release()
-            return
-#            exit('Failure')
+            exit('Failure')
 
         width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -208,11 +207,10 @@ class MainApp(QMainWindow):
             self.timer.start(int(1000/fps))
         except ZeroDivisionError:
             self.cap.release()
-            return
-#            exit('Failure')
+            exit('Failure')
 
     def display_video_stream(self):
-        scale = 80
+        scale = 70
 
         #Read frame from camera
         ret, frame = self.cap.read()
