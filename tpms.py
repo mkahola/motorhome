@@ -88,8 +88,17 @@ def main():
     print("FR: " + fr.mac)
     print("RL: " + rl.mac)
     print("RR: " + rr.mac)
-    clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    clientsocket.connect(('localhost', 5000))
+
+    connected = False
+    while not connected:
+        try:
+            clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            clientsocket.connect(('localhost', 5000))
+            connected = True
+        except:
+            print("Server not responding")
+            connected = False
+            time.sleep(1)
 
     dev_id = 0  # the bluetooth device is hci0
     toggle_device(dev_id, True)
