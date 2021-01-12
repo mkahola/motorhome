@@ -148,11 +148,17 @@ class MainApp(QMainWindow):
         self.low_pressure.sliderReleased.connect(self.updateConfig)
         self.ptitle_label = QLabel("TPMS warn level", self)
         self.ptitle_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-        self.ptitle_label.setFont(QFont("Sanserif", 16))
+        self.ptitle_label.setFont(QFont("Sanserif", 32))
         self.pslider_label = QLabel(" 1 bar", self)
         self.pslider_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         self.pslider_label.setMinimumWidth(60)
-        self.pslider_label.setFont(QFont("Sanserif", 16))
+        self.pslider_label.setFont(QFont("Sanserif", 32))
+        self.low_pressure.setStyleSheet('''
+            QSlider::handle:horizontal { width: 32px; }
+            QSlider::groove:horizontal { height: 8px; }
+            QSlider::handle:vertical { height: 32px; }
+            ''')
+
         vbox4 = QHBoxLayout()
         vbox4.addWidget(self.ptitle_label)
         vbox4.addSpacing(10)
@@ -172,14 +178,24 @@ class MainApp(QMainWindow):
         centralLayout.addWidget(self.TabWidget, 1)
         centralLayout.addWidget(self.tpmsWarnLabel)
 
-        self.dc_index = self.TabWidget.addTab(self.pages[0], "Dashcam")
-        self.tp_index = self.TabWidget.addTab(self.pages[1], "Tire Pressure")
-        self.warn_index = self.TabWidget.addTab(self.pages[2], "Messages(0)")
-        self.settings_index = self.TabWidget.addTab(self.pages[3], "Settings")
-
+        size = 32
+        self.dc_index = self.TabWidget.addTab(self.pages[0], "")
+        self.TabWidget.setTabIcon(self.dc_index, QIcon(prefix + 'camera.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+        self.tp_index = self.TabWidget.addTab(self.pages[1], "")
+        self.TabWidget.setTabIcon(self.tp_index, QIcon(prefix + 'tpms_warn_off.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+        self.warn_index = self.TabWidget.addTab(self.pages[2], "0")
+        self.TabWidget.setTabIcon(self.warn_index, QIcon(prefix + 'messages.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+        self.settings_index = self.TabWidget.addTab(self.pages[3], "")
+        self.TabWidget.setTabIcon(self.settings_index, QIcon(prefix + 'settings.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(size, size))
         self.TabWidget.setStyleSheet('''
-            QTabBar::tab:selected {background-color: black;}
-            QTabBar::tab:selected {font: 16pt bold}
+            QTabBar::tab { height: 32px; width: 64px; color: #000000;}
+            QTabBar::tab:selected {background-color: #373636;}
+            QTabBar::tab:selected {font: 16pt bold; color: #000000}
+            QTabBar::tab {margin: 0px;}
             ''')
 
         self.centralWidget.setLayout(centralLayout)
@@ -325,7 +341,7 @@ class MainApp(QMainWindow):
                                                      messages[3])
             self.rr_label.setText(str(self.tire.RearRightPressure)  + " bar\n" + str(self.tire.RearRightTemp) + " C")
 
-        self.msg_title = "Messages(" + str(self.msg_list.count()) + ")"
+        self.msg_title = str(self.msg_list.count())
         self.warn_index = self.TabWidget.setTabText(2, self.msg_title)
 
         # turn on/off TPMS warn light
