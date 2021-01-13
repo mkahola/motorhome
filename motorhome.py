@@ -185,7 +185,7 @@ class MainApp(QMainWindow):
         self.tp_index = self.TabWidget.addTab(self.pages[1], "")
         self.TabWidget.setTabIcon(self.tp_index, QIcon(prefix + 'tpms_warn_off.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
-        self.warn_index = self.TabWidget.addTab(self.pages[2], "0")
+        self.warn_index = self.TabWidget.addTab(self.pages[2], "")
         self.TabWidget.setTabIcon(self.warn_index, QIcon(prefix + 'messages.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
         self.settings_index = self.TabWidget.addTab(self.pages[3], "")
@@ -341,8 +341,12 @@ class MainApp(QMainWindow):
                                                      messages[3])
             self.rr_label.setText(str(self.tire.RearRightPressure)  + " bar\n" + str(self.tire.RearRightTemp) + " C")
 
-        self.msg_title = str(self.msg_list.count())
-        self.warn_index = self.TabWidget.setTabText(2, self.msg_title)
+        if self.msg_list.count() > 0:
+            self.msg_title = str(self.msg_list.count())
+            self.warn_index = self.TabWidget.setTabText(2, self.msg_title)
+        else:
+            self.msg_title = ""
+            self.warn_index = self.TabWidget.setTabText(2, self.msg_title)
 
         # turn on/off TPMS warn light
         if self.tpmsFLflag or self.tpmsFRflag or self.tpmsRLflag or self.tpmsRRflag:
