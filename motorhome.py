@@ -134,15 +134,15 @@ class MainApp(QMainWindow):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
 
         self.lat_title_label = QLabel("Latitude")
-        self.lat_title_label.setFont(QFont("Sanserif", 16))
+        self.lat_title_label.setFont(QFont("Sanserif", 12))
         self.lat_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         self.lon_title_label = QLabel("Longitude")
-        self.lon_title_label.setFont(QFont("Sanserif", 16))
+        self.lon_title_label.setFont(QFont("Sanserif", 12))
         self.lon_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         self.alt_title_label = QLabel("Altitude (m)")
-        self.alt_title_label.setFont(QFont("Sanserif", 16))
+        self.alt_title_label.setFont(QFont("Sanserif", 12))
         self.alt_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         hbox1 = QHBoxLayout()
@@ -168,14 +168,14 @@ class MainApp(QMainWindow):
         hbox2.addWidget(self.alt_label)
 
         self.speed_title_label = QLabel("km/h")
-        self.speed_title_label.setFont(QFont("Sanserif", 16))
+        self.speed_title_label.setFont(QFont("Sanserif", 12))
         self.speed_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         hbox3 = QHBoxLayout()
         hbox3.addWidget(self.speed_title_label)
 
         self.speed_label = QLabel("--")
-        self.speed_label.setFont(QFont("Sanserif", 64))
+        self.speed_label.setFont(QFont("Sanserif", 128))
         self.speed_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         hbox4 = QHBoxLayout()
@@ -291,10 +291,17 @@ class MainApp(QMainWindow):
         self.lon = self.camera.get_longitude()
         self.alt = self.camera.get_altitude()
 
-        self.lat_label.setText(str(self.lat))
-        self.lon_label.setText(str(self.lon))
-        self.alt_label.setText("{:.0f}".format(self.alt))
-        self.speed_label.setText("{:.0f}".format(self.speed))
+        if self.lat > -999:
+            self.lat_label.setText(str(self.lat))
+
+        if self.lon > -999:
+            self.lon_label.setText(str(self.lon))
+
+        if self.alt > -999:
+            self.alt_label.setText("{:.0f}".format(self.alt))
+
+        if self.speed > -999:
+            self.speed_label.setText("{:.0f}".format(self.speed))
 
     def setup_camera(self):
         print("setting up camera")
@@ -347,7 +354,7 @@ class MainApp(QMainWindow):
         self.cam_timer.start(1000)
 
     def display_video_stream(self):
-        scale = 80
+        scale = 70
 
         #Read frame from camera
         ret, frame = self.cap.read()
