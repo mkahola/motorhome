@@ -25,14 +25,46 @@ import configparser
 from pathlib import Path
 
 from tires import Tires
+from virb import Virb
 
-camera = 20 #virtual device
+virb_addr = '192.168.100.15'
 
 messages = ['Tire pressure low on front left tire',
             'Tire pressure low on front right tire',
             'Tire pressure low on rear left tire',
             'Tire pressure low on rear right tire',
             'Stairs down']
+
+class getGPS(QObject):
+    global vird_addr
+
+    gpsSpeed = pyqtSignal(int)
+    gpsLat = pyqtSignal(float)
+    gpsLon = pyqtSignal(float)
+    gpsAlt = pyqtSignal(int)
+    gpsBatt = pyqtSignal(int)
+
+    def run(self):
+        global virb_addr
+
+        self.camera = Virb((virb_addr, 80))
+
+        while True:
+            try:
+                status = self.camera.status()
+            except None:
+               continue
+
+            try:
+                self.gpsSpeed.emit(int(status['speed']*3.6))
+                self.gpsLon.emit(status['gpsLongitude'])
+                self.gpsLat.emit(status['gpsLatitude'])
+                self.gpsAlt.emit(int(status['altitude']))
+                self.gpsBatt.emit(int(status['batteryLevel'] + 0.5))
+            except:
+                pass
+
+            time.sleep(1)
 
 class MainApp(QMainWindow):
     def __init__(self):
@@ -43,7 +75,11 @@ class MainApp(QMainWindow):
         self.warning = "No messages"
         self.resolution = QDesktopWidget().availableGeometry(-1)
         self.setup_ui()
-        self.setup_camera()
+
+        self.cam_setup_timer = QTimer()
+        self.cam_setup_timer.timeout.connect(self.setup_camera)
+        self.cam_setup_timer.start(1000)
+
         self.setup_warns()
         self.getTPMSwarn()
 #        self.showFullScreen()
@@ -57,6 +93,8 @@ class MainApp(QMainWindow):
         self.tpmsFRflag = False
         self.tpmsRLflag = False
         self.tpmsRRflag = False
+        self.speed = -1
+        self.camera_connected = False
 
         #Initialize widgets
         self.centralWidget = QWidget()
@@ -64,16 +102,125 @@ class MainApp(QMainWindow):
         self.TabWidget = QTabWidget(self)
         self.TabWidget.setFont(QFont("Sanserif", 16))
 
-        self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
+        self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
 
-        self.pages[0].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+        #initialize pages
+        self.init_dashcam_ui(self.pages[0])
+        self.init_gps_ui(self.pages[1])
+        self.init_tpms_ui(self.pages[2])
+        self.init_msg_ui(self.pages[3])
+        self.init_settings_ui(self.pages[4])
+
+        # warn lights
+        prefix = str(Path.home()) + "/.motorhome/res/"
+        self.tpms_warn_off = QPixmap(prefix + "tpms_warn_off.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.tpms_warn_on = QPixmap(prefix + "tpms_warn_on.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.tpmsWarnLabel = QLabel()
+        self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
+        self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
+
+        centralLayout = QVBoxLayout()
+        centralLayout.addWidget(self.TabWidget, 1)
+        centralLayout.addWidget(self.tpmsWarnLabel)
+
+        size = 32
+        self.dc_index = self.TabWidget.addTab(self.pages[0], "")
+        self.TabWidget.setTabIcon(self.dc_index, QIcon(prefix + 'camera.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+
+        self.gps_index = self.TabWidget.addTab(self.pages[1], "")
+        self.TabWidget.setTabIcon(self.gps_index, QIcon(prefix + 'gps.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+
+        self.tp_index = self.TabWidget.addTab(self.pages[2], "")
+        self.TabWidget.setTabIcon(self.tp_index, QIcon(prefix + 'tpms_warn_off.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+
+        self.warn_index = self.TabWidget.addTab(self.pages[3], "")
+        self.TabWidget.setTabIcon(self.warn_index, QIcon(prefix + 'messages.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+
+        self.settings_index = self.TabWidget.addTab(self.pages[4], "")
+        self.TabWidget.setTabIcon(self.settings_index, QIcon(prefix + 'settings.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+        self.TabWidget.setStyleSheet('''
+            QTabBar::tab { height: 32px; width: 64px; color: #000000;}
+            QTabBar::tab:selected {background-color: #373636;}
+            QTabBar::tab:selected {font: 16pt bold; color: #000000}
+            QTabBar::tab {margin: 0px;}
+            ''')
+
+        self.centralWidget.setLayout(centralLayout)
+        self.setCentralWidget(self.centralWidget)
+
+    def init_dashcam_ui(self, page):
+        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
         self.image_label = QLabel()
         self.image_label.setAlignment(Qt.AlignCenter)
-        vbox1 = QVBoxLayout()
-        vbox1.addWidget(self.image_label)
-        self.pages[0].setLayout(vbox1)
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.image_label)
+        page.setLayout(vbox)
 
-        self.pages[1].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+    def init_gps_ui(self, page):
+        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+
+        self.lat_title_label = QLabel("Latitude")
+        self.lat_title_label.setFont(QFont("Sanserif", 12))
+        self.lat_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        self.lon_title_label = QLabel("Longitude")
+        self.lon_title_label.setFont(QFont("Sanserif", 12))
+        self.lon_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        self.alt_title_label = QLabel("Altitude (m)")
+        self.alt_title_label.setFont(QFont("Sanserif", 12))
+        self.alt_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        hbox1 = QHBoxLayout()
+        hbox1.addWidget(self.lat_title_label)
+        hbox1.addWidget(self.lon_title_label)
+        hbox1.addWidget(self.alt_title_label)
+
+        self.lat_label = QLabel("--")
+        self.lat_label.setFont(QFont("Sanserif", 32))
+        self.lat_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        self.lon_label = QLabel("--")
+        self.lon_label.setFont(QFont("Sanserif", 32))
+        self.lon_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        self.alt_label = QLabel("--")
+        self.alt_label.setFont(QFont("Sanserif", 32))
+        self.alt_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        hbox2 = QHBoxLayout()
+        hbox2.addWidget(self.lat_label)
+        hbox2.addWidget(self.lon_label)
+        hbox2.addWidget(self.alt_label)
+
+        self.speed_title_label = QLabel("km/h")
+        self.speed_title_label.setFont(QFont("Sanserif", 12))
+        self.speed_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        hbox3 = QHBoxLayout()
+        hbox3.addWidget(self.speed_title_label)
+
+        self.speed_label = QLabel("--")
+        self.speed_label.setFont(QFont("Sanserif", 128))
+        self.speed_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        hbox4 = QHBoxLayout()
+        hbox4.addWidget(self.speed_label)
+
+        vbox = QVBoxLayout()
+        vbox.addLayout(hbox1)
+        vbox.addLayout(hbox2)
+        vbox.addLayout(hbox3)
+        vbox.addLayout(hbox4)
+        page.setLayout(vbox)
+
+    def init_tpms_ui(self, page):
+        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
         pressure = "-- bar"
         temperature = "-- C"
         self.fl_label = QLabel(pressure + "\n" + temperature)
@@ -94,7 +241,6 @@ class MainApp(QMainWindow):
         self.rl_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         self.rr_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
-
         prefix = str(Path.home()) + "/.motorhome/res/"
         pixmap = QPixmap(prefix + "tire.png").scaled(128, 128, Qt.KeepAspectRatio)
 
@@ -114,32 +260,34 @@ class MainApp(QMainWindow):
         tire4_label.setPixmap(pixmap)
         tire4_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-        vbox2 = QGridLayout()
-        vbox2.addWidget(self.fl_label, 0, 0)
-        vbox2.addWidget(tire1_label, 0, 1)
-        vbox2.addWidget(tire2_label, 0, 2)
-        vbox2.addWidget(self.fr_label, 0, 3)
-        vbox2.addWidget(self.rl_label, 1, 0)
-        vbox2.addWidget(tire3_label, 1, 1)
-        vbox2.addWidget(tire4_label, 1, 2)
-        vbox2.addWidget(self.rr_label, 1, 3)
-        self.pages[1].setLayout(vbox2)
+        vbox = QGridLayout()
+        vbox.addWidget(self.fl_label, 0, 0)
+        vbox.addWidget(tire1_label, 0, 1)
+        vbox.addWidget(tire2_label, 0, 2)
+        vbox.addWidget(self.fr_label, 0, 3)
+        vbox.addWidget(self.rl_label, 1, 0)
+        vbox.addWidget(tire3_label, 1, 1)
+        vbox.addWidget(tire4_label, 1, 2)
+        vbox.addWidget(self.rr_label, 1, 3)
+        page.setLayout(vbox)
 
+    def init_msg_ui(self, page):
         # messages
-        self.pages[2].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
         self.msg_list = QListWidget()
         self.msg_list.setFont(QFont("Sanserif", 16))
         self.msg_model = QStandardItemModel(self.msg_list)
-        vbox3 = QVBoxLayout()
-        vbox3.addWidget(self.msg_list)
-        self.pages[2].setLayout(vbox3)
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.msg_list)
+        page.setLayout(vbox)
 
         font = self.fl_label.font()
         font.setPointSize(16)
         font.setBold(True)
 
+    def init_settings_ui(self, page):
         # Tire pressure warnig level
-        self.pages[3].setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
         self.low_pressure = QSlider(Qt.Horizontal, self)
         self.low_pressure.setFocusPolicy(Qt.NoFocus)
         self.low_pressure.setRange(10, 50)
@@ -159,57 +307,60 @@ class MainApp(QMainWindow):
             QSlider::handle:vertical { height: 32px; }
             ''')
 
-        vbox4 = QHBoxLayout()
-        vbox4.addWidget(self.ptitle_label)
-        vbox4.addSpacing(10)
-        vbox4.addWidget(self.low_pressure)
-        vbox4.addSpacing(10)
-        vbox4.addWidget(self.pslider_label)
-        self.pages[3].setLayout(vbox4)
+        vbox = QHBoxLayout()
+        vbox.addWidget(self.ptitle_label)
+        vbox.addSpacing(10)
+        vbox.addWidget(self.low_pressure)
+        vbox.addSpacing(10)
+        vbox.addWidget(self.pslider_label)
+        page.setLayout(vbox)
 
-        # warn lights
-        self.tpms_warn_off = QPixmap(prefix + "tpms_warn_off.png").scaled(32, 32, Qt.KeepAspectRatio)
-        self.tpms_warn_on = QPixmap(prefix + "tpms_warn_on.png").scaled(32, 32, Qt.KeepAspectRatio)
-        self.tpmsWarnLabel = QLabel()
-        self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
-        self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
+    def updateSpeed(self, speed):
+            self.speed_label.setText(str(speed))
+            self.speed = speed
 
-        centralLayout = QVBoxLayout()
-        centralLayout.addWidget(self.TabWidget, 1)
-        centralLayout.addWidget(self.tpmsWarnLabel)
+    def updateLat(self, lat):
+        self.lat_label.setText(str(lat))
 
-        size = 32
-        self.dc_index = self.TabWidget.addTab(self.pages[0], "")
-        self.TabWidget.setTabIcon(self.dc_index, QIcon(prefix + 'camera.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(size, size))
-        self.tp_index = self.TabWidget.addTab(self.pages[1], "")
-        self.TabWidget.setTabIcon(self.tp_index, QIcon(prefix + 'tpms_warn_off.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(size, size))
-        self.warn_index = self.TabWidget.addTab(self.pages[2], "")
-        self.TabWidget.setTabIcon(self.warn_index, QIcon(prefix + 'messages.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(size, size))
-        self.settings_index = self.TabWidget.addTab(self.pages[3], "")
-        self.TabWidget.setTabIcon(self.settings_index, QIcon(prefix + 'settings.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(size, size))
-        self.TabWidget.setStyleSheet('''
-            QTabBar::tab { height: 32px; width: 64px; color: #000000;}
-            QTabBar::tab:selected {background-color: #373636;}
-            QTabBar::tab:selected {font: 16pt bold; color: #000000}
-            QTabBar::tab {margin: 0px;}
-            ''')
+    def updateLon(self, lon):
+        self.lon_label.setText(str(lon))
 
-        self.centralWidget.setLayout(centralLayout)
-        self.setCentralWidget(self.centralWidget)
+    def updateAlt(self, alt):
+        self.alt_label.setText(str(alt))
+
+    def updateBatt(self, batt):
+       self.battery = batt
 
     def setup_camera(self):
+        print("setting up camera")
+        host = ('192.168.100.15', 80)
+
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
+        self.camera = Virb(host)
+
+        # set autorecording when moving
+        self.camera.set_features('autoRecord', 'whenMoving')
+
+#        url = "rtsp://192.168.0.1/livePreviewStream"
+        url = "rtsp://" + host[0] + "/livePreviewStream"
+
+        try:
+            self.cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+        except:
+            print("video stream unavailable")
+            return
+
         #Initialize camera playback
-        self.cap = cv2.VideoCapture(camera)
+        #self.cap = cv2.VideoCapture(camera)
 
         try:
             self.cap.isOpened()
+            self.cam_setup_timer.stop()
+            self.camera_connected = True
         except:
             self.cap.release()
-            exit('Failure')
+            print("camera not available")
+            return
 
         width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -223,7 +374,19 @@ class MainApp(QMainWindow):
             self.timer.start(int(1000/fps))
         except ZeroDivisionError:
             self.cap.release()
-            exit('Failure')
+            self.camera_connected = False
+            self.cam_setup_timer.start(1000)
+
+        self.thread =  QThread()
+        self.worker = getGPS()
+        self.worker.moveToThread(self.thread)
+        self.worker.gpsSpeed.connect(self.updateSpeed)
+        self.worker.gpsLat.connect(self.updateLat)
+        self.worker.gpsLon.connect(self.updateLon)
+        self.worker.gpsAlt.connect(self.updateAlt)
+        self.worker.gpsBatt.connect(self.updateBatt)
+        self.thread.started.connect(self.worker.run)
+        self.thread.start()
 
     def display_video_stream(self):
         scale = 70
@@ -234,10 +397,25 @@ class MainApp(QMainWindow):
         if ret:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             font = cv2.FONT_HERSHEY_DUPLEX
-            datestr = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-            cv2.putText(frame, datestr, (5, frame.shape[0]-10), font, 1, (255, 255, 0), 2, cv2
-.LINE_AA)
 
+            # date and time
+            datestr = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
+            cv2.putText(frame, datestr, (5, frame.shape[0]-10), font, 0.5, (255, 255, 0), 1, cv2.LINE_AA)
+
+            # VIRB battery level
+            try:
+                cv2.putText(frame, "Batt: " + "{:.0f}".format(self.battery + 0.5) + " %", (frame.shape[1]-300, frame.shape[0]-10), font, 0.5, (255, 255, 0), 1, cv2.LINE_AA)
+            except:
+                cv2.putText(frame, "Batt: -- %", (frame.shape[1]-300, frame.shape[0]-10), font, 0.5, (255, 255, 0), 1, cv2.LINE_AA)
+
+            # speed in km/h
+            if self.speed >= 0:
+                speed = "{:3.0f}".format(self.speed)
+            else:
+                speed = "--"
+
+            cv2.putText(frame, speed,  (frame.shape[1]-220, frame.shape[0]-10), font, 2, (255, 255, 0), 2, cv2.LINE_AA)
+            cv2.putText(frame, "km/h", (frame.shape[1]-100, frame.shape[0]-10), font, 0.7, (255, 255, 0), 2, cv2.LINE_AA)
             image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
             pixmap = QPixmap.fromImage(image).scaled(int(self.resolution.width()*scale/100),
                                                      int(self.resolution.height()*scale/100),
@@ -386,7 +564,13 @@ class MainApp(QMainWindow):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-            self.cap.release()
+
+            try:
+                self.cam_setup_timer.stop()
+            except:
+                self.cap.release()
+                print("cam setup timer not running")
+                pass
 
             try:
                 self.timer.stop()
