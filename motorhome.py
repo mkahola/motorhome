@@ -27,13 +27,44 @@ from pathlib import Path
 from tires import Tires
 from virb import Virb
 
-camera = 20 #virtual device
+virb_addr = '192.168.100.15'
 
 messages = ['Tire pressure low on front left tire',
             'Tire pressure low on front right tire',
             'Tire pressure low on rear left tire',
             'Tire pressure low on rear right tire',
             'Stairs down']
+
+class getGPS(QObject):
+    global vird_addr
+
+    gpsSpeed = pyqtSignal(int)
+    gpsLat = pyqtSignal(float)
+    gpsLon = pyqtSignal(float)
+    gpsAlt = pyqtSignal(int)
+    gpsBatt = pyqtSignal(int)
+
+    def run(self):
+        global virb_addr
+
+        self.camera = Virb((virb_addr, 80))
+
+        while True:
+            try:
+                status = self.camera.status()
+            except None:
+               continue
+
+            try:
+                self.gpsSpeed.emit(int(status['speed']*3.6))
+                self.gpsLon.emit(status['gpsLongitude'])
+                self.gpsLat.emit(status['gpsLatitude'])
+                self.gpsAlt.emit(int(status['altitude']))
+                self.gpsBatt.emit(int(status['batteryLevel'] + 0.5))
+            except:
+                pass
+
+            time.sleep(1)
 
 class MainApp(QMainWindow):
     def __init__(self):
@@ -284,24 +315,21 @@ class MainApp(QMainWindow):
         vbox.addWidget(self.pslider_label)
         page.setLayout(vbox)
 
-    def get_camera_data(self):
-        self.speed = self.camera.get_speed()
-        self.battery = self.camera.get_batt_status()
-        self.lat = self.camera.get_latitude()
-        self.lon = self.camera.get_longitude()
-        self.alt = self.camera.get_altitude()
+    def updateSpeed(self, speed):
+            self.speed_label.setText(str(speed))
+            self.speed = speed
 
-        if self.lat > -999:
-            self.lat_label.setText(str(self.lat))
+    def updateLat(self, lat):
+        self.lat_label.setText(str(lat))
 
-        if self.lon > -999:
-            self.lon_label.setText(str(self.lon))
+    def updateLon(self, lon):
+        self.lon_label.setText(str(lon))
 
-        if self.alt > -999:
-            self.alt_label.setText("{:.0f}".format(self.alt))
+    def updateAlt(self, alt):
+        self.alt_label.setText(str(alt))
 
-        if self.speed > -999:
-            self.speed_label.setText("{:.0f}".format(self.speed))
+    def updateBatt(self, batt):
+       self.battery = batt
 
     def setup_camera(self):
         print("setting up camera")
@@ -349,9 +377,16 @@ class MainApp(QMainWindow):
             self.camera_connected = False
             self.cam_setup_timer.start(1000)
 
-        self.cam_timer = QTimer()
-        self.cam_timer.timeout.connect(self.get_camera_data)
-        self.cam_timer.start(1000)
+        self.thread =  QThread()
+        self.worker = getGPS()
+        self.worker.moveToThread(self.thread)
+        self.worker.gpsSpeed.connect(self.updateSpeed)
+        self.worker.gpsLat.connect(self.updateLat)
+        self.worker.gpsLon.connect(self.updateLon)
+        self.worker.gpsAlt.connect(self.updateAlt)
+        self.worker.gpsBatt.connect(self.updateBatt)
+        self.thread.started.connect(self.worker.run)
+        self.thread.start()
 
     def display_video_stream(self):
         scale = 70
