@@ -22,6 +22,7 @@ import time
 import queue
 import os.path
 import configparser
+import vlc
 from pathlib import Path
 
 from tires import Tires
@@ -40,14 +41,17 @@ class MainApp(QMainWindow):
         super().__init__()
         self.setStyleSheet("background-color: black;")
         self.setWindowTitle("Motorhome Info")
+
+        # creating a basic vlc instance
+        self.instance = vlc.Instance()
+        # creating an empty vlc media player
+        self.mediaplayer = self.instance.media_player_new()
+
         self.warns = self.Warnings()
         self.warning = "No messages"
         self.resolution = QDesktopWidget().availableGeometry(-1)
         self.setup_ui()
-
-        self.cam_setup_timer = QTimer()
-        self.cam_setup_timer.timeout.connect(self.setup_camera)
-        self.cam_setup_timer.start(1000)
+        self.setup_camera()
 
         self.setup_warns()
         self.getTPMSwarn()
@@ -124,25 +128,27 @@ class MainApp(QMainWindow):
 
     def init_dashcam_ui(self, page):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
-        self.image_label = QLabel()
-        self.image_label.setAlignment(Qt.AlignCenter)
+        self.videoframe = QFrame()
+
+#        self.image_label = QLabel()
+#        self.image_label.setAlignment(Qt.AlignCenter)
         vbox = QVBoxLayout()
-        vbox.addWidget(self.image_label)
+        vbox.addWidget(self.videoframe)
         page.setLayout(vbox)
 
     def init_gps_ui(self, page):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
 
         self.lat_title_label = QLabel("Latitude")
-        self.lat_title_label.setFont(QFont("Sanserif", 16))
+        self.lat_title_label.setFont(QFont("Sanserif", 12))
         self.lat_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         self.lon_title_label = QLabel("Longitude")
-        self.lon_title_label.setFont(QFont("Sanserif", 16))
+        self.lon_title_label.setFont(QFont("Sanserif", 12))
         self.lon_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         self.alt_title_label = QLabel("Altitude (m)")
-        self.alt_title_label.setFont(QFont("Sanserif", 16))
+        self.alt_title_label.setFont(QFont("Sanserif", 12))
         self.alt_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         hbox1 = QHBoxLayout()
@@ -168,14 +174,14 @@ class MainApp(QMainWindow):
         hbox2.addWidget(self.alt_label)
 
         self.speed_title_label = QLabel("km/h")
-        self.speed_title_label.setFont(QFont("Sanserif", 16))
+        self.speed_title_label.setFont(QFont("Sanserif", 12))
         self.speed_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         hbox3 = QHBoxLayout()
         hbox3.addWidget(self.speed_title_label)
 
         self.speed_label = QLabel("--")
-        self.speed_label.setFont(QFont("Sanserif", 64))
+        self.speed_label.setFont(QFont("Sanserif", 128))
         self.speed_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         hbox4 = QHBoxLayout()
@@ -291,10 +297,17 @@ class MainApp(QMainWindow):
         self.lon = self.camera.get_longitude()
         self.alt = self.camera.get_altitude()
 
-        self.lat_label.setText(str(self.lat))
-        self.lon_label.setText(str(self.lon))
-        self.alt_label.setText("{:.0f}".format(self.alt))
-        self.speed_label.setText("{:.0f}".format(self.speed))
+        if self.lat > -999:
+            self.lat_label.setText(str(self.lat))
+
+        if self.lon > -999:
+            self.lon_label.setText(str(self.lon))
+
+        if self.alt > -999:
+            self.alt_label.setText("{:.0f}".format(self.alt))
+
+        if self.speed > -999:
+            self.speed_label.setText("{:.0f}".format(self.speed))
 
     def setup_camera(self):
         print("setting up camera")
@@ -306,79 +319,15 @@ class MainApp(QMainWindow):
         # set autorecording when moving
         self.camera.set_features('autoRecord', 'whenMoving')
 
-#        url = "rtsp://192.168.0.1/livePreviewStream"
         url = "rtsp://" + host[0] + "/livePreviewStream"
+        self.media = self.instance.media_new(url)
+        self.mediaplayer.set_media(self.media)
+        self.mediaplayer.set_xwindow(self.videoframe.winId())
+        self.mediaplayer.play()
 
-        try:
-            self.cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
-        except:
-            print("video stream unavailable")
-            return
-
-        #Initialize camera playback
-        #self.cap = cv2.VideoCapture(camera)
-
-        try:
-            self.cap.isOpened()
-            self.cam_setup_timer.stop()
-            self.camera_connected = True
-        except:
-            self.cap.release()
-            print("camera not available")
-            return
-
-        width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = float(self.cap.get(cv2.CAP_PROP_FPS))
-        print("video: " + str(width) + "x" + str(height) + "@" + str(fps))
-
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.display_video_stream)
-
-        try:
-            self.timer.start(int(1000/fps))
-        except ZeroDivisionError:
-            self.cap.release()
-            self.camera_connected = False
-            self.cam_setup_timer.start(1000)
-
-        self.cam_timer = QTimer()
-        self.cam_timer.timeout.connect(self.get_camera_data)
-        self.cam_timer.start(1000)
-
-    def display_video_stream(self):
-        scale = 80
-
-        #Read frame from camera
-        ret, frame = self.cap.read()
-
-        if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            font = cv2.FONT_HERSHEY_DUPLEX
-
-            # date and time
-            datestr = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-            cv2.putText(frame, datestr, (5, frame.shape[0]-10), font, 0.5, (255, 255, 0), 1, cv2.LINE_AA)
-
-            # VIRB battery level
-            try:
-                cv2.putText(frame, "Batt: " + "{:.0f}".format(self.battery + 0.5) + " %", (frame.shape[1]-300, frame.shape[0]-10), font, 0.5, (255, 255, 0), 1, cv2.LINE_AA)
-            except:
-                cv2.putText(frame, "Batt: -- %", (frame.shape[1]-300, frame.shape[0]-10), font, 0.5, (255, 255, 0), 1, cv2.LINE_AA)
-
-            # speed in km/h
-            if self.speed >= 0:
-                speed = "{:3.0f}".format(self.speed)
-            else:
-                speed = "--"
-
-            cv2.putText(frame, speed,  (frame.shape[1]-220, frame.shape[0]-10), font, 2, (255, 255, 0), 2, cv2.LINE_AA)
-            cv2.putText(frame, "km/h", (frame.shape[1]-100, frame.shape[0]-10), font, 0.7, (255, 255, 0), 2, cv2.LINE_AA)
-            image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
-            pixmap = QPixmap.fromImage(image).scaled(int(self.resolution.width()*scale/100),
-                                                     int(self.resolution.height()*scale/100),
-                                                     Qt.KeepAspectRatio)
-            self.image_label.setPixmap(pixmap)
+        self.virb_timer = QTimer()
+        self.virb_timer.timeout.connect(self.get_camera_data)
+        self.virb_timer.start(1000)
 
     def changePressureLevel(self, value):
         self.tire.setWarnPressure(value/10.0)
@@ -522,19 +471,8 @@ class MainApp(QMainWindow):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-
-            try:
-                self.cam_setup_timer.stop()
-            except:
-                self.cap.release()
-                print("cam setup timer not running")
-                pass
-
-            try:
-                self.timer.stop()
-            except:
-                print("display timer not running")
-                pass
+            self.mediaplayer.stop()
+            self.virb_timer.stop()
 
             #ugly but efficient
             system = psutil.Process(os.getpid())

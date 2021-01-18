@@ -53,19 +53,31 @@ class Virb():
         try:
             return status['speed']*3.6
         except:
-            return -1
+            return -999
 
     def get_latitude(self):
         status = self.status()
-        return status['gpsLatitude']
+
+        try:
+            return status['gpsLatitude']
+        except:
+            return -999
 
     def get_longitude(self):
         status = self.status()
-        return status['gpsLongitude']
+
+        try:
+            return status['gpsLongitude']
+        except:
+            return -999
 
     def get_altitude(self):
         status = self.status()
-        return status['altitude']
+
+        try:
+            return status['altitude']
+        except:
+            return -999
 
     def get_batt_status(self):
         status = self.status()
