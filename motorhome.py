@@ -69,10 +69,6 @@ class MainApp(QMainWindow):
         self.resolution = QDesktopWidget().availableGeometry(-1)
         self.setup_ui()
 
-        self.cam_setup_timer = QTimer()
-        self.cam_setup_timer.timeout.connect(self.setup_camera)
-        self.cam_setup_timer.start(1000)
-
         self.setup_warns()
         self.getTPMSwarn()
 #        self.showFullScreen()
@@ -80,14 +76,18 @@ class MainApp(QMainWindow):
 
     def setup_ui(self):
         global messages
+        global virb_addr
 
+        # TPMS
         self.tire = Tires()
         self.tpmsFLflag = False
         self.tpmsFRflag = False
         self.tpmsRLflag = False
         self.tpmsRRflag = False
+
+        # Garmin Virb
+        self.virb = Virb((virb_addr, 80))
         self.speed = -1
-        self.camera_connected = False
 
         #Initialize widgets
         self.centralWidget = QWidget()
@@ -98,8 +98,8 @@ class MainApp(QMainWindow):
         self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
 
         #initialize pages
-        self.init_dashcam_ui(self.pages[0])
-        self.init_gps_ui(self.pages[1])
+        self.init_gps_ui(self.pages[0])
+        self.init_dashcam_ui(self.pages[1])
         self.init_tpms_ui(self.pages[2])
         self.init_msg_ui(self.pages[3])
         self.init_settings_ui(self.pages[4])
@@ -117,12 +117,12 @@ class MainApp(QMainWindow):
         centralLayout.addWidget(self.tpmsWarnLabel)
 
         size = 32
-        self.dc_index = self.TabWidget.addTab(self.pages[0], "")
-        self.TabWidget.setTabIcon(self.dc_index, QIcon(prefix + 'camera.png'))
+        self.gps_index = self.TabWidget.addTab(self.pages[0], "")
+        self.TabWidget.setTabIcon(self.gps_index, QIcon(prefix + 'gps.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.gps_index = self.TabWidget.addTab(self.pages[1], "")
-        self.TabWidget.setTabIcon(self.gps_index, QIcon(prefix + 'gps.png'))
+        self.dc_index = self.TabWidget.addTab(self.pages[1], "")
+        self.TabWidget.setTabIcon(self.dc_index, QIcon(prefix + 'camera.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
         self.tp_index = self.TabWidget.addTab(self.pages[2], "")
@@ -148,10 +148,17 @@ class MainApp(QMainWindow):
 
     def init_dashcam_ui(self, page):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
-        self.image_label = QLabel()
-        self.image_label.setAlignment(Qt.AlignCenter)
+        self.recButton = QPushButton("Rec", self)
+        self.recButton.setFixedSize(200,200)
+        self.recButton.setCheckable(True)
+        self.recButton.clicked.connect(self.startStopRecording)
+        self.recButton.setStyleSheet("color: black;"
+                                     "background-color: lightgrey;"
+                                     "font: bold 28px;")
+
         vbox = QVBoxLayout()
-        vbox.addWidget(self.image_label)
+        vbox.setAlignment(Qt.AlignCenter)
+        vbox.addWidget(self.recButton)
         page.setLayout(vbox)
 
     def init_gps_ui(self, page):
@@ -211,6 +218,18 @@ class MainApp(QMainWindow):
         vbox.addLayout(hbox3)
         vbox.addLayout(hbox4)
         page.setLayout(vbox)
+
+        # start server
+        self.thread =  QThread()
+        self.worker = getGPS()
+        self.worker.moveToThread(self.thread)
+        self.worker.gpsSpeed.connect(self.updateSpeed)
+        self.worker.gpsLat.connect(self.updateLat)
+        self.worker.gpsLon.connect(self.updateLon)
+        self.worker.gpsAlt.connect(self.updateAlt)
+        self.worker.gpsBatt.connect(self.updateBatt)
+        self.thread.started.connect(self.worker.run)
+        self.thread.start()
 
     def init_tpms_ui(self, page):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
@@ -313,10 +332,10 @@ class MainApp(QMainWindow):
             self.speed = speed
 
     def updateLat(self, lat):
-        self.lat_label.setText(str(lat))
+        self.lat_label.setText("{:.4f}".format(lat))
 
     def updateLon(self, lon):
-        self.lon_label.setText(str(lon))
+        self.lon_label.setText("{:.4f}".format(lon))
 
     def updateAlt(self, alt):
         self.alt_label.setText(str(alt))
@@ -324,91 +343,21 @@ class MainApp(QMainWindow):
     def updateBatt(self, batt):
        self.battery = batt
 
-    def setup_camera(self):
-        print("setting up camera")
-
-        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
-        self.camera = Virb((virb_addr, 80))
-
-        # set autorecording when moving
-        self.camera.set_features('autoRecord', 'whenMoving')
-
-        url = "rtsp://" + virb_addr + "/livePreviewStream"
-
-        try:
-            self.cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
-        except:
-            print("video stream unavailable")
-            return
-
-        try:
-            self.cap.isOpened()
-            self.cam_setup_timer.stop()
-            self.camera_connected = True
-        except:
-            self.cap.release()
-            print("camera not available")
-            return
-
-        width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = float(self.cap.get(cv2.CAP_PROP_FPS))
-        print("video: " + str(width) + "x" + str(height) + "@" + str(fps))
-
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.display_video_stream)
-
-        try:
-            self.timer.start(int(1000/fps))
-        except ZeroDivisionError:
-            self.cap.release()
-            self.camera_connected = False
-            self.cam_setup_timer.start(1000)
-
-        self.thread =  QThread()
-        self.worker = getGPS()
-        self.worker.moveToThread(self.thread)
-        self.worker.gpsSpeed.connect(self.updateSpeed)
-        self.worker.gpsLat.connect(self.updateLat)
-        self.worker.gpsLon.connect(self.updateLon)
-        self.worker.gpsAlt.connect(self.updateAlt)
-        self.worker.gpsBatt.connect(self.updateBatt)
-        self.thread.started.connect(self.worker.run)
-        self.thread.start()
-
-    def display_video_stream(self):
-        scale = 65
-
-        #Read frame from camera
-        ret, frame = self.cap.read()
-
-        if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            font = cv2.FONT_HERSHEY_DUPLEX
-
-            # date and time
-            datestr = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-            cv2.putText(frame, datestr, (5, frame.shape[0]-10), font, 0.5, (255, 255, 0), 1, cv2.LINE_AA)
-
-            # VIRB battery level
-            try:
-                cv2.putText(frame, "Batt: " + "{:.0f}".format(self.battery + 0.5) + " %", (frame.shape[1]-300, frame.shape[0]-10), font, 0.5, (255, 255, 0), 1, cv2.LINE_AA)
-            except:
-                cv2.putText(frame, "Batt: -- %", (frame.shape[1]-300, frame.shape[0]-10), font, 0.5, (255, 255, 0), 1, cv2.LINE_AA)
-
-            # speed in km/h
-            if self.speed >= 0:
-                speed = "{:3.0f}".format(self.speed)
-            else:
-                speed = "--"
-
-            cv2.putText(frame, speed,  (frame.shape[1]-220, frame.shape[0]-10), font, 2, (255, 255, 0), 2, cv2.LINE_AA)
-            cv2.putText(frame, "km/h", (frame.shape[1]-100, frame.shape[0]-10), font, 0.7, (255, 255, 0), 2, cv2.LINE_AA)
-            image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
-            pixmap = QPixmap.fromImage(image).scaled(int(self.resolution.width()*scale/100),
-                                                     int(self.resolution.height()*scale/100),
-                                                     Qt.KeepAspectRatio)
-            self.image_label.setPixmap(pixmap)
+    def startStopRecording(self):
+        if self.recButton.isChecked():
+            print("start recording")
+            self.recButton.setStyleSheet("color: white;"
+                                         "background-color: red;"
+                                         "font: bold 28px;")
+            self.virb.set_features('autoRecord', 'off')
+            self.virb.start_recording()
+        else:
+            print("stop recording")
+            self.recButton.setStyleSheet("color: black;"
+                                         "background-color: lightgrey;"
+                                         "font: bold 28px;")
+            self.virb.stop_recording()
+            self.virb.set_features('autoRecord', 'whenMoving')
 
     def changePressureLevel(self, value):
         self.tire.setWarnPressure(value/10.0)
@@ -515,12 +464,18 @@ class MainApp(QMainWindow):
             self.warn_index = self.TabWidget.setTabText(3, self.msg_title)
 
         # turn on/off TPMS warn light
+        prefix = str(Path.home()) + "/.motorhome/res/"
+        size = 32
         if self.tpmsFLflag or self.tpmsFRflag or self.tpmsRLflag or self.tpmsRRflag:
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
             self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
+            self.TabWidget.setTabIcon(self.tp_index, QIcon(prefix + 'tpms_warn_on.png'))
+            self.TabWidget.setIconSize(QtCore.QSize(size, size))
         else:
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
             self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
+            self.TabWidget.setTabIcon(self.tp_index, QIcon(prefix + 'tpms_warn_off.png'))
+            self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
     def sensor_handler(self, client):
         while True:
@@ -552,20 +507,6 @@ class MainApp(QMainWindow):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-
-            try:
-                self.cam_setup_timer.stop()
-            except:
-                print("cam setup timer not running")
-                pass
-
-            try:
-                self.timer.stop()
-                self.cap.release()
-            except:
-                print("display timer not running")
-                pass
-
             #ugly but efficient
             system = psutil.Process(os.getpid())
             system.terminate()
