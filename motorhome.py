@@ -5,10 +5,6 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5 import QtWidgets, QtCore, QtGui
 
-#from PyQt5.QtWebKitWidgets import QWebView, QWebPage
-#from PyQt5.QtWebKit import QWebSettings
-#from PyQt5.QtNetwork import *
-
 from datetime import datetime
 import threading
 from threading import Thread
@@ -52,16 +48,13 @@ class getGPS(QObject):
         while True:
             try:
                 status = self.camera.status()
-            except None:
-               continue
-
-            try:
                 self.gpsSpeed.emit(int(status['speed']*3.6))
                 self.gpsLon.emit(status['gpsLongitude'])
                 self.gpsLat.emit(status['gpsLatitude'])
                 self.gpsAlt.emit(int(status['altitude']))
                 self.gpsBatt.emit(int(status['batteryLevel'] + 0.5))
             except:
+                print("unable to read status")
                 pass
 
             time.sleep(1)
@@ -333,25 +326,20 @@ class MainApp(QMainWindow):
 
     def setup_camera(self):
         print("setting up camera")
-        host = ('192.168.100.15', 80)
 
         os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
-        self.camera = Virb(host)
+        self.camera = Virb((virb_addr, 80))
 
         # set autorecording when moving
         self.camera.set_features('autoRecord', 'whenMoving')
 
-#        url = "rtsp://192.168.0.1/livePreviewStream"
-        url = "rtsp://" + host[0] + "/livePreviewStream"
+        url = "rtsp://" + virb_addr + "/livePreviewStream"
 
         try:
             self.cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
         except:
             print("video stream unavailable")
             return
-
-        #Initialize camera playback
-        #self.cap = cv2.VideoCapture(camera)
 
         try:
             self.cap.isOpened()
@@ -389,7 +377,7 @@ class MainApp(QMainWindow):
         self.thread.start()
 
     def display_video_stream(self):
-        scale = 70
+        scale = 65
 
         #Read frame from camera
         ret, frame = self.cap.read()
@@ -521,10 +509,10 @@ class MainApp(QMainWindow):
 
         if self.msg_list.count() > 0:
             self.msg_title = str(self.msg_list.count())
-            self.warn_index = self.TabWidget.setTabText(2, self.msg_title)
+            self.warn_index = self.TabWidget.setTabText(3, self.msg_title)
         else:
             self.msg_title = ""
-            self.warn_index = self.TabWidget.setTabText(2, self.msg_title)
+            self.warn_index = self.TabWidget.setTabText(3, self.msg_title)
 
         # turn on/off TPMS warn light
         if self.tpmsFLflag or self.tpmsFRflag or self.tpmsRLflag or self.tpmsRRflag:
@@ -568,12 +556,12 @@ class MainApp(QMainWindow):
             try:
                 self.cam_setup_timer.stop()
             except:
-                self.cap.release()
                 print("cam setup timer not running")
                 pass
 
             try:
                 self.timer.stop()
+                self.cap.release()
             except:
                 print("display timer not running")
                 pass

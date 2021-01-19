@@ -75,8 +75,13 @@ def send_pressure_temp(tire, now, mac, adv_type, data_str, rssi, clientsocket):
         temp = get_temperature(data_str)
         val = tire.name + "," + "{:.1f}".format(pressure) + "," + "{:.0f}".format(temp) + "," + str(tire.check_pressure(pressure))
         print(val)
-        clientsocket.send(val.encode())
-        tire.set_timestamp(now)
+
+        try:
+            clientsocket.send(val.encode())
+            tire.set_timestamp(now)
+        except:
+            print("unable to send data to server")
+            pass
 
 def main():
     fl = Tire('FL')

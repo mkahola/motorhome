@@ -90,5 +90,8 @@ class Virb():
         try:
             return request.json()
         except simplejson.scanner.JSONDecodeError:
+            print("json error")
             return request.text
+        except:
+            return None
 
