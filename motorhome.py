@@ -154,7 +154,7 @@ class MainApp(QMainWindow):
         self.recButton.clicked.connect(self.startStopRecording)
         self.recButton.setStyleSheet("color: black;"
                                      "background-color: lightgrey;"
-                                     "font: bold 28px;")
+                                     "font: bold 32px;")
 
         vbox = QVBoxLayout()
         vbox.setAlignment(Qt.AlignCenter)
@@ -490,7 +490,14 @@ class MainApp(QMainWindow):
         # create a local socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             # bind the socket to the port
-            sock.bind(('localhost', 5000))
+            bind_ok = False
+            while not bind_ok:
+                try:
+                    sock.bind(('localhost', 5000))
+                    bind_ok = True
+                except:
+                    print("waiting socket to bind")
+                    time.sleep(1)
             # listen for incoming connections
             sock.listen(5)
             print("Server started...")

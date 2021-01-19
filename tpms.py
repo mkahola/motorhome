@@ -69,17 +69,9 @@ def get_temperature(data):
     return (t1 + t2)/100
 
 #def send_pressure_temp(tire, now, mac, adv_type, data_str, rssi, clientsocket):
-def send_pressure_temp(tire, now, mac, adv_type, data_str, rssi):
-    addr = ("127.0.0.1", 5000)
-    clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+def send_pressure_temp(tire, now, mac, adv_type, data_str, rssi, clientsocket):
 
     if (now - tire.ts) > 5:
-        ret = clientsocket.connect_ex(addr)
-
-        if ret != 0:
-           print("port closed")
-           return
-
 #        print("BLE packet: %s %02x %s %d" % (mac, adv_type, data_str, rssi))
         pressure = get_pressure(data_str)
         temp = get_temperature(data_str)
@@ -91,24 +83,9 @@ def send_pressure_temp(tire, now, mac, adv_type, data_str, rssi):
             tire.set_timestamp(now)
         except:
             print("unable to send data to server")
-            return
+            return -1
 
-        clientsocket.close()
-
-def init_socket():
-    connected = False
-    clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    while not connected:
-        try:
-            clientsocket.connect(('localhost', 5000))
-            connected = True
-            print("server connected")
-        except:
-            print("Server not responding")
-            connected = False
-            time.sleep(10)
-
-    return clientsocket
+    return 0
 
 def main():
     fl = Tire('FL')
@@ -132,19 +109,37 @@ def main():
 
     enable_le_scan(sock, filter_duplicates=False)
 
+    connected = False
+    addr = ("127.0.0.1", 5000)
+
+    clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    while not connected:
+        try:
+            clientsocket.connect(('localhost', 5000))
+            connected = True
+            print("server connected")
+        except:
+            print("Server not responding")
+            connected = False
+            time.sleep(10)
+
     try:
         def le_advertise_packet_handler(mac, adv_type, data, rssi):
             data_str = raw_packet_to_str(data)
             data_wo_rssi = (mac, data_str)
 
+            ret = 0
             if mac == fl.mac:
-                send_pressure_temp(fl, time.time(), mac, adv_type, data_str, rssi)
+                ret = send_pressure_temp(fl, time.time(), mac, adv_type, data_str, rssi, clientsocket)
             elif mac == fr.mac:
-                send_pressure_temp(fr, time.time(), mac, adv_type, data_str, rssi)
+                ret = send_pressure_temp(fr, time.time(), mac, adv_type, data_str, rssi, clientsocket)
             elif mac == rl.mac:
-                send_pressure_temp(rl, time.time(), mac, adv_type, data_str, rssi)
+                ret = send_pressure_temp(rl, time.time(), mac, adv_type, data_str, rssi, clientsocket)
             elif mac == rr.mac:
-                send_pressure_temp(rr, time.time(), mac, adv_type, data_str, rssi)
+                ret = send_pressure_temp(rr, time.time(), mac, adv_type, data_str, rssi, clientsocket)
+
+            if ret < 0:
+                exit('failure')
 
         # Blocking call (the given handler will be called each time a new LE
         # advertisement packet is detected)
