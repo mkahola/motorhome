@@ -48,6 +48,14 @@ class Virb():
         data = {'command':command}
         return bool(int(self._do_post(data=data)['result']))
 
+    def snap_picture(self, timer=2):
+        """Take a picture"""
+        command = 'snapPicture'
+        data = {'command':command,
+                'selfTimer':timer}
+        return self._do_post(data=data)
+
+
     def get_speed(self):
         status = self.status()
         try:

@@ -32,7 +32,11 @@ messages = ['Tire pressure low on front left tire',
             'Stairs down']
 
 class getGPS(QObject):
-    global vird_addr
+    global virb_addr
+
+    stop_signal = pyqtSignal()
+    start_signal = pyqtSignal()
+    finished = pyqtSignal()
 
     gpsSpeed = pyqtSignal(int)
     gpsLat = pyqtSignal(float)
@@ -40,38 +44,106 @@ class getGPS(QObject):
     gpsAlt = pyqtSignal(int)
     gpsBatt = pyqtSignal(int)
 
+    def __init__(self, parent=None):
+        QObject.__init__(self, parent=parent)
+        self.running = True
+        self.request = True
+
     def run(self):
         global virb_addr
 
         self.camera = Virb((virb_addr, 80))
 
-        while True:
-            try:
-                status = self.camera.status()
-                self.gpsSpeed.emit(int(status['speed']*3.6))
-                self.gpsLon.emit(status['gpsLongitude'])
-                self.gpsLat.emit(status['gpsLatitude'])
-                self.gpsAlt.emit(int(status['altitude']))
-                self.gpsBatt.emit(int(status['batteryLevel'] + 0.5))
-            except:
-                print("unable to read status")
-                pass
+        while self.running:
+            if self.request:
+                try:
+                    status = self.camera.status()
+                    self.gpsBatt.emit(int(status['batteryLevel'] + 0.5))
+                except ConnectionError:
+                    print("connection error")
+                    time.sleep(10)
+                    self.camera = Virb(virb_addr, 80)
+                    pass
+                except:
+                    print("data unavailable")
+                    pass
+
+                try:
+                    self.gpsSpeed.emit(int(status['speed']*3.6))
+                    self.gpsLon.emit(status['gpsLongitude'])
+                    self.gpsLat.emit(status['gpsLatitude'])
+                    self.gpsAlt.emit(int(status['altitude']))
+                except:
+                    print("unable to read status")
+                    pass
+            else:
+                print("status requests halted")
 
             time.sleep(1)
 
+        print("thread finished")
+        self.finished.emit()
+
+    def halt(self):
+        print("received stop signal")
+        self.request = False
+
+    def get_status(self):
+        print("continuing status reqests")
+        self.request = True
+
+class Camcorder(QObject):
+    global virb_addr
+    finished = pyqtSignal()
+
+    def __init__(self, parent=None):
+        QObject.__init__(self, parent=parent)
+        self.camera = Virb((virb_addr, 80))
+
+    def start_recording(self):
+        #set autorecord off
+        self.camera.set_features('autoRecord', 'off')
+        self.camera.start_recording()
+        print("start recording")
+        self.finished.emit()
+
+    def stop_recording(self):
+        self.camera.stop_recording()
+        self.camera.set_features('autoRecord', 'whenMoving')
+        print("stop recording")
+        self.finished.emit()
+
+    def snapshot(self):
+        self.camera.set_features('selfTimer', '2')
+        print(repr(self.camera.snap_picture()))
+        #print(repr(camera.snap_picture()))
+        print("taking a snapshot")
+        self.finished.emit()
+
 class MainApp(QMainWindow):
+    stop_signal = pyqtSignal()
+    start_signal = pyqtSignal()
+
     def __init__(self):
+        global virb_addr
+
         super().__init__()
         self.setStyleSheet("background-color: black;")
         self.setWindowTitle("Motorhome Info")
         self.warns = self.Warnings()
         self.warning = "No messages"
         self.resolution = QDesktopWidget().availableGeometry(-1)
+
+        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
+        self.camera = Virb((virb_addr, 80))
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.display_video_stream)
+
         self.setup_ui()
 
-        self.cam_setup_timer = QTimer()
-        self.cam_setup_timer.timeout.connect(self.setup_camera)
-        self.cam_setup_timer.start(1000)
+        # GPS data receiving thread
+        self.initGPSThread()
 
         self.setup_warns()
         self.getTPMSwarn()
@@ -98,8 +170,8 @@ class MainApp(QMainWindow):
         self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
 
         #initialize pages
-        self.init_dashcam_ui(self.pages[0])
-        self.init_gps_ui(self.pages[1])
+        self.init_gps_ui(self.pages[0])
+        self.init_dashcam_ui(self.pages[1])
         self.init_tpms_ui(self.pages[2])
         self.init_msg_ui(self.pages[3])
         self.init_settings_ui(self.pages[4])
@@ -117,12 +189,12 @@ class MainApp(QMainWindow):
         centralLayout.addWidget(self.tpmsWarnLabel)
 
         size = 32
-        self.dc_index = self.TabWidget.addTab(self.pages[0], "")
-        self.TabWidget.setTabIcon(self.dc_index, QIcon(prefix + 'camera.png'))
+        self.gps_index = self.TabWidget.addTab(self.pages[0], "")
+        self.TabWidget.setTabIcon(self.gps_index, QIcon(prefix + 'gps.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.gps_index = self.TabWidget.addTab(self.pages[1], "")
-        self.TabWidget.setTabIcon(self.gps_index, QIcon(prefix + 'gps.png'))
+        self.dc_index = self.TabWidget.addTab(self.pages[1], "")
+        self.TabWidget.setTabIcon(self.dc_index, QIcon(prefix + 'camera.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
         self.tp_index = self.TabWidget.addTab(self.pages[2], "")
@@ -147,12 +219,76 @@ class MainApp(QMainWindow):
         self.setCentralWidget(self.centralWidget)
 
     def init_dashcam_ui(self, page):
+        prefix = str(Path.home()) + "/.motorhome/res/"
+
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
-        self.image_label = QLabel()
-        self.image_label.setAlignment(Qt.AlignCenter)
+
+        recButton = QPushButton("", self)
+        recButton.setIcon(QIcon(prefix + 'rec.png'))
+        recButton.setIconSize(QSize(64, 64))
+        recButton.setCheckable(True)
+        recButton.clicked.connect(lambda: self.record(recButton))
+        recButton.setStyleSheet("background-color: darkgrey;"
+                                "border-style: outset;"
+                                "border-width: 2px;"
+                                "border-radius: 10px;"
+                                "border-color: beige;"
+                                "font: bold 32px;"
+                                "color: red;"
+                                "min-width: 72px;"
+                                "min-height: 72px;"
+                                "padding: 12px;")
+
+        snapshotButton = QPushButton("", self)
+        snapshotButton.setIcon(QIcon(prefix + 'snapshot.png'))
+        snapshotButton.setIconSize(QSize(64, 64))
+        snapshotButton.clicked.connect(self.snapshot)
+        snapshotButton.setStyleSheet("background-color: darkgrey;"
+                                     "border-style: outset;"
+                                     "border-width: 2px;"
+                                     "border-radius: 10px;"
+                                     "border-color: beige;"
+                                     "font: bold 32px;"
+                                     "color: black;"
+                                     "min-width: 72px;"
+                                     "min-height: 72px;"
+                                     "padding: 12px;")
+
+        pixmap = QPixmap(704/2, 396/2)
+        pixmap.fill(QColor("black"))
+        icon = QIcon(pixmap)
+
+        self.previewButton = QPushButton("Preview", self)
+        self.previewButton.setCheckable(True)
+        self.previewButton.resize(704/2, 396/2)
+        self.previewButton.clicked.connect(self.setup_camera)
+
+        self.previewButton.setIcon(icon)
+        self.previewButton.setIconSize(pixmap.rect().size())
+        self.previewButton.setText("Preview")
+        self.previewButton.setStyleSheet("background-color: darkgrey;"
+                                         "border-style: outset;"
+                                         "border-width: 2px;"
+                                         "border-radius: 10px;"
+                                         "border-color: beige;"
+                                         "font: bold 32px;"
+                                         "color: black;"
+                                         "min-width: 352px;"
+                                         "min-width: 198px;"
+                                         "padding: 12px;")
+
         vbox = QVBoxLayout()
-        vbox.addWidget(self.image_label)
-        page.setLayout(vbox)
+        vbox.setAlignment(Qt.AlignCenter)
+        vbox.addWidget(recButton)
+        vbox.addWidget(snapshotButton)
+
+        hbox = QHBoxLayout()
+        hbox.setSpacing(40)
+        hbox.addLayout(vbox)
+        hbox.setAlignment(Qt.AlignCenter)
+        hbox.addWidget(self.previewButton)
+
+        page.setLayout(hbox)
 
     def init_gps_ui(self, page):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
@@ -308,15 +444,115 @@ class MainApp(QMainWindow):
         vbox.addWidget(self.pslider_label)
         page.setLayout(vbox)
 
+    def initStartRecThread(self):
+        self.startRecThread =  QThread()
+        self.startRecWorker = Camcorder()
+        self.startRecWorker.moveToThread(self.startRecThread)
+        self.startRecWorker.finished.connect(self.startRecThread.quit)
+        self.startRecWorker.finished.connect(self.startRecWorker.deleteLater)
+        self.startRecThread.finished.connect(self.startRecThread.deleteLater)
+        self.startRecThread.started.connect(self.startRecWorker.start_recording)
+
+        self.startRecThread.start()
+
+    def initStopRecThread(self):
+        self.stopRecThread =  QThread()
+        self.stopRecWorker = Camcorder()
+        self.stopRecWorker.moveToThread(self.stopRecThread)
+        self.stopRecWorker.finished.connect(self.stopRecThread.quit)
+        self.stopRecWorker.finished.connect(self.stopRecWorker.deleteLater)
+        self.stopRecThread.finished.connect(self.stopRecThread.deleteLater)
+        self.stopRecThread.started.connect(self.stopRecWorker.stop_recording)
+
+        self.stopRecThread.start()
+
+    def initSnapshotThread(self):
+        self.snapshotThread =  QThread()
+        self.snapshotWorker = Camcorder()
+        self.snapshotWorker.moveToThread(self.snapshotThread)
+        self.snapshotWorker.finished.connect(self.snapshotThread.quit)
+        self.snapshotWorker.finished.connect(self.snapshotWorker.deleteLater)
+        self.snapshotThread.finished.connect(self.snapshotThread.deleteLater)
+        self.snapshotThread.started.connect(self.snapshotWorker.snapshot)
+
+        self.snapshotThread.start()
+
+    def initGPSThread(self):
+        self.thread =  QThread()
+        self.worker = getGPS()
+        self.stop_signal.connect(self.worker.halt)
+        self.start_signal.connect(self.worker.get_status)
+        self.worker.moveToThread(self.thread)
+
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        self.thread.started.connect(self.worker.run)
+
+        self.worker.start_signal.connect(self.worker.get_status)
+        self.worker.stop_signal.connect(self.worker.halt)
+
+        self.worker.gpsSpeed.connect(self.updateSpeed)
+        self.worker.gpsLat.connect(self.updateLat)
+        self.worker.gpsLon.connect(self.updateLon)
+        self.worker.gpsAlt.connect(self.updateAlt)
+        self.worker.gpsBatt.connect(self.updateBatt)
+        self.thread.started.connect(self.worker.run)
+
+        self.thread.start()
+
+    def record(self, button):
+        prefix = str(Path.home()) + "/.motorhome/res/"
+
+        if button.isChecked():
+            button.setIcon(QIcon(prefix + 'stop.png'))
+            button.setIconSize(QSize(64, 64))
+            button.setStyleSheet("background-color: #373636;"
+                                 "border-style: outset;"
+                                 "border-width: 2px;"
+                                 "border-radius: 10px;"
+                                 "border-color: beige;"
+                                 "font: bold 32px;"
+                                 "color: red;"
+                                 "min-width: 72px;"
+                                 "min-height: 72px;"
+                                 "padding: 12px;")
+            self.initStartRecThread()
+        else:
+            # set autorecording when moving
+            button.setIcon(QIcon(prefix + 'rec.png'))
+            button.setIconSize(QSize(64, 64))
+            button.setStyleSheet("background-color: darkgrey;"
+                                 "border-style: outset;"
+                                 "border-width: 2px;"
+                                 "border-radius: 10px;"
+                                 "border-color: beige;"
+                                 "font: bold 32px;"
+                                 "color: red;"
+                                 "min-width: 72px;"
+                                 "min-height: 72px;"
+                                 "padding: 12px;")
+            self.initStopRecThread()
+
+    def snapshot(self):
+        self.initSnapshotThread()
+
+    def tabChanged(self, index):
+        if index != self.dc_index:
+            if self.previewButton.isChecked():
+                self.previewButton.setChecked(False)
+                self.setup_camera()
+
     def updateSpeed(self, speed):
             self.speed_label.setText(str(speed))
             self.speed = speed
 
     def updateLat(self, lat):
-        self.lat_label.setText(str(lat))
+        self.lat_label.setText("{:.5f}".format(lat))
 
     def updateLon(self, lon):
-        self.lon_label.setText(str(lon))
+        self.lon_label.setText("{:.5f}".format(lon))
 
     def updateAlt(self, alt):
         self.alt_label.setText(str(alt))
@@ -325,90 +561,85 @@ class MainApp(QMainWindow):
        self.battery = batt
 
     def setup_camera(self):
-        print("setting up camera")
+        global virb_addr
 
-        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
-        self.camera = Virb((virb_addr, 80))
+        if self.previewButton.isChecked():
+            self.stop_signal.emit()
 
-        # set autorecording when moving
-        self.camera.set_features('autoRecord', 'whenMoving')
+            print("setting up camera")
 
-        url = "rtsp://" + virb_addr + "/livePreviewStream"
+            url = "rtsp://" + virb_addr + "/livePreviewStream"
+            try:
+                self.cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+            except:
+                print("video stream unavailable")
+                return
 
-        try:
-            self.cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
-        except:
-            print("video stream unavailable")
-            return
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 10)
 
-        try:
-            self.cap.isOpened()
-            self.cam_setup_timer.stop()
-            self.camera_connected = True
-        except:
-            self.cap.release()
-            print("camera not available")
-            return
+            width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = float(self.cap.get(cv2.CAP_PROP_FPS))
+            print("video: " + str(width) + "x" + str(height) + "@" + str(fps))
 
-        width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = float(self.cap.get(cv2.CAP_PROP_FPS))
-        print("video: " + str(width) + "x" + str(height) + "@" + str(fps))
+            try:
+                self.timer.start(int(1000/fps))
+            except ZeroDivisionError:
+                self.cap.release()
+                return
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.display_video_stream)
+            self.previewButton.setIcon(icon)
+            self.previewButton.setIconSize(pixmap.rect().size())
+            self.previewButton.setText("Stop")
+            self.previewButton.setStyleSheet("background-color: darkgrey;"
+                                             "border-style: outset;"
+                                             "border-width: 2px;"
+                                             "border-radius: 10px;"
+                                             "border-color: beige;"
+                                             "font: bold 32px;"
+                                             "color: red;"
+                                             "min-width: 10em;"
+                                             "padding: 6px;")
+        else:
+            try:
+                self.timer.stop()
+                print("stopping timer")
+            except:
+                pass
 
-        try:
-            self.timer.start(int(1000/fps))
-        except ZeroDivisionError:
-            self.cap.release()
-            self.camera_connected = False
-            self.cam_setup_timer.start(1000)
+            self.start_signal.emit()
 
-        self.thread =  QThread()
-        self.worker = getGPS()
-        self.worker.moveToThread(self.thread)
-        self.worker.gpsSpeed.connect(self.updateSpeed)
-        self.worker.gpsLat.connect(self.updateLat)
-        self.worker.gpsLon.connect(self.updateLon)
-        self.worker.gpsAlt.connect(self.updateAlt)
-        self.worker.gpsBatt.connect(self.updateBatt)
-        self.thread.started.connect(self.worker.run)
-        self.thread.start()
+            pixmap = QPixmap(704/2, 396/2)
+            pixmap.fill(QColor("black"))
+            icon = QIcon(pixmap)
+
+            self.previewButton.setIcon(icon)
+            self.previewButton.setIconSize(pixmap.rect().size())
+            self.previewButton.setText("Preview")
+            self.previewButton.setStyleSheet("background-color: darkgrey;"
+                                             "border-style: outset;"
+                                             "border-width: 2px;"
+                                             "border-radius: 10px;"
+                                             "border-color: beige;"
+                                             "font: bold 32px;"
+                                             "color: black;"
+                                             "min-width: 10em;"
+                                             "padding: 6px;")
 
     def display_video_stream(self):
-        scale = 65
+        scale = 50
 
-        #Read frame from camera
         ret, frame = self.cap.read()
-
         if ret:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            font = cv2.FONT_HERSHEY_DUPLEX
 
-            # date and time
-            datestr = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-            cv2.putText(frame, datestr, (5, frame.shape[0]-10), font, 0.5, (255, 255, 0), 1, cv2.LINE_AA)
-
-            # VIRB battery level
-            try:
-                cv2.putText(frame, "Batt: " + "{:.0f}".format(self.battery + 0.5) + " %", (frame.shape[1]-300, frame.shape[0]-10), font, 0.5, (255, 255, 0), 1, cv2.LINE_AA)
-            except:
-                cv2.putText(frame, "Batt: -- %", (frame.shape[1]-300, frame.shape[0]-10), font, 0.5, (255, 255, 0), 1, cv2.LINE_AA)
-
-            # speed in km/h
-            if self.speed >= 0:
-                speed = "{:3.0f}".format(self.speed)
-            else:
-                speed = "--"
-
-            cv2.putText(frame, speed,  (frame.shape[1]-220, frame.shape[0]-10), font, 2, (255, 255, 0), 2, cv2.LINE_AA)
-            cv2.putText(frame, "km/h", (frame.shape[1]-100, frame.shape[0]-10), font, 0.7, (255, 255, 0), 2, cv2.LINE_AA)
             image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
             pixmap = QPixmap.fromImage(image).scaled(int(self.resolution.width()*scale/100),
                                                      int(self.resolution.height()*scale/100),
                                                      Qt.KeepAspectRatio)
-            self.image_label.setPixmap(pixmap)
+            image = QIcon(pixmap)
+            self.previewButton.setIcon(image)
+            self.previewButton.setIconSize(pixmap.rect().size())
 
     def changePressureLevel(self, value):
         self.tire.setWarnPressure(value/10.0)
@@ -515,12 +746,15 @@ class MainApp(QMainWindow):
             self.warn_index = self.TabWidget.setTabText(3, self.msg_title)
 
         # turn on/off TPMS warn light
+        prefix = str(Path.home()) + "/.motorhome/res/"
         if self.tpmsFLflag or self.tpmsFRflag or self.tpmsRLflag or self.tpmsRRflag:
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
             self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
+            self.TabWidget.setTabIcon(self.tp_index, QIcon(prefix + 'tpms_warn_on.png'))
         else:
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
             self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
+            self.TabWidget.setTabIcon(self.tp_index, QIcon(prefix + 'tpms_warn_off.png'))
 
     def sensor_handler(self, client):
         while True:
@@ -535,7 +769,14 @@ class MainApp(QMainWindow):
         # create a local socket
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             # bind the socket to the port
-            sock.bind(('localhost', 5000))
+            bind_ok = False
+            while not bind_ok:
+                try:
+                    sock.bind(('localhost', 5000))
+                    bind_ok = True
+                except:
+                    time.sleep(5)
+                    continue
             # listen for incoming connections
             sock.listen(5)
             print("Server started...")
@@ -554,16 +795,9 @@ class MainApp(QMainWindow):
         if event.key() == Qt.Key_Escape:
 
             try:
-                self.cam_setup_timer.stop()
-            except:
-                print("cam setup timer not running")
-                pass
-
-            try:
                 self.timer.stop()
                 self.cap.release()
             except:
-                print("display timer not running")
                 pass
 
             #ugly but efficient
