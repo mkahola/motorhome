@@ -115,8 +115,7 @@ class Camcorder(QObject):
 
     def snapshot(self):
         self.camera.set_features('selfTimer', '2')
-        print(repr(self.camera.snap_picture()))
-        #print(repr(camera.snap_picture()))
+        self.camera.snap_picture()
         print("taking a snapshot")
         self.finished.emit()
 
@@ -242,7 +241,7 @@ class MainApp(QMainWindow):
         snapshotButton = QPushButton("", self)
         snapshotButton.setIcon(QIcon(prefix + 'snapshot.png'))
         snapshotButton.setIconSize(QSize(64, 64))
-        snapshotButton.clicked.connect(self.snapshot)
+        snapshotButton.clicked.connect(lambda: self.snapshot(snapshotButton))
         snapshotButton.setStyleSheet("background-color: darkgrey;"
                                      "border-style: outset;"
                                      "border-width: 2px;"
@@ -466,13 +465,14 @@ class MainApp(QMainWindow):
 
         self.stopRecThread.start()
 
-    def initSnapshotThread(self):
+    def initSnapshotThread(self, button):
         self.snapshotThread =  QThread()
         self.snapshotWorker = Camcorder()
         self.snapshotWorker.moveToThread(self.snapshotThread)
         self.snapshotWorker.finished.connect(self.snapshotThread.quit)
         self.snapshotWorker.finished.connect(self.snapshotWorker.deleteLater)
         self.snapshotThread.finished.connect(self.snapshotThread.deleteLater)
+        self.snapshotThread.finished.connect(lambda: self.updateSnapshotButton(button))
         self.snapshotThread.started.connect(self.snapshotWorker.snapshot)
 
         self.snapshotThread.start()
@@ -535,8 +535,32 @@ class MainApp(QMainWindow):
                                  "padding: 12px;")
             self.initStopRecThread()
 
-    def snapshot(self):
-        self.initSnapshotThread()
+    def snapshot(self, button):
+        button.setStyleSheet("background-color: #373636;"
+                             "border-style: outset;"
+                             "border-width: 2px;"
+                             "border-radius: 10px;"
+                             "border-color: beige;"
+                             "font: bold 32px;"
+                             "color: red;"
+                             "min-width: 72px;"
+                             "min-height: 72px;"
+                             "padding: 12px;")
+        button.setEnabled(False)
+        self.initSnapshotThread(button)
+
+    def updateSnapshotButton(self, button):
+        button.setEnabled(True)
+        button.setStyleSheet("background-color: darkgrey;"
+                             "border-style: outset;"
+                             "border-width: 2px;"
+                             "border-radius: 10px;"
+                             "border-color: beige;"
+                             "font: bold 32px;"
+                             "color: black;"
+                             "min-width: 72px;"
+                             "min-height: 72px;"
+                             "padding: 12px;")
 
     def tabChanged(self, index):
         if index != self.dc_index:
