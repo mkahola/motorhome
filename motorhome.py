@@ -94,11 +94,15 @@ class getGPS(QObject):
 
 class Camcorder(QObject):
     global virb_addr
+
     finished = pyqtSignal()
+    image = pyqtSignal(QIcon)
+    stop_preview = pyqtSignal()
 
     def __init__(self, parent=None):
         QObject.__init__(self, parent=parent)
         self.camera = Virb((virb_addr, 80))
+        self.runVideo = True
 
     def start_recording(self):
         #set autorecord off
@@ -121,9 +125,48 @@ class Camcorder(QObject):
         print("taking a snapshot")
         self.finished.emit()
 
+    def live_preview(self):
+        print("setting up camera")
+
+        url = "rtsp://" + self.camera.host[0] + "/livePreviewStream"
+        try:
+            cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
+        except:
+            print("video stream unavailable")
+            self.finished.emit()
+            return
+
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 10)
+
+        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = float(cap.get(cv2.CAP_PROP_FPS))
+        print("video: " + str(width) + "x" + str(height) + "@" + str(fps))
+
+        scale = 50
+        while self.runVideo:
+            ret, frame = cap.read()
+            if ret:
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
+                pixmap = QPixmap.fromImage(image).scaled(int(width*scale/100),
+                                                         int(height*scale/100),
+                                                         Qt.KeepAspectRatio)
+                self.image.emit(QIcon(pixmap))
+
+        print("video preview stopped")
+        cap.release()
+        self.finished.emit()
+
+    def stop_preview(self):
+        print("stopping live preview")
+        self.runVideo = False
+
 class MainApp(QMainWindow):
     stop_signal = pyqtSignal()
     start_signal = pyqtSignal()
+    stop_preview = pyqtSignal()
 
     def __init__(self):
         global virb_addr
@@ -137,9 +180,6 @@ class MainApp(QMainWindow):
 
         os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
         self.camera = Virb((virb_addr, 80))
-
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.display_video_stream)
 
         self.setup_ui()
 
@@ -255,13 +295,13 @@ class MainApp(QMainWindow):
                                      "min-height: 72px;"
                                      "padding: 12px;")
 
-        pixmap = QPixmap(704/2, 396/2)
+        pixmap = QPixmap(int(704/2), int(396/2))
         pixmap.fill(QColor("black"))
         icon = QIcon(pixmap)
 
         self.previewButton = QPushButton("Preview", self)
         self.previewButton.setCheckable(True)
-        self.previewButton.resize(704/2, 396/2)
+        self.previewButton.resize(int(704/2), int(396/2))
         self.previewButton.clicked.connect(self.setup_camera)
 
         self.previewButton.setIcon(icon)
@@ -446,7 +486,7 @@ class MainApp(QMainWindow):
         page.setLayout(vbox)
 
     def initStartRecThread(self):
-        self.startRecThread =  QThread()
+        self.startRecThread = QThread()
         self.startRecWorker = Camcorder()
         self.startRecWorker.moveToThread(self.startRecThread)
         self.startRecWorker.finished.connect(self.startRecThread.quit)
@@ -457,7 +497,7 @@ class MainApp(QMainWindow):
         self.startRecThread.start()
 
     def initStopRecThread(self):
-        self.stopRecThread =  QThread()
+        self.stopRecThread = QThread()
         self.stopRecWorker = Camcorder()
         self.stopRecWorker.moveToThread(self.stopRecThread)
         self.stopRecWorker.finished.connect(self.stopRecThread.quit)
@@ -468,7 +508,7 @@ class MainApp(QMainWindow):
         self.stopRecThread.start()
 
     def initSnapshotThread(self, button):
-        self.snapshotThread =  QThread()
+        self.snapshotThread = QThread()
         self.snapshotWorker = Camcorder()
         self.snapshotWorker.moveToThread(self.snapshotThread)
         self.snapshotWorker.finished.connect(self.snapshotThread.quit)
@@ -478,6 +518,21 @@ class MainApp(QMainWindow):
         self.snapshotThread.started.connect(self.snapshotWorker.snapshot)
 
         self.snapshotThread.start()
+
+    def initPreviewThread(self):
+        self.previewThread = QThread()
+        self.previewWorker = Camcorder()
+        self.stop_preview.connect(self.previewWorker.stop_preview)
+        self.previewWorker.moveToThread(self.previewThread)
+        self.previewWorker.finished.connect(self.previewThread.quit)
+        self.previewWorker.finished.connect(self.previewWorker.deleteLater)
+        self.previewThread.finished.connect(self.previewThread.deleteLater)
+        self.previewThread.started.connect(self.previewWorker.live_preview)
+        #self.previewWorker.stop_preview.connect(self.previewWorker.stop_preview)
+
+        self.previewWorker.image.connect(self.updatePreview)
+
+        self.previewThread.start()
 
     def initGPSThread(self):
         self.thread =  QThread()
@@ -586,39 +641,23 @@ class MainApp(QMainWindow):
     def updateBatt(self, batt):
        self.battery = batt
 
+    def updatePreview(self, icon):
+        self.previewButton.setIcon(icon)
+        self.previewButton.setIconSize(QSize(int(704/2), int(396/2)))
+
     def setup_camera(self):
-        global virb_addr
+        if not self.previewButton.isEnabled():
+            return
 
         if self.previewButton.isChecked():
+            print("button checked")
             self.stop_signal.emit()
 
-            print("setting up camera")
+            self.initPreviewThread()
 
-            url = "rtsp://" + virb_addr + "/livePreviewStream"
-            try:
-                self.cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
-            except:
-                print("video stream unavailable")
-                return
-
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 10)
-
-            width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            fps = float(self.cap.get(cv2.CAP_PROP_FPS))
-            print("video: " + str(width) + "x" + str(height) + "@" + str(fps))
-
-            try:
-                self.timer.start(int(1000/fps))
-            except ZeroDivisionError:
-                self.cap.release()
-                return
-
-            self.previewButton.setIcon(icon)
-            self.previewButton.setIconSize(pixmap.rect().size())
             self.previewButton.setText("Stop")
             self.previewButton.setStyleSheet("background-color: darkgrey;"
-                                             "border-style: outset;"
+                                             "border-style: inset;"
                                              "border-width: 2px;"
                                              "border-radius: 10px;"
                                              "border-color: beige;"
@@ -627,18 +666,19 @@ class MainApp(QMainWindow):
                                              "min-width: 10em;"
                                              "padding: 6px;")
         else:
-            try:
-                self.timer.stop()
-                print("stopping timer")
-            except:
-                pass
-
+            print("button not checked")
             self.start_signal.emit()
 
-            pixmap = QPixmap(704/2, 396/2)
+            self.stop_preview.emit()
+
+            if self.previewThread.isRunning():
+                self.previewThread.terminate()
+                self.previewThread.wait()
+
+            pixmap = QPixmap(int(704/2), int(396/2))
             pixmap.fill(QColor("black"))
             icon = QIcon(pixmap)
-
+            time.sleep(1)
             self.previewButton.setIcon(icon)
             self.previewButton.setIconSize(pixmap.rect().size())
             self.previewButton.setText("Preview")
@@ -651,21 +691,6 @@ class MainApp(QMainWindow):
                                              "color: black;"
                                              "min-width: 10em;"
                                              "padding: 6px;")
-
-    def display_video_stream(self):
-        scale = 50
-
-        ret, frame = self.cap.read()
-        if ret:
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-            image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
-            pixmap = QPixmap.fromImage(image).scaled(int(self.resolution.width()*scale/100),
-                                                     int(self.resolution.height()*scale/100),
-                                                     Qt.KeepAspectRatio)
-            image = QIcon(pixmap)
-            self.previewButton.setIcon(image)
-            self.previewButton.setIconSize(pixmap.rect().size())
 
     def changePressureLevel(self, value):
         self.tire.setWarnPressure(value/10.0)
@@ -819,13 +844,6 @@ class MainApp(QMainWindow):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
-
-            try:
-                self.timer.stop()
-                self.cap.release()
-            except:
-                pass
-
             #ugly but efficient
             system = psutil.Process(os.getpid())
             system.terminate()

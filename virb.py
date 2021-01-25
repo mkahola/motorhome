@@ -100,6 +100,9 @@ class Virb():
         except simplejson.scanner.JSONDecodeError:
             print("json error")
             return request.text
+        except ConnectionError:
+            print("no connection to server")
+            return None
         except:
             return None
 
