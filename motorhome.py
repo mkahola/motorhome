@@ -20,6 +20,7 @@ from pathlib import Path
 from tires import Tires
 from virb import Virb
 from camcorder import Camcorder
+from gps import GPS
 
 virb_addr = '192.168.100.15'
 
@@ -28,72 +29,6 @@ messages = ['Tire pressure low on front left tire',
             'Tire pressure low on rear left tire',
             'Tire pressure low on rear right tire',
             'Stairs down']
-
-class getGPS(QObject):
-    global virb_addr
-
-    stop_signal = pyqtSignal()
-    start_signal = pyqtSignal()
-    finished = pyqtSignal()
-    exit_signal = pyqtSignal()
-
-    gpsSpeed = pyqtSignal(int)
-    gpsLat = pyqtSignal(float)
-    gpsLon = pyqtSignal(float)
-    gpsAlt = pyqtSignal(int)
-    gpsBatt = pyqtSignal(int)
-
-    def __init__(self, parent=None):
-        QObject.__init__(self, parent=parent)
-        self.running = True
-        self.request = True
-
-    def run(self):
-        global virb_addr
-
-        self.camera = Virb((virb_addr, 80))
-
-        while self.running:
-            if self.request:
-                try:
-                    status = self.camera.status()
-                    self.gpsBatt.emit(int(status['batteryLevel'] + 0.5))
-                except ConnectionError:
-                    print("connection error")
-                    time.sleep(10)
-                    self.camera = Virb(virb_addr, 80)
-                    pass
-                except:
-                    print("data unavailable")
-                    pass
-
-                try:
-                    self.gpsSpeed.emit(int(status['speed']*3.6))
-                    self.gpsLon.emit(status['gpsLongitude'])
-                    self.gpsLat.emit(status['gpsLatitude'])
-                    self.gpsAlt.emit(int(status['altitude']))
-                except:
-                    print("unable to read status")
-                    pass
-            else:
-                print("status requests halted")
-
-            time.sleep(1)
-
-        print("thread finished")
-        self.finished.emit()
-
-    def halt(self):
-        print("received stop signal")
-        self.request = False
-
-    def stop(self):
-        print("received exit signal")
-        self.running = False
-
-    def get_status(self):
-        print("continuing status reqests")
-        self.request = True
 
 class Warnings(QObject):
     data = pyqtSignal(str)
@@ -551,8 +486,10 @@ class MainApp(QMainWindow):
         self.warnsThread.start()
 
     def initGPSThread(self):
+        global virb_addr
+
         self.thread =  QThread()
-        self.worker = getGPS()
+        self.worker = GPS(virb_addr)
         self.stop_signal.connect(self.worker.halt)
         self.start_signal.connect(self.worker.get_status)
         self.exit_signal.connect(self.worker.stop)
