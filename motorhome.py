@@ -3,6 +3,8 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
+from PyQt5.QtWebKit import *
+from PyQt5.QtWebKitWidgets import *
 from PyQt5 import QtWidgets, QtCore, QtGui
 
 from datetime import datetime
@@ -73,14 +75,15 @@ class MainApp(QMainWindow):
         self.TabWidget = QTabWidget(self)
         self.TabWidget.setFont(QFont("Sanserif", 16))
 
-        self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
+        self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
 
         #initialize pages
         self.init_gps_ui(self.pages[0])
         self.init_dashcam_ui(self.pages[1])
         self.init_tpms_ui(self.pages[2])
         self.init_msg_ui(self.pages[3])
-        self.init_settings_ui(self.pages[4])
+        self.init_weather_ui(self.pages[4])
+        self.init_settings_ui(self.pages[5])
 
         # warn lights
         prefix = str(Path.home()) + "/.motorhome/res/"
@@ -138,7 +141,11 @@ class MainApp(QMainWindow):
         self.TabWidget.setTabIcon(self.warn_index, QIcon(prefix + 'messages.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.settings_index = self.TabWidget.addTab(self.pages[4], "")
+        self.weather_index = self.TabWidget.addTab(self.pages[4], "")
+        self.TabWidget.setTabIcon(self.weather_index, QIcon(prefix + 'weather.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+
+        self.settings_index = self.TabWidget.addTab(self.pages[5], "")
         self.TabWidget.setTabIcon(self.settings_index, QIcon(prefix + 'settings.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
         self.TabWidget.setStyleSheet('''
@@ -346,6 +353,17 @@ class MainApp(QMainWindow):
         font = self.fl_label.font()
         font.setPointSize(16)
         font.setBold(True)
+
+    def init_weather_ui(self, page):
+        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+        web = QWebView()
+        web.settings().setAttribute(QWebSettings.JavascriptEnabled, True)
+        web.settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls, True);
+        web.load(QUrl("https://ilmatieteenlaitos.fi"))
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(web)
+        page.setLayout(vbox)
 
     def init_settings_ui(self, page):
         # Tire pressure warnig level
