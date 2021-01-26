@@ -12,16 +12,14 @@ import cv2
 import qdarkgraystyle
 import socket
 import psutil
-import os
 import sys
-import time
-import queue
 import os.path
 import configparser
 from pathlib import Path
 
 from tires import Tires
 from virb import Virb
+from camcorder import Camcorder
 
 virb_addr = '192.168.100.15'
 
@@ -97,77 +95,6 @@ class getGPS(QObject):
         print("continuing status reqests")
         self.request = True
 
-class Camcorder(QObject):
-    global virb_addr
-
-    finished = pyqtSignal()
-    image = pyqtSignal(QIcon)
-    stop_preview = pyqtSignal()
-
-    def __init__(self, parent=None):
-        QObject.__init__(self, parent=parent)
-        self.camera = Virb((virb_addr, 80))
-        self.runVideo = True
-
-    def start_recording(self):
-        #set autorecord off
-        self.camera.set_features('autoRecord', 'off')
-        self.camera.set_features('videoLoop', '0')
-        self.camera.start_recording()
-        print("start recording")
-        self.finished.emit()
-
-    def stop_recording(self):
-        self.camera.stop_recording()
-        self.camera.set_features('autoRecord', 'whenMoving')
-        self.camera.set_features('videoLoop', '30')
-        print("stop recording")
-        self.finished.emit()
-
-    def snapshot(self):
-        self.camera.set_features('selfTimer', '2')
-        self.camera.snap_picture()
-        print("taking a snapshot")
-        self.finished.emit()
-
-    def live_preview(self):
-        print("setting up camera")
-
-        url = "rtsp://" + self.camera.host[0] + "/livePreviewStream"
-        try:
-            cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
-        except:
-            print("video stream unavailable")
-            self.finished.emit()
-            return
-
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 10)
-
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = float(cap.get(cv2.CAP_PROP_FPS))
-        print("video: " + str(width) + "x" + str(height) + "@" + str(fps))
-
-        scale = 50
-        while self.runVideo:
-            ret, frame = cap.read()
-            if ret:
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-                image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
-                pixmap = QPixmap.fromImage(image).scaled(int(width*scale/100),
-                                                         int(height*scale/100),
-                                                         Qt.KeepAspectRatio)
-                self.image.emit(QIcon(pixmap))
-
-        print("video preview stopped")
-        cap.release()
-        self.finished.emit()
-
-    def stop_preview(self):
-        print("stopping live preview")
-        self.runVideo = False
-
 class Warnings(QObject):
     data = pyqtSignal(str)
     finished = pyqtSignal()
@@ -237,11 +164,6 @@ class MainApp(QMainWindow):
         self.setWindowTitle("Motorhome Info")
         self.warning = "No messages"
         self.resolution = QDesktopWidget().availableGeometry(-1)
-
-        self.warnServerRunning = True
-
-        os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
-        self.camera = Virb((virb_addr, 80))
 
         self.setup_ui()
 
@@ -558,8 +480,10 @@ class MainApp(QMainWindow):
         page.setLayout(vbox)
 
     def initStartRecThread(self):
+        global virb_addr
+
         self.startRecThread = QThread()
-        self.startRecWorker = Camcorder()
+        self.startRecWorker = Camcorder(virb_addr)
         self.startRecWorker.moveToThread(self.startRecThread)
         self.startRecWorker.finished.connect(self.startRecThread.quit)
         self.startRecWorker.finished.connect(self.startRecWorker.deleteLater)
@@ -569,8 +493,10 @@ class MainApp(QMainWindow):
         self.startRecThread.start()
 
     def initStopRecThread(self):
+        global virb_addr
+
         self.stopRecThread = QThread()
-        self.stopRecWorker = Camcorder()
+        self.stopRecWorker = Camcorder(virb_addr)
         self.stopRecWorker.moveToThread(self.stopRecThread)
         self.stopRecWorker.finished.connect(self.stopRecThread.quit)
         self.stopRecWorker.finished.connect(self.stopRecWorker.deleteLater)
@@ -580,8 +506,10 @@ class MainApp(QMainWindow):
         self.stopRecThread.start()
 
     def initSnapshotThread(self, button):
+        global virb_addr
+
         self.snapshotThread = QThread()
-        self.snapshotWorker = Camcorder()
+        self.snapshotWorker = Camcorder(virb_addr)
         self.snapshotWorker.moveToThread(self.snapshotThread)
         self.snapshotWorker.finished.connect(self.snapshotThread.quit)
         self.snapshotWorker.finished.connect(self.snapshotWorker.deleteLater)
@@ -592,8 +520,10 @@ class MainApp(QMainWindow):
         self.snapshotThread.start()
 
     def initPreviewThread(self):
+        global virb_addr
+
         self.previewThread = QThread()
-        self.previewWorker = Camcorder()
+        self.previewWorker = Camcorder(virb_addr)
         self.stop_preview.connect(self.previewWorker.stop_preview)
         self.previewWorker.moveToThread(self.previewThread)
         self.previewWorker.finished.connect(self.previewThread.quit)
@@ -766,14 +696,9 @@ class MainApp(QMainWindow):
 
             self.stop_preview.emit()
 
-            if self.previewThread.isRunning():
-                self.previewThread.terminate()
-                self.previewThread.wait()
-
             pixmap = QPixmap(int(704/2), int(396/2))
             pixmap.fill(QColor("black"))
             icon = QIcon(pixmap)
-            time.sleep(1)
             self.previewButton.setIcon(icon)
             self.previewButton.setIconSize(pixmap.rect().size())
             self.previewButton.setText("Preview")
