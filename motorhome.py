@@ -548,11 +548,11 @@ class MainApp(QMainWindow):
 
     def updateBatt(self, batt):
        if batt < 5:
-           self.virbBattLabel.setStyleSheet("QLabel {color: red; font: bold 16px}")
+           self.virbBattLabel.setStyleSheet("QLabel {color: red; font: bold 24px}")
        elif batt >= 5 and batt < 20:
-           self.virbBattLabel.setStyleSheet("QLabel {color: yellow; font: bold 16px}")
+           self.virbBattLabel.setStyleSheet("QLabel {color: yellow; font: bold 24px}")
        else:
-           self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
+           self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
 
        self.virbBattLabel.setText(str(batt) + "%")
 
