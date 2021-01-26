@@ -11,6 +11,7 @@ import qdarkgraystyle
 import psutil
 import sys
 import os.path
+import subprocess
 import configparser
 from pathlib import Path
 
@@ -19,8 +20,6 @@ from virb import Virb
 from camcorder import Camcorder
 from gps import GPS
 from warns import Warnings
-
-virb_addr = '192.168.100.15'
 
 messages = ['Tire pressure low on front left tire',
             'Tire pressure low on front right tire',
@@ -35,13 +34,17 @@ class MainApp(QMainWindow):
     stop_preview = pyqtSignal()
 
     def __init__(self):
-        global virb_addr
-
         super().__init__()
         self.setStyleSheet("background-color: black;")
         self.setWindowTitle("Motorhome Info")
         self.warning = "No messages"
         self.resolution = QDesktopWidget().availableGeometry(-1)
+
+        ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
+        if ssid == "VIRB-6267":
+            self.ip = "192.168.0.1"
+        else:
+            self.ip = "192.168.100.15"
 
         self.setup_ui()
 
@@ -358,10 +361,8 @@ class MainApp(QMainWindow):
         page.setLayout(vbox)
 
     def initStartRecThread(self):
-        global virb_addr
-
         self.startRecThread = QThread()
-        self.startRecWorker = Camcorder(virb_addr)
+        self.startRecWorker = Camcorder(self.ip)
         self.startRecWorker.moveToThread(self.startRecThread)
         self.startRecWorker.finished.connect(self.startRecThread.quit)
         self.startRecWorker.finished.connect(self.startRecWorker.deleteLater)
@@ -371,10 +372,8 @@ class MainApp(QMainWindow):
         self.startRecThread.start()
 
     def initStopRecThread(self):
-        global virb_addr
-
         self.stopRecThread = QThread()
-        self.stopRecWorker = Camcorder(virb_addr)
+        self.stopRecWorker = Camcorder(self.ip)
         self.stopRecWorker.moveToThread(self.stopRecThread)
         self.stopRecWorker.finished.connect(self.stopRecThread.quit)
         self.stopRecWorker.finished.connect(self.stopRecWorker.deleteLater)
@@ -384,10 +383,8 @@ class MainApp(QMainWindow):
         self.stopRecThread.start()
 
     def initSnapshotThread(self, button):
-        global virb_addr
-
         self.snapshotThread = QThread()
-        self.snapshotWorker = Camcorder(virb_addr)
+        self.snapshotWorker = Camcorder(self.ip)
         self.snapshotWorker.moveToThread(self.snapshotThread)
         self.snapshotWorker.finished.connect(self.snapshotThread.quit)
         self.snapshotWorker.finished.connect(self.snapshotWorker.deleteLater)
@@ -398,10 +395,8 @@ class MainApp(QMainWindow):
         self.snapshotThread.start()
 
     def initPreviewThread(self):
-        global virb_addr
-
         self.previewThread = QThread()
-        self.previewWorker = Camcorder(virb_addr)
+        self.previewWorker = Camcorder(self.ip)
         self.stop_preview.connect(self.previewWorker.stop_preview)
         self.previewWorker.moveToThread(self.previewThread)
         self.previewWorker.finished.connect(self.previewThread.quit)
@@ -429,10 +424,8 @@ class MainApp(QMainWindow):
         self.warnsThread.start()
 
     def initGPSThread(self):
-        global virb_addr
-
         self.thread =  QThread()
-        self.worker = GPS(virb_addr)
+        self.worker = GPS(self.ip)
         self.stop_signal.connect(self.worker.halt)
         self.start_signal.connect(self.worker.get_status)
         self.exit_signal.connect(self.worker.stop)
