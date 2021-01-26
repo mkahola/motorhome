@@ -37,6 +37,7 @@ class getGPS(QObject):
     stop_signal = pyqtSignal()
     start_signal = pyqtSignal()
     finished = pyqtSignal()
+    exit_signal = pyqtSignal()
 
     gpsSpeed = pyqtSignal(int)
     gpsLat = pyqtSignal(float)
@@ -87,6 +88,10 @@ class getGPS(QObject):
     def halt(self):
         print("received stop signal")
         self.request = False
+
+    def stop(self):
+        print("received exit signal")
+        self.running = False
 
     def get_status(self):
         print("continuing status reqests")
@@ -163,9 +168,65 @@ class Camcorder(QObject):
         print("stopping live preview")
         self.runVideo = False
 
+class Warnings(QObject):
+    data = pyqtSignal(str)
+    finished = pyqtSignal()
+
+    def __init__(self, parent=None):
+        QObject.__init__(self, parent=parent)
+        self._running = True
+
+    def sensor_handler(self, client):
+        client.settimeout(5)
+        while self._running:
+            try:
+                sensor = client.recv(32).decode('utf-8')
+                if sensor:
+                    self.data.emit(sensor)
+            except socket.timeout:
+                print("socket recv timeout")
+                time.sleep(1)
+                pass
+        client.close()
+
+    def get_warns(self):
+        # create a local socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        # bind the socket to the port
+        bind_ok = False
+        while not bind_ok and self._running:
+            try:
+                sock.bind(('localhost', 5000))
+                bind_ok = True
+            except:
+                time.sleep(5)
+                continue
+        # listen for incoming connections
+        sock.listen(5)
+        print("Server started...")
+
+        sock.settimeout(5)
+        while self._running:
+            try:
+                client, addr = sock.accept()
+                threading.Thread(target=self.sensor_handler, args=(client,)).start()
+            except socket.timeout:
+                print("socket accept timeout")
+                time.sleep(1)
+                continue
+
+        sock.close()
+        self.finished.emit()
+
+    def stop(self):
+        print("warns thread: received stop signal")
+        self._running = False
+
 class MainApp(QMainWindow):
     stop_signal = pyqtSignal()
     start_signal = pyqtSignal()
+    exit_signal = pyqtSignal()
     stop_preview = pyqtSignal()
 
     def __init__(self):
@@ -174,9 +235,10 @@ class MainApp(QMainWindow):
         super().__init__()
         self.setStyleSheet("background-color: black;")
         self.setWindowTitle("Motorhome Info")
-        self.warns = self.Warnings()
         self.warning = "No messages"
         self.resolution = QDesktopWidget().availableGeometry(-1)
+
+        self.warnServerRunning = True
 
         os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
         self.camera = Virb((virb_addr, 80))
@@ -186,7 +248,7 @@ class MainApp(QMainWindow):
         # GPS data receiving thread
         self.initGPSThread()
 
-        self.setup_warns()
+        self.initWarnsThread()
         self.getTPMSwarn()
 #        self.showFullScreen()
         self.showMaximized()
@@ -544,11 +606,26 @@ class MainApp(QMainWindow):
 
         self.previewThread.start()
 
+    def initWarnsThread(self):
+        self.warnsThread = QThread()
+        self.warnsWorker = Warnings()
+        self.exit_signal.connect(self.warnsWorker.stop)
+        self.warnsWorker.moveToThread(self.warnsThread)
+        self.warnsWorker.finished.connect(self.warnsThread.quit)
+        self.warnsWorker.finished.connect(self.warnsWorker.deleteLater)
+        self.warnsThread.finished.connect(self.warnsThread.deleteLater)
+        self.warnsThread.started.connect(self.warnsWorker.get_warns)
+
+        self.warnsWorker.data.connect(self.setTPMS)
+
+        self.warnsThread.start()
+
     def initGPSThread(self):
         self.thread =  QThread()
         self.worker = getGPS()
         self.stop_signal.connect(self.worker.halt)
         self.start_signal.connect(self.worker.get_status)
+        self.exit_signal.connect(self.worker.stop)
         self.worker.moveToThread(self.thread)
 
         self.worker.finished.connect(self.thread.quit)
@@ -559,6 +636,7 @@ class MainApp(QMainWindow):
 
         self.worker.start_signal.connect(self.worker.get_status)
         self.worker.stop_signal.connect(self.worker.halt)
+        self.worker.exit_signal.connect(self.worker.stop)
 
         self.worker.gpsSpeed.connect(self.updateSpeed)
         self.worker.gpsLat.connect(self.updateLat)
@@ -762,6 +840,7 @@ class MainApp(QMainWindow):
         return flag
 
     def setTPMS(self, sensor):
+        sensor = sensor.split(',')
         self.tire.setPressure(sensor[0], sensor[1])
         self.tire.setTemperature(sensor[0], sensor[2])
 
@@ -824,51 +903,12 @@ class MainApp(QMainWindow):
             self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
             self.TabWidget.setTabIcon(self.tp_index, QIcon(prefix + 'tpms_warn_off.png'))
 
-    def sensor_handler(self, client):
-        while True:
-            sensor = client.recv(32).decode('utf-8')
-            if sensor:
-                sensor = sensor.split(',')
-                if sensor[0] == 'FL' or sensor[0] == 'FR' or sensor[0] == 'RL' or sensor[0] == 'RR':
-                    self.setTPMS(sensor)
-        client.close()
-
-    def get_warns(self):
-        # create a local socket
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-            # bind the socket to the port
-            bind_ok = False
-            while not bind_ok:
-                try:
-                    sock.bind(('localhost', 5000))
-                    bind_ok = True
-                except:
-                    time.sleep(5)
-                    continue
-            # listen for incoming connections
-            sock.listen(5)
-            print("Server started...")
-
-            while True:
-                client, addr = sock.accept()
-                threading.Thread(target=self.sensor_handler, args=(client,)).start()
-
-    def setup_warns(self):
-        # warnings server
-        self.warns.worker = Thread(target=self.get_warns, args=())
-        self.warns.worker.setDaemon(True)
-        self.warns.worker.start()
-
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
+            self.exit_signal.emit()
             #ugly but efficient
             system = psutil.Process(os.getpid())
             system.terminate()
-
-    class Warnings:
-        def __init__(self, warns=0):
-            self.warns = warns
-            self.worker = 0
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
