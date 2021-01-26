@@ -94,15 +94,32 @@ class MainApp(QMainWindow):
         self.virbBattLabel.setText(" -- %")
         self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
         self.virbBattLabel.setAlignment(Qt.AlignRight)
+
+        powerButton = QPushButton("", self)
+        powerButton.setIcon(QIcon(prefix + 'power.png'))
+        powerButton.setIconSize(QSize(32, 32))
+        powerButton.clicked.connect(self.poweroff)
+        powerButton.setStyleSheet("background-color: black;"
+                                  "border-style: outset;"
+                                  "border-width: 2px;"
+                                  "border-radius: 6px;"
+                                  "border-color: black;"
+                                  "font: bold 32px;"
+                                  "color: black;"
+                                  "min-width: 32px;"
+                                  "max-width: 32px;"
+                                  "min-height: 28px;"
+                                  "max-height: 28px;"
+                                  "padding: 1px;")
+
         warnLayout = QHBoxLayout()
         warnLayout.addWidget(self.tpmsWarnLabel)
         warnLayout.addWidget(self.virbBattLabel)
+        warnLayout.addWidget(powerButton)
 
         centralLayout = QVBoxLayout()
         centralLayout.addWidget(self.TabWidget, 1)
         centralLayout.addLayout(warnLayout)
-
-#        centralLayout.addWidget(self.tpmsWarnLabel)
 
         size = 32
         self.gps_index = self.TabWidget.addTab(self.pages[0], "")
@@ -700,6 +717,9 @@ class MainApp(QMainWindow):
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
             self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
             self.TabWidget.setTabIcon(self.tp_index, QIcon(prefix + 'tpms_warn_off.png'))
+
+    def poweroff(self):
+        os.system("sudo shutdown -h now")
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
