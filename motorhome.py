@@ -225,9 +225,19 @@ class MainApp(QMainWindow):
         self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
         self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
 
+        self.virbBattLabel = QLabel()
+        self.virbBattLabel.setText(" -- %")
+        self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
+        self.virbBattLabel.setAlignment(Qt.AlignRight)
+        warnLayout = QHBoxLayout()
+        warnLayout.addWidget(self.tpmsWarnLabel)
+        warnLayout.addWidget(self.virbBattLabel)
+
         centralLayout = QVBoxLayout()
         centralLayout.addWidget(self.TabWidget, 1)
-        centralLayout.addWidget(self.tpmsWarnLabel)
+        centralLayout.addLayout(warnLayout)
+
+#        centralLayout.addWidget(self.tpmsWarnLabel)
 
         size = 32
         self.gps_index = self.TabWidget.addTab(self.pages[0], "")
@@ -639,7 +649,14 @@ class MainApp(QMainWindow):
         self.alt_label.setText(str(alt))
 
     def updateBatt(self, batt):
-       self.battery = batt
+       if batt < 5:
+           self.virbBattLabel.setStyleSheet("QLabel {color: red; font: bold 16px}")
+       elif batt >= 5 and batt < 20:
+           self.virbBattLabel.setStyleSheet("QLabel {color: yellow; font: bold 16px}")
+       else:
+           self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
+
+       self.virbBattLabel.setText(str(batt) + "%")
 
     def updatePreview(self, icon):
         self.previewButton.setIcon(icon)
