@@ -41,6 +41,7 @@ class MainApp(QMainWindow):
         self.setWindowTitle("Motorhome Info")
         self.warning = "No messages"
         self.resolution = QDesktopWidget().availableGeometry(-1)
+        self.prefix = str(Path.home()) + "/.motorhome/res/"
 
         ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
         if ssid == "VIRB-6267":
@@ -86,9 +87,8 @@ class MainApp(QMainWindow):
         self.init_settings_ui(self.pages[5])
 
         # warn lights
-        prefix = str(Path.home()) + "/.motorhome/res/"
-        self.tpms_warn_off = QPixmap(prefix + "tpms_warn_off.png").scaled(32, 32, Qt.KeepAspectRatio)
-        self.tpms_warn_on = QPixmap(prefix + "tpms_warn_on.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.tpms_warn_off = QPixmap(self.prefix + "tpms_warn_off.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.tpms_warn_on = QPixmap(self.prefix + "tpms_warn_on.png").scaled(32, 32, Qt.KeepAspectRatio)
         self.tpmsWarnLabel = QLabel()
         self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
         self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
@@ -99,7 +99,7 @@ class MainApp(QMainWindow):
         self.virbBattLabel.setAlignment(Qt.AlignRight)
 
         powerButton = QPushButton("", self)
-        powerButton.setIcon(QIcon(prefix + 'power.png'))
+        powerButton.setIcon(QIcon(self.prefix + 'power.png'))
         powerButton.setIconSize(QSize(32, 32))
         powerButton.clicked.connect(self.poweroff)
         powerButton.setStyleSheet("background-color: black;"
@@ -126,27 +126,27 @@ class MainApp(QMainWindow):
 
         size = 32
         self.gps_index = self.TabWidget.addTab(self.pages[0], "")
-        self.TabWidget.setTabIcon(self.gps_index, QIcon(prefix + 'gps.png'))
+        self.TabWidget.setTabIcon(self.gps_index, QIcon(self.prefix + 'gps.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
         self.dc_index = self.TabWidget.addTab(self.pages[1], "")
-        self.TabWidget.setTabIcon(self.dc_index, QIcon(prefix + 'camera.png'))
+        self.TabWidget.setTabIcon(self.dc_index, QIcon(self.prefix + 'camera.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
         self.tp_index = self.TabWidget.addTab(self.pages[2], "")
-        self.TabWidget.setTabIcon(self.tp_index, QIcon(prefix + 'tpms_warn_off.png'))
+        self.TabWidget.setTabIcon(self.tp_index, QIcon(self.prefix + 'tpms_warn_off.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
         self.warn_index = self.TabWidget.addTab(self.pages[3], "")
-        self.TabWidget.setTabIcon(self.warn_index, QIcon(prefix + 'messages.png'))
+        self.TabWidget.setTabIcon(self.warn_index, QIcon(self.prefix + 'messages.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
         self.weather_index = self.TabWidget.addTab(self.pages[4], "")
-        self.TabWidget.setTabIcon(self.weather_index, QIcon(prefix + 'weather.png'))
+        self.TabWidget.setTabIcon(self.weather_index, QIcon(self.prefix + 'weather.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
         self.settings_index = self.TabWidget.addTab(self.pages[5], "")
-        self.TabWidget.setTabIcon(self.settings_index, QIcon(prefix + 'settings.png'))
+        self.TabWidget.setTabIcon(self.settings_index, QIcon(self.prefix + 'settings.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
         self.TabWidget.setStyleSheet('''
             QTabBar::tab { height: 32px; width: 64px; color: #000000;}
@@ -159,12 +159,10 @@ class MainApp(QMainWindow):
         self.setCentralWidget(self.centralWidget)
 
     def init_dashcam_ui(self, page):
-        prefix = str(Path.home()) + "/.motorhome/res/"
-
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
 
         recButton = QPushButton("", self)
-        recButton.setIcon(QIcon(prefix + 'rec.png'))
+        recButton.setIcon(QIcon(self.prefix + 'rec.png'))
         recButton.setIconSize(QSize(64, 64))
         recButton.setCheckable(True)
         recButton.clicked.connect(lambda: self.record(recButton))
@@ -180,7 +178,7 @@ class MainApp(QMainWindow):
                                 "padding: 12px;")
 
         snapshotButton = QPushButton("", self)
-        snapshotButton.setIcon(QIcon(prefix + 'snapshot.png'))
+        snapshotButton.setIcon(QIcon(self.prefix + 'snapshot.png'))
         snapshotButton.setIconSize(QSize(64, 64))
         snapshotButton.clicked.connect(lambda: self.snapshot(snapshotButton))
         snapshotButton.setStyleSheet("background-color: darkgrey;"
@@ -310,8 +308,7 @@ class MainApp(QMainWindow):
         self.rl_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
         self.rr_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
-        prefix = str(Path.home()) + "/.motorhome/res/"
-        pixmap = QPixmap(prefix + "tire.png").scaled(128, 128, Qt.KeepAspectRatio)
+        pixmap = QPixmap(self.prefix + "tire.png").scaled(128, 128, Qt.KeepAspectRatio)
 
         tire1_label = QLabel()
         tire1_label.setPixmap(pixmap)
@@ -404,6 +401,9 @@ class MainApp(QMainWindow):
         self.startRecThread.finished.connect(self.startRecThread.deleteLater)
         self.startRecThread.started.connect(self.startRecWorker.start_recording)
 
+        self.TabWidget.setTabIcon(self.dc_index, QIcon(self.prefix + 'cam_rec.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(32, 32))
+
         self.startRecThread.start()
 
     def initStopRecThread(self):
@@ -414,6 +414,9 @@ class MainApp(QMainWindow):
         self.stopRecWorker.finished.connect(self.stopRecWorker.deleteLater)
         self.stopRecThread.finished.connect(self.stopRecThread.deleteLater)
         self.stopRecThread.started.connect(self.stopRecWorker.stop_recording)
+
+        self.TabWidget.setTabIcon(self.dc_index, QIcon(self.prefix + 'camera.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(32, 32))
 
         self.stopRecThread.start()
 
@@ -486,10 +489,8 @@ class MainApp(QMainWindow):
         self.thread.start()
 
     def record(self, button):
-        prefix = str(Path.home()) + "/.motorhome/res/"
-
         if button.isChecked():
-            button.setIcon(QIcon(prefix + 'stop.png'))
+            button.setIcon(QIcon(self.prefix + 'stop.png'))
             button.setIconSize(QSize(64, 64))
             button.setStyleSheet("background-color: #373636;"
                                  "border-style: outset;"
@@ -504,7 +505,7 @@ class MainApp(QMainWindow):
             self.initStartRecThread()
         else:
             # set autorecording when moving
-            button.setIcon(QIcon(prefix + 'rec.png'))
+            button.setIcon(QIcon(self.prefix + 'rec.png'))
             button.setIconSize(QSize(64, 64))
             button.setStyleSheet("background-color: darkgrey;"
                                  "border-style: outset;"
@@ -726,15 +727,14 @@ class MainApp(QMainWindow):
             self.warn_index = self.TabWidget.setTabText(3, self.msg_title)
 
         # turn on/off TPMS warn light
-        prefix = str(Path.home()) + "/.motorhome/res/"
         if self.tpmsFLflag or self.tpmsFRflag or self.tpmsRLflag or self.tpmsRRflag:
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
             self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
-            self.TabWidget.setTabIcon(self.tp_index, QIcon(prefix + 'tpms_warn_on.png'))
+            self.TabWidget.setTabIcon(self.tp_index, QIcon(self.prefix + 'tpms_warn_on.png'))
         else:
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
             self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
-            self.TabWidget.setTabIcon(self.tp_index, QIcon(prefix + 'tpms_warn_off.png'))
+            self.TabWidget.setTabIcon(self.tp_index, QIcon(self.prefix + 'tpms_warn_off.png'))
 
     def poweroff(self):
         os.system("sudo shutdown -h now")
