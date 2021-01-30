@@ -80,7 +80,7 @@ def send_pressure_temp(tire, now, mac, adv_type, data_str, rssi, clientsocket):
 #        print("BLE packet: %s %02x %s %d" % (mac, adv_type, data_str, rssi))
         pressure = get_pressure(data_str)
         temp = get_temperature(data_str)
-        val = tire.name + "," + "{:.1f}".format(pressure) + "," + "{:.0f}".format(temp) + "," + str(tire.check_pressure(pressure))
+        val = tire.name + "," + "{:.1f}".format(pressure) + "," + "{:.1f}".format(temp) + "," + str(tire.check_pressure(pressure))
         print(val)
 
         try:
