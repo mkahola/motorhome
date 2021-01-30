@@ -66,7 +66,12 @@ def get_pressure(data):
 def get_temperature(data):
     t1 = int(data[44:46], 16)
     t2 = int(data[46:48], 16) << 8
-    return (t1 + t2)/100
+    temp = t1 + t2
+
+    if temp > 2**15:
+        temp = temp - (2**16 + 1)
+
+    return temp/100
 
 #def send_pressure_temp(tire, now, mac, adv_type, data_str, rssi, clientsocket):
 def send_pressure_temp(tire, now, mac, adv_type, data_str, rssi, clientsocket):

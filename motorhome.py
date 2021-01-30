@@ -56,8 +56,8 @@ class MainApp(QMainWindow):
 
         self.initWarnsThread()
         self.getTPMSwarn()
-#        self.showFullScreen()
-        self.showMaximized()
+        self.showFullScreen()
+#        self.showMaximized()
 
     def setup_ui(self):
         global messages
