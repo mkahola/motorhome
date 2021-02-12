@@ -68,7 +68,6 @@ class MainApp(QMainWindow):
         self.tpmsRLflag = False
         self.tpmsRRflag = False
         self.speed = -1
-        self.camera_connected = False
 
         #Initialize widgets
         self.centralWidget = QWidget()
