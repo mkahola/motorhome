@@ -17,6 +17,9 @@ import subprocess
 import configparser
 from pathlib import Path
 
+import PIL
+from PIL import Image
+
 from tires import Tires
 from virb import Virb
 from camcorder import Camcorder
@@ -264,15 +267,14 @@ class MainApp(QMainWindow):
         hbox2.addWidget(self.lon_label)
         hbox2.addWidget(self.alt_label)
 
-        self.speed_title_label = QLabel("km/h")
-        self.speed_title_label.setFont(QFont("Sanserif", 12))
-        self.speed_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
         hbox3 = QHBoxLayout()
-        hbox3.addWidget(self.speed_title_label)
 
-        self.speed_label = QLabel("--")
-        self.speed_label.setFont(QFont("Sanserif", 128))
+        # speedometer
+        self.speed_label = QLabel()
+        self.needle = Image.open(self.prefix + "needle.png")
+        self.speedo = Image.open(self.prefix + "speedo.png")
+        self.updateSpeed(0)
+
         self.speed_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         hbox4 = QHBoxLayout()
@@ -552,8 +554,54 @@ class MainApp(QMainWindow):
                 self.setup_camera()
 
     def updateSpeed(self, speed):
-            self.speed_label.setText(str(speed))
-            self.speed = speed
+        x = self.speedo.size[0]/2
+        y = 220
+        loc = (x, y)
+
+        if speed < 5:
+            n = 5
+        else:
+            n = speed
+
+        percent = (n - 5)/ 175
+        rotation = 90 - (-23 + 235 * percent)  # 180 degrees because the gauge is half a circle
+
+        data = self.speedo.tobytes('raw', 'BGRA')
+        image = QImage(data, self.speedo.size[0], self.speedo.size[1], QImage.Format_ARGB32)
+        speedo = QPixmap.fromImage(image)
+
+        needle = self.needle.rotate(rotation, resample=PIL.Image.BICUBIC, center=loc)  # Rotate needle
+        data = needle.tobytes('raw', 'BGRA')
+        image = QImage(data, needle.size[0], needle.size[1], QImage.Format_ARGB32)
+        pixmap = QPixmap.fromImage(image)
+
+        p = QPainter(speedo)
+        p.drawPixmap(0, 0, pixmap)
+
+        pen = QPen(Qt.white)
+        pen.setWidth(2)
+        p.setPen(pen)
+
+        font = QFont()
+        font.setBold(True)
+        font.setPointSize(52)
+        font.setFamily('Sanserif')
+        p.setFont(font)
+
+        if speed < 10:
+            n_pixels = 24
+        elif speed < 100:
+            n_pixels = 54
+        else:
+            n_pixels = 74
+
+        p.drawText(int(self.speedo.size[0]/2)-n_pixels, self.speedo.size[1]-32, str(speed))
+        p.end()
+
+        self.speed_label.setPixmap(speedo)
+
+        #self.speed_label.setText(str(speed))
+        self.speed = speed
 
     def updateLat(self, lat):
         self.lat_label.setText("{:.5f}".format(lat))
