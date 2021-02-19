@@ -251,15 +251,15 @@ class MainApp(QMainWindow):
         hbox1.addWidget(self.alt_title_label)
 
         self.lat_label = QLabel("--")
-        self.lat_label.setFont(QFont("Sanserif", 32))
+        self.lat_label.setFont(QFont("Sanserif", 18))
         self.lat_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         self.lon_label = QLabel("--")
-        self.lon_label.setFont(QFont("Sanserif", 32))
+        self.lon_label.setFont(QFont("Sanserif", 18))
         self.lon_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         self.alt_label = QLabel("--")
-        self.alt_label.setFont(QFont("Sanserif", 32))
+        self.alt_label.setFont(QFont("Sanserif", 18))
         self.alt_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         hbox2 = QHBoxLayout()
