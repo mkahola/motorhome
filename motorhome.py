@@ -555,7 +555,7 @@ class MainApp(QMainWindow):
 
     def updateSpeed(self, speed):
         x = self.speedo.size[0]/2
-        y = 220
+        y = self.speedo.size[1]/2 + 30
         loc = (x, y)
 
         if speed < 5:
@@ -589,13 +589,13 @@ class MainApp(QMainWindow):
         p.setFont(font)
 
         if speed < 10:
-            n_pixels = 24
+            n_pixels = 28
         elif speed < 100:
-            n_pixels = 54
+            n_pixels = 58
         else:
-            n_pixels = 74
+            n_pixels = 78
 
-        p.drawText(int(self.speedo.size[0]/2)-n_pixels, self.speedo.size[1]-32, str(speed))
+        p.drawText(int(self.speedo.size[0]/2)-n_pixels, self.speedo.size[1]-12, str(speed))
         p.end()
 
         self.speed_label.setPixmap(speedo)
