@@ -58,7 +58,7 @@ class Camcorder(QObject):
         fps = float(cap.get(cv2.CAP_PROP_FPS))
         print("video: " + str(width) + "x" + str(height) + "@" + str(fps))
 
-        scale = 50
+        scale = 100
         while self.runVideo:
             ret, frame = cap.read()
             if ret:

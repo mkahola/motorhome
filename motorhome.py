@@ -71,6 +71,7 @@ class MainApp(QMainWindow):
         self.tpmsRLflag = False
         self.tpmsRRflag = False
         self.speed = -1
+        self.previewScale = 80
 
         #Initialize widgets
         self.centralWidget = QWidget()
@@ -155,6 +156,8 @@ class MainApp(QMainWindow):
         self.centralWidget.setLayout(centralLayout)
         self.setCentralWidget(self.centralWidget)
 
+        self.TabWidget.currentChanged.connect(self.tabChanged)
+
     def init_dashcam_ui(self, page):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
 
@@ -189,18 +192,17 @@ class MainApp(QMainWindow):
                                      "min-height: 72px;"
                                      "padding: 12px;")
 
-        pixmap = QPixmap(int(704/2), int(396/2))
+        pixmap = QPixmap(int(704*self.previewScale/100), int(396*self.previewScale/100))
         pixmap.fill(QColor("black"))
         icon = QIcon(pixmap)
 
-        self.previewButton = QPushButton("Preview", self)
+        self.previewButton = QPushButton("", self)
         self.previewButton.setCheckable(True)
-        self.previewButton.resize(int(704/2), int(396/2))
+        self.previewButton.resize(int(704*self.previewScale/100), int(396*self.previewScale/100))
         self.previewButton.clicked.connect(self.setup_camera)
 
         self.previewButton.setIcon(icon)
         self.previewButton.setIconSize(pixmap.rect().size())
-        self.previewButton.setText("Preview")
         self.previewButton.setStyleSheet("background-color: darkgrey;"
                                          "border-style: outset;"
                                          "border-width: 2px;"
@@ -532,10 +534,12 @@ class MainApp(QMainWindow):
                              "padding: 12px;")
 
     def tabChanged(self, index):
-        if index != self.dc_index:
-            if self.previewButton.isChecked():
-                self.previewButton.setChecked(False)
-                self.setup_camera()
+        if index == self.dc_index:
+            self.previewButton.setChecked(True)
+        else:
+            self.previewButton.setChecked(False)
+
+        self.setup_camera()
 
     def updateSpeed(self, speed):
         x = self.speedo.size[0]/2
@@ -608,7 +612,7 @@ class MainApp(QMainWindow):
 
     def updatePreview(self, icon):
         self.previewButton.setIcon(icon)
-        self.previewButton.setIconSize(QSize(int(704/2), int(396/2)))
+        self.previewButton.setIconSize(QSize(int(704*self.previewScale/100), int(396*self.previewScale/100)))
 
     def setup_camera(self):
         if not self.previewButton.isEnabled():
@@ -620,7 +624,6 @@ class MainApp(QMainWindow):
 
             self.initPreviewThread()
 
-            self.previewButton.setText("Stop")
             self.previewButton.setStyleSheet("background-color: darkgrey;"
                                              "border-style: inset;"
                                              "border-width: 2px;"
@@ -636,12 +639,11 @@ class MainApp(QMainWindow):
 
             self.stop_preview.emit()
 
-            pixmap = QPixmap(int(704/2), int(396/2))
+            pixmap = QPixmap(int(704*self.previewScale/100), int(396*self.previewScale/100))
             pixmap.fill(QColor("black"))
             icon = QIcon(pixmap)
             self.previewButton.setIcon(icon)
             self.previewButton.setIconSize(pixmap.rect().size())
-            self.previewButton.setText("Preview")
             self.previewButton.setStyleSheet("background-color: darkgrey;"
                                              "border-style: outset;"
                                              "border-width: 2px;"
