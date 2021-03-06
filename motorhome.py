@@ -85,8 +85,7 @@ class MainApp(QMainWindow):
         self.init_dashcam_ui(self.pages[1])
         self.init_tpms_ui(self.pages[2])
         self.init_msg_ui(self.pages[3])
-        self.init_weather_ui(self.pages[4])
-        self.init_settings_ui(self.pages[5])
+        self.init_settings_ui(self.pages[4])
 
         # warn lights
         self.tpms_warn_off = QPixmap(self.prefix + "tpms_warn_off.png").scaled(32, 32, Qt.KeepAspectRatio)
@@ -143,11 +142,7 @@ class MainApp(QMainWindow):
         self.TabWidget.setTabIcon(self.warn_index, QIcon(self.prefix + 'messages.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.weather_index = self.TabWidget.addTab(self.pages[4], "")
-        self.TabWidget.setTabIcon(self.weather_index, QIcon(self.prefix + 'weather.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(size, size))
-
-        self.settings_index = self.TabWidget.addTab(self.pages[5], "")
+        self.settings_index = self.TabWidget.addTab(self.pages[4], "")
         self.TabWidget.setTabIcon(self.settings_index, QIcon(self.prefix + 'settings.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
         self.TabWidget.setStyleSheet('''
@@ -351,17 +346,6 @@ class MainApp(QMainWindow):
         font = self.fl_label.font()
         font.setPointSize(16)
         font.setBold(True)
-
-    def init_weather_ui(self, page):
-        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
-        web = QWebView()
-        web.settings().setAttribute(QWebSettings.JavascriptEnabled, True)
-        web.settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls, True);
-        web.load(QUrl("https://ilmatieteenlaitos.fi"))
-
-        vbox = QVBoxLayout()
-        vbox.addWidget(web)
-        page.setLayout(vbox)
 
     def init_settings_ui(self, page):
         # Tire pressure warnig level
