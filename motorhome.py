@@ -126,7 +126,7 @@ class MainApp(QMainWindow):
         centralLayout.addWidget(self.TabWidget, 1)
         centralLayout.addLayout(warnLayout)
 
-        size = 32
+        size = 48
         self.gps_index = self.TabWidget.addTab(self.pages[0], "")
         self.TabWidget.setTabIcon(self.gps_index, QIcon(self.prefix + 'gps.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
@@ -147,7 +147,7 @@ class MainApp(QMainWindow):
         self.TabWidget.setTabIcon(self.settings_index, QIcon(self.prefix + 'settings.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
         self.TabWidget.setStyleSheet('''
-            QTabBar::tab { height: 32px; width: 64px; color: #000000;}
+            QTabBar::tab { height: 48px; width: 64px; color: #000000;}
             QTabBar::tab:selected {background-color: #373636;}
             QTabBar::tab:selected {font: 16pt bold; color: #000000}
             QTabBar::tab {margin: 0px;}
