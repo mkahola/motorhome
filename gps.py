@@ -12,10 +12,6 @@ class GPS(QObject):
     finished = pyqtSignal()
     exit_signal = pyqtSignal()
 
-    gpsSpeed = pyqtSignal(int)
-    gpsLat = pyqtSignal(float)
-    gpsLon = pyqtSignal(float)
-    gpsAlt = pyqtSignal(int)
     gpsBatt = pyqtSignal(int)
 
     def __init__(self, ip, parent=None):
@@ -41,19 +37,10 @@ class GPS(QObject):
                 except:
                     print("data unavailable")
                     pass
-
-                try:
-                    self.gpsSpeed.emit(int(status['speed']*3.6))
-                    self.gpsLon.emit(status['gpsLongitude'])
-                    self.gpsLat.emit(status['gpsLatitude'])
-                    self.gpsAlt.emit(int(status['altitude']))
-                except:
-                    print("unable to read status")
-                    pass
             else:
                 print("status requests halted")
 
-            time.sleep(1)
+            time.sleep(30)
 
         print("thread finished")
         self.finished.emit()

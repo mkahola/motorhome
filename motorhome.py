@@ -229,59 +229,13 @@ class MainApp(QMainWindow):
 
     def init_gps_ui(self, page):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
-
-        self.lat_title_label = QLabel("Latitude")
-        self.lat_title_label.setFont(QFont("Sanserif", 12))
-        self.lat_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-        self.lon_title_label = QLabel("Longitude")
-        self.lon_title_label.setFont(QFont("Sanserif", 12))
-        self.lon_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-        self.alt_title_label = QLabel("Altitude (m)")
-        self.alt_title_label.setFont(QFont("Sanserif", 12))
-        self.alt_title_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-        hbox1 = QHBoxLayout()
-        hbox1.addWidget(self.lat_title_label)
-        hbox1.addWidget(self.lon_title_label)
-        hbox1.addWidget(self.alt_title_label)
-
-        self.lat_label = QLabel("--")
-        self.lat_label.setFont(QFont("Sanserif", 18))
-        self.lat_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-        self.lon_label = QLabel("--")
-        self.lon_label.setFont(QFont("Sanserif", 18))
-        self.lon_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-        self.alt_label = QLabel("--")
-        self.alt_label.setFont(QFont("Sanserif", 18))
-        self.alt_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-        hbox2 = QHBoxLayout()
-        hbox2.addWidget(self.lat_label)
-        hbox2.addWidget(self.lon_label)
-        hbox2.addWidget(self.alt_label)
-
-        hbox3 = QHBoxLayout()
-
-        # speedometer
-        self.speed_label = QLabel()
-        self.needle = Image.open(self.prefix + "needle.png")
-        self.speedo = Image.open(self.prefix + "speedo.png")
-        self.updateSpeed(0)
-
-        self.speed_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-        hbox4 = QHBoxLayout()
-        hbox4.addWidget(self.speed_label)
+        web = QWebView()
+        web.settings().setAttribute(QWebSettings.JavascriptEnabled, True)
+        web.settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls, True);
+        web.load(QUrl("http://my.dashboard.com"))
 
         vbox = QVBoxLayout()
-        vbox.addLayout(hbox1)
-        vbox.addLayout(hbox2)
-        vbox.addLayout(hbox3)
-        vbox.addLayout(hbox4)
+        vbox.addWidget(web)
         page.setLayout(vbox)
 
     def init_tpms_ui(self, page):
@@ -466,10 +420,6 @@ class MainApp(QMainWindow):
         self.worker.stop_signal.connect(self.worker.halt)
         self.worker.exit_signal.connect(self.worker.stop)
 
-        self.worker.gpsSpeed.connect(self.updateSpeed)
-        self.worker.gpsLat.connect(self.updateLat)
-        self.worker.gpsLon.connect(self.updateLon)
-        self.worker.gpsAlt.connect(self.updateAlt)
         self.worker.gpsBatt.connect(self.updateBatt)
         self.thread.started.connect(self.worker.run)
 
@@ -540,65 +490,6 @@ class MainApp(QMainWindow):
             self.previewButton.setChecked(False)
 
         self.setup_camera()
-
-    def updateSpeed(self, speed):
-        x = self.speedo.size[0]/2
-        y = self.speedo.size[1]/2 + 30
-        loc = (x, y)
-
-        if speed < 5:
-            n = 5
-        else:
-            n = speed
-
-        percent = (n - 5)/ 175
-        rotation = 90 - (-23 + 235 * percent)  # 180 degrees because the gauge is half a circle
-
-        data = self.speedo.tobytes('raw', 'BGRA')
-        image = QImage(data, self.speedo.size[0], self.speedo.size[1], QImage.Format_ARGB32)
-        speedo = QPixmap.fromImage(image)
-
-        needle = self.needle.rotate(rotation, resample=PIL.Image.BICUBIC, center=loc)  # Rotate needle
-        data = needle.tobytes('raw', 'BGRA')
-        image = QImage(data, needle.size[0], needle.size[1], QImage.Format_ARGB32)
-        pixmap = QPixmap.fromImage(image)
-
-        p = QPainter(speedo)
-        p.drawPixmap(0, 0, pixmap)
-
-        pen = QPen(Qt.white)
-        pen.setWidth(2)
-        p.setPen(pen)
-
-        font = QFont()
-        font.setBold(True)
-        font.setPointSize(52)
-        font.setFamily('Sanserif')
-        p.setFont(font)
-
-        if speed < 10:
-            n_pixels = 28
-        elif speed < 100:
-            n_pixels = 58
-        else:
-            n_pixels = 78
-
-        p.drawText(int(self.speedo.size[0]/2)-n_pixels, self.speedo.size[1]-12, str(speed))
-        p.end()
-
-        self.speed_label.setPixmap(speedo)
-
-        #self.speed_label.setText(str(speed))
-        self.speed = speed
-
-    def updateLat(self, lat):
-        self.lat_label.setText("{:.5f}".format(lat))
-
-    def updateLon(self, lon):
-        self.lon_label.setText("{:.5f}".format(lon))
-
-    def updateAlt(self, alt):
-        self.alt_label.setText(str(alt))
 
     def updateBatt(self, batt):
        if batt < 5:
@@ -784,3 +675,4 @@ if __name__ == "__main__":
     app.setStyleSheet(qdarkgraystyle.load_stylesheet())
     win = MainApp()
     sys.exit(app.exec_())
+

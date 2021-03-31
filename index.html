@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+<head>
+    <title>Speedo</title>
+    <script src="gauge.min.js"></script>
+</head>
+<body style="background-color:#000000;">
+<div style = "text-align:center;">
+<canvas id="gauge-speedo" width="400" height="400" style="width: 400px; height: 400px;"></canvas>
+<script>
+var gaugeSpeedo = new RadialGauge({
+    renderTo: 'gauge-speedo',
+    width: 300,
+    height: 300,
+    units: 'km/h',
+    minValue: 0,
+    maxValue: 180,
+    majorTicks: [
+        '0',
+        '20',
+        '40',
+        '60',
+        '80',
+        '100',
+        '120',
+        '140',
+        '160',
+        '180',
+    ],
+    minorTicks: 4,
+    ticksAngle: 270,
+    startAngle: 45,
+    strokeTicks: true,
+    highlights: [],
+    valueInt: 1,
+    valueDec: 0,
+    colorPlate: "#3333ff",
+    colorMajorTicks: "#f5f5f5",
+    colorMinorTicks: "#f5f5f5",
+    colorTitle: "#ffffff",
+    colorUnits: "#ffffff",
+    colorNumbers: "#ffffff",
+    valueBox: true,
+    colorValueText: "#ffffff",
+    colorValueBoxRect: "#606060",
+    colorValueBoxRectEnd: "#606060",
+    colorValueBoxBackground: "#606060",
+    colorValueBoxShadow: false,
+    colorValueTextShadow: false,
+    colorNeedleShadowUp: true,
+    colorNeedleShadowDown: false,
+    colorNeedle: "rgba(255, 255, 255, 1.0)",
+    colorNeedleEnd: "rgba(255, 255, 255, 1.0)",
+    colorNeedleCircleOuter: "rgba(0, 0, 0, 1)",
+    colorNeedleCircleOuterEnd: "rgba(255, 255, 255, 1)",
+    borderShadowWidth: 0,
+    borders: true,
+    borderInnerWidth: 0,
+    borderMiddleWidth: 0,
+    borderOuterWidth: 5,
+    colorBorderOuter: "#fafafa",
+    colorBorderOuterEnd: "#cdcdcd",
+    needleType: "arrow",
+    needleWidth: 3,
+    needleCircleSize: 10,
+    needleCircleOuter: true,
+    needleCircleInner: false,
+    animationDuration: 950,
+    animationRule: "dequint",
+    fontNumbers: "Verdana",
+    fontTitle: "Verdana",
+    fontUnits: "Verdana",
+    fontValue: "Led",
+    fontValueStyle: 'bold',
+    fontNumbersSize: 20,
+    fontNumbersStyle: 'italic',
+    fontNumbersWeight: 'bold',
+    fontTitleSize: 25,
+    fontUnitsSize: 22,
+    fontValueSize: 40,
+    animatedValue: true
+});
+</script>
+<script>
+        var ws = new WebSocket("ws://127.0.0.1:5678/");
+        ws.onmessage = function (event) {
+		    gaugeSpeedo.value = event.data
+        };
+</script>
+</div>
+</body>
+</html>
+
