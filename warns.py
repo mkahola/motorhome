@@ -16,14 +16,13 @@ class Warnings(QObject):
         self._running = True
 
     def sensor_handler(self, client):
-        client.settimeout(5)
+        client.settimeout(10)
         while self._running:
             try:
                 sensor = client.recv(32).decode('utf-8')
                 if sensor:
                     self.data.emit(sensor)
             except socket.timeout:
-                print("socket recv timeout")
                 time.sleep(1)
                 pass
         client.close()
@@ -45,7 +44,7 @@ class Warnings(QObject):
         sock.listen(5)
         print("Server started...")
 
-        sock.settimeout(5)
+        sock.settimeout(60)
         while self._running:
             try:
                 client, addr = sock.accept()

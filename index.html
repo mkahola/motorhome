@@ -2,16 +2,16 @@
 <html>
 <head>
     <title>Speedo</title>
-    <script src="gauge.min.js"></script>
 </head>
 <body style="background-color:#000000;">
 <div style = "text-align:center;">
-<canvas id="gauge-speedo" width="400" height="400" style="width: 400px; height: 400px;"></canvas>
+<canvas id="gauge-speedo" width="330" height="330" style="width: 330px; height: 330px;"></canvas>
 <script>
+function initSpeedo() {
 var gaugeSpeedo = new RadialGauge({
     renderTo: 'gauge-speedo',
-    width: 300,
-    height: 300,
+    width: 325,
+    height: 325,
     units: 'km/h',
     minValue: 0,
     maxValue: 180,
@@ -79,14 +79,15 @@ var gaugeSpeedo = new RadialGauge({
     fontUnitsSize: 22,
     fontValueSize: 40,
     animatedValue: true
-});
+}).draw();
+
+    var ws = new WebSocket("ws://127.0.0.1:5678/");
+    ws.onmessage = function (event) {
+	gaugeSpeedo.value = event.data
+    };
+}
 </script>
-<script>
-        var ws = new WebSocket("ws://127.0.0.1:5678/");
-        ws.onmessage = function (event) {
-		    gaugeSpeedo.value = event.data
-        };
-</script>
+<script async src="gauge.min.js" onload="initSpeedo()"></script>
 </div>
 </body>
 </html>
