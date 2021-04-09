@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -80,14 +79,15 @@ class MainApp(QMainWindow):
         self.TabWidget = QTabWidget(self)
         self.TabWidget.setFont(QFont("Sanserif", 16))
 
-        self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
+        self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
 
         #initialize pages
-        self.init_gps_ui(self.pages[0])
-        self.init_dashcam_ui(self.pages[1])
-        self.init_tpms_ui(self.pages[2])
-        self.init_msg_ui(self.pages[3])
-        self.init_settings_ui(self.pages[4])
+        self.init_dashboard_ui(self.pages[0])
+        self.init_gps_ui(self.pages[1])
+        self.init_dashcam_ui(self.pages[2])
+        self.init_tpms_ui(self.pages[3])
+        self.init_msg_ui(self.pages[4])
+        self.init_settings_ui(self.pages[5])
 
         # warn lights
         self.tpms_warn_off = QPixmap(self.prefix + "tpms_warn_off.png").scaled(32, 32, Qt.KeepAspectRatio)
@@ -128,23 +128,27 @@ class MainApp(QMainWindow):
         centralLayout.addLayout(warnLayout)
 
         size = 32
-        self.gps_index = self.TabWidget.addTab(self.pages[0], "")
+        self.dashboard_index = self.TabWidget.addTab(self.pages[0], "")
+        self.TabWidget.setTabIcon(self.dashboard_index, QIcon(self.prefix + 'speedometer.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+
+        self.gps_index = self.TabWidget.addTab(self.pages[1], "")
         self.TabWidget.setTabIcon(self.gps_index, QIcon(self.prefix + 'gps.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.dc_index = self.TabWidget.addTab(self.pages[1], "")
+        self.dc_index = self.TabWidget.addTab(self.pages[2], "")
         self.TabWidget.setTabIcon(self.dc_index, QIcon(self.prefix + 'camera.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.tp_index = self.TabWidget.addTab(self.pages[2], "")
+        self.tp_index = self.TabWidget.addTab(self.pages[3], "")
         self.TabWidget.setTabIcon(self.tp_index, QIcon(self.prefix + 'tpms_warn_off.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.warn_index = self.TabWidget.addTab(self.pages[3], "")
+        self.warn_index = self.TabWidget.addTab(self.pages[4], "")
         self.TabWidget.setTabIcon(self.warn_index, QIcon(self.prefix + 'messages.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.settings_index = self.TabWidget.addTab(self.pages[4], "")
+        self.settings_index = self.TabWidget.addTab(self.pages[5], "")
         self.TabWidget.setTabIcon(self.settings_index, QIcon(self.prefix + 'settings.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
         self.TabWidget.setStyleSheet('''
@@ -218,7 +222,7 @@ class MainApp(QMainWindow):
 
         page.setLayout(hbox)
 
-    def init_gps_ui(self, page):
+    def init_dashboard_ui(self, page):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
         web = QWebView()
         web.settings().setAttribute(QWebSettings.JavascriptEnabled, True)
@@ -227,6 +231,58 @@ class MainApp(QMainWindow):
 
         vbox = QVBoxLayout()
         vbox.addWidget(web)
+        page.setLayout(vbox)
+
+    def init_gps_ui(self, page):
+        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+
+        lat_label = QLabel("Latitude")
+        lat_label.setFixedWidth(200)
+        lat_label.setStyleSheet("font: bold 16px;"
+                                "color: white;")
+
+        lon_label = QLabel("Longitude")
+        lon_label.setFixedWidth(200)
+        lon_label.setStyleSheet("font: bold 16px;"
+                                "color: white;")
+
+        alt_label = QLabel("Altitude")
+        alt_label.setFixedWidth(200)
+        alt_label.setStyleSheet("font: bold 16px;"
+                                "color: white;")
+        hbox1 = QHBoxLayout()
+        hbox1.setSpacing(20)
+        hbox1.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
+        hbox1.addWidget(lat_label)
+        hbox1.addWidget(lon_label)
+        hbox1.addWidget(alt_label)
+
+        self.lat = QLabel("--")
+        self.lat.setFixedWidth(200)
+        self.lat.setStyleSheet("font: bold 32px;"
+                               "color: white;")
+
+        self.lon = QLabel("--")
+        self.lon.setFixedWidth(200)
+        self.lon.setStyleSheet("font: bold 32px;"
+                                "color: white;")
+
+        self.alt = QLabel("--")
+        self.alt.setFixedWidth(200)
+        self.alt.setStyleSheet("font: bold 32px;"
+                               "color: white;")
+        hbox2 = QHBoxLayout()
+        hbox2.setSpacing(20)
+        hbox2.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        hbox2.addWidget(self.lat)
+        hbox2.addWidget(self.lon)
+        hbox2.addWidget(self.alt)
+
+        vbox = QVBoxLayout()
+        #vbox.setSpacing(10)
+        vbox.addLayout(hbox1)
+        vbox.addLayout(hbox2)
+
         page.setLayout(vbox)
 
     def init_tpms_ui(self, page):
@@ -412,6 +468,10 @@ class MainApp(QMainWindow):
         self.worker.exit_signal.connect(self.worker.stop)
 
         self.worker.gpsBatt.connect(self.updateBatt)
+        self.worker.gpsLat.connect(self.updateLat)
+        self.worker.gpsLon.connect(self.updateLon)
+        self.worker.gpsAlt.connect(self.updateAlt)
+
         self.thread.started.connect(self.worker.run)
 
         self.thread.start()
@@ -481,6 +541,15 @@ class MainApp(QMainWindow):
             self.previewEnabled = False
 
         self.setup_camera()
+
+    def updateLat(self, lat):
+        self.lat.setText("{:.5f}".format(lat))
+
+    def updateLon(self, lon):
+        self.lon.setText("{:.5f}".format(lon))
+
+    def updateAlt(self, alt):
+        self.alt.setText(str(alt))
 
     def updateBatt(self, batt):
        if batt < 5:
