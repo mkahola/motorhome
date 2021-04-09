@@ -10,7 +10,7 @@ class Camcorder(QObject):
     global virb_addr
 
     finished = pyqtSignal()
-    image = pyqtSignal(QIcon)
+    image = pyqtSignal(QPixmap)
     stop_preview = pyqtSignal()
 
     def __init__(self, ip, parent=None):
@@ -58,16 +58,13 @@ class Camcorder(QObject):
         fps = float(cap.get(cv2.CAP_PROP_FPS))
         print("video: " + str(width) + "x" + str(height) + "@" + str(fps))
 
-        scale = 100
         while self.runVideo:
             ret, frame = cap.read()
             if ret:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 image = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
-                pixmap = QPixmap.fromImage(image).scaled(int(width*scale/100),
-                                                         int(height*scale/100),
-                                                         Qt.KeepAspectRatio)
-                self.image.emit(QIcon(pixmap))
+                pixmap = QPixmap.fromImage(image)
+                self.image.emit(pixmap)
 
         print("video preview stopped")
         cap.release()

@@ -50,7 +50,7 @@ class MainApp(QMainWindow):
         if ssid == "VIRB-6267":
             self.ip = "192.168.0.1"
         else:
-            self.ip = "192.168.100.15"
+            self.ip = "192.168.100.17"
 
         self.setup_ui()
 
@@ -71,6 +71,7 @@ class MainApp(QMainWindow):
         self.tpmsRLflag = False
         self.tpmsRRflag = False
         self.speed = -1
+        self.previewEnabled = False
         self.previewScale = 80
 
         #Initialize widgets
@@ -192,27 +193,17 @@ class MainApp(QMainWindow):
                                      "min-height: 72px;"
                                      "padding: 12px;")
 
-        pixmap = QPixmap(int(704*self.previewScale/100), int(396*self.previewScale/100))
-        pixmap.fill(QColor("black"))
-        icon = QIcon(pixmap)
-
-        self.previewButton = QPushButton("", self)
-        self.previewButton.setCheckable(True)
-        self.previewButton.resize(int(704*self.previewScale/100), int(396*self.previewScale/100))
-        self.previewButton.clicked.connect(self.setup_camera)
-
-        self.previewButton.setIcon(icon)
-        self.previewButton.setIconSize(pixmap.rect().size())
-        self.previewButton.setStyleSheet("background-color: darkgrey;"
-                                         "border-style: outset;"
-                                         "border-width: 2px;"
-                                         "border-radius: 10px;"
-                                         "border-color: beige;"
-                                         "font: bold 32px;"
-                                         "color: black;"
-                                         "min-width: 352px;"
-                                         "min-width: 198px;"
-                                         "padding: 12px;")
+        self.previewLabel = QLabel("", self)
+        self.previewLabel.setStyleSheet("background-color: black;"
+                                        "border-style: outset;"
+                                        "border-width: 1px;"
+                                        "border-radius: 8px;"
+                                        "border-color: beige;"
+                                        "font: bold 32px;"
+                                        "color: black;"
+                                        "min-width: 565px;"
+                                        "min-height: 320px;"
+                                        "padding: 4px;")
 
         vbox = QVBoxLayout()
         vbox.setAlignment(Qt.AlignCenter)
@@ -223,7 +214,7 @@ class MainApp(QMainWindow):
         hbox.setSpacing(40)
         hbox.addLayout(vbox)
         hbox.setAlignment(Qt.AlignCenter)
-        hbox.addWidget(self.previewButton)
+        hbox.addWidget(self.previewLabel)
 
         page.setLayout(hbox)
 
@@ -485,9 +476,9 @@ class MainApp(QMainWindow):
 
     def tabChanged(self, index):
         if index == self.dc_index:
-            self.previewButton.setChecked(True)
+            self.previewEnabled = True
         else:
-            self.previewButton.setChecked(False)
+            self.previewEnabled = False
 
         self.setup_camera()
 
@@ -501,49 +492,22 @@ class MainApp(QMainWindow):
 
        self.virbBattLabel.setText(str(batt) + "%")
 
-    def updatePreview(self, icon):
-        self.previewButton.setIcon(icon)
-        self.previewButton.setIconSize(QSize(int(704*self.previewScale/100), int(396*self.previewScale/100)))
+    def updatePreview(self, pixmap):
+        self.previewLabel.setPixmap(pixmap.scaled(int(704*self.previewScale/100), int(396*self.previewScale/100),
+                                                  QtCore.Qt.KeepAspectRatio))
 
     def setup_camera(self):
-        if not self.previewButton.isEnabled():
-            return
-
-        if self.previewButton.isChecked():
-            print("button checked")
+        if self.previewEnabled:
+            print("preview enabled")
             self.stop_signal.emit()
 
             self.initPreviewThread()
 
-            self.previewButton.setStyleSheet("background-color: darkgrey;"
-                                             "border-style: inset;"
-                                             "border-width: 2px;"
-                                             "border-radius: 10px;"
-                                             "border-color: beige;"
-                                             "font: bold 32px;"
-                                             "color: red;"
-                                             "min-width: 10em;"
-                                             "padding: 6px;")
         else:
-            print("button not checked")
+            print("preview disabled")
             self.start_signal.emit()
 
             self.stop_preview.emit()
-
-            pixmap = QPixmap(int(704*self.previewScale/100), int(396*self.previewScale/100))
-            pixmap.fill(QColor("black"))
-            icon = QIcon(pixmap)
-            self.previewButton.setIcon(icon)
-            self.previewButton.setIconSize(pixmap.rect().size())
-            self.previewButton.setStyleSheet("background-color: darkgrey;"
-                                             "border-style: outset;"
-                                             "border-width: 2px;"
-                                             "border-radius: 10px;"
-                                             "border-color: beige;"
-                                             "font: bold 32px;"
-                                             "color: black;"
-                                             "min-width: 10em;"
-                                             "padding: 6px;")
 
     def changePressureLevel(self, value):
         self.tire.setWarnPressure(value/10.0)
