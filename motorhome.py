@@ -468,9 +468,7 @@ class MainApp(QMainWindow):
         self.worker.exit_signal.connect(self.worker.stop)
 
         self.worker.gpsBatt.connect(self.updateBatt)
-        self.worker.gpsLat.connect(self.updateLat)
-        self.worker.gpsLon.connect(self.updateLon)
-        self.worker.gpsAlt.connect(self.updateAlt)
+        self.worker.gpsLocation.connect(self.updateLocation)
 
         self.thread.started.connect(self.worker.run)
 
@@ -542,14 +540,10 @@ class MainApp(QMainWindow):
 
         self.setup_camera()
 
-    def updateLat(self, lat):
-        self.lat.setText("{:.5f}".format(lat))
-
-    def updateLon(self, lon):
-        self.lon.setText("{:.5f}".format(lon))
-
-    def updateAlt(self, alt):
-        self.alt.setText(str(alt))
+    def updateLocation(self, location):
+        self.lat.setText("{:.5f}".format(location[0]))
+        self.lon.setText("{:.5f}".format(location[1]))
+        self.alt.setText("{:.0f}".format(location[2]))
 
     def updateBatt(self, batt):
        if batt < 5:

@@ -13,9 +13,7 @@ class GPS(QObject):
     exit_signal = pyqtSignal()
 
     gpsBatt = pyqtSignal(int)
-    gpsLat = pyqtSignal(float)
-    gpsLon = pyqtSignal(float)
-    gpsAlt = pyqtSignal(int)
+    gpsLocation = pyqtSignal(tuple)
 
     def __init__(self, ip, parent=None):
         QObject.__init__(self, parent=parent)
@@ -30,10 +28,9 @@ class GPS(QObject):
             if self.request:
                 try:
                     status = self.camera.status()
+                    location = (status['gpsLatitude'], status['gpsLongitude'], status['altitude'])
                     self.gpsBatt.emit(int(status['batteryLevel'] + 0.5))
-                    self.gpsLon.emit(status['gpsLongitude'])
-                    self.gpsLat.emit(status['gpsLatitude'])
-                    self.gpsAlt.emit(int(status['altitude']))
+                    self.gpsLocation.emit(location)
 
                 except ConnectionError:
                     print("connection error")
