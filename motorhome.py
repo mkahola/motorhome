@@ -24,6 +24,7 @@ from virb import Virb
 from camcorder import Camcorder
 from gps import GPS
 from warns import Warnings
+from geolocation import Geolocation
 
 messages = ['Tire pressure low on front left tire',
             'Tire pressure low on front right tire',
@@ -44,12 +45,14 @@ class MainApp(QMainWindow):
         self.warning = "No messages"
         self.resolution = QDesktopWidget().availableGeometry(-1)
         self.prefix = str(Path.home()) + "/.motorhome/res/"
+        self.network_available = False
 
         ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
         if ssid == "VIRB-6267":
             self.ip = "192.168.0.1"
         else:
             self.ip = "192.168.100.17"
+            self.network_available = True
 
         self.setup_ui()
 
@@ -278,10 +281,18 @@ class MainApp(QMainWindow):
         hbox2.addWidget(self.lon)
         hbox2.addWidget(self.alt)
 
+        self.address = QLabel("")
+        self.address.setStyleSheet("font: 24px;"
+                                   "color: white;")
+        hbox3 = QHBoxLayout()
+        hbox3.setSpacing(20)
+        hbox3.setAlignment(Qt.AlignCenter)
+        hbox3.addWidget(self.address)
+
         vbox = QVBoxLayout()
-        #vbox.setSpacing(10)
         vbox.addLayout(hbox1)
         vbox.addLayout(hbox2)
+        vbox.addLayout(hbox3)
 
         page.setLayout(vbox)
 
@@ -535,15 +546,26 @@ class MainApp(QMainWindow):
     def tabChanged(self, index):
         if index == self.dc_index:
             self.previewEnabled = True
+            self.setup_camera()
         else:
             self.previewEnabled = False
+            self.setup_camera()
 
-        self.setup_camera()
+        if index == self.gps_index and self.network_available:
+            self.updateAddress = True
+        else:
+            self.updateAddress = False
+
 
     def updateLocation(self, location):
+        geolocation = Geolocation("motorhome")
+
         self.lat.setText("{:.5f}".format(location[0]))
         self.lon.setText("{:.5f}".format(location[1]))
         self.alt.setText("{:.0f}".format(location[2]))
+
+        if self.updateAddress:
+            self.address.setText(geolocation.get_address((location[0], location[1])))
 
     def updateBatt(self, batt):
        if batt < 5:
