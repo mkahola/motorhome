@@ -15,6 +15,8 @@ import os.path
 import subprocess
 import configparser
 from pathlib import Path
+import python_arptable
+from python_arptable import get_arp_table
 
 import PIL
 from PIL import Image
@@ -46,23 +48,77 @@ class MainApp(QMainWindow):
         self.resolution = QDesktopWidget().availableGeometry(-1)
         self.prefix = str(Path.home()) + "/.motorhome/res/"
         self.network_available = False
-
-        ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
-        if ssid == "VIRB-6267":
-            self.ip = "192.168.0.1"
-        else:
-            self.ip = "192.168.100.17"
-            self.network_available = True
+        self.updateAddress = False
+        self.ip = ""
 
         self.setup_ui()
 
-        # GPS data receiving thread
-        self.initGPSThread()
+        conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
+        config = configparser.ConfigParser()
+
+        try:
+            config.read(conf_file)
+            self.virb_mac = config['VIRB']['mac']
+        except:
+            self.virb_mac = ""
+
+        self.ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
+        if self.ssid != "VIRB-6267":
+            self.network_available = True
+
+        self.timer=QTimer()
+        self.timer.timeout.connect(self.get_ip)
+        self.timer.start(1000)
 
         self.initWarnsThread()
         self.getTPMSwarn()
         self.showFullScreen()
 #        self.showMaximized()
+
+    def get_ip(self):
+        ip_ok = False
+
+        conf_file = str(Path.home()) + "/.motorhome/network.conf"
+        config = configparser.ConfigParser()
+        config.read(conf_file)
+
+        try:
+            ip = config[self.ssid]['ip']
+            response = os.system("ping -c 1 " + ip)
+
+            #and then check the response...
+            if response == 0:
+                ip_ok = True
+                self.ip = ip
+                print("virb responded to ping")
+            else:
+                print("no response from virb!")
+
+            self.initGPSThread()
+            self.timer.stop()
+        except:
+            pass
+
+        if not ip_ok:
+            arp = get_arp_table()
+            for i in range(len(arp)):
+                if arp[i]['HW address'] == self.virb_mac:
+                    self.ip = arp[i]['IP address']
+                    # GPS data receiving thread
+                    self.initGPSThread()
+                    self.timer.stop()
+
+                    try:
+                        ssid = config[self.ssid]
+                        ssid['ip'] = self.ip
+                    except:
+                        config.add_section(self.ssid)
+                        config[self.ssid]['ip'] = self.ip
+
+                    with open(conf_file, 'w') as configfile:
+                        config.write(configfile)
+
+        print("Virb ip: " + self.ip)
 
     def setup_ui(self):
         global messages
@@ -432,6 +488,9 @@ class MainApp(QMainWindow):
         self.snapshotThread.start()
 
     def initPreviewThread(self):
+        if self.ip == "":
+            return
+
         self.previewThread = QThread()
         self.previewWorker = Camcorder(self.ip)
         self.stop_preview.connect(self.previewWorker.stop_preview)
@@ -461,6 +520,9 @@ class MainApp(QMainWindow):
         self.warnsThread.start()
 
     def initGPSThread(self):
+        if self.ip == "":
+            return
+
         self.thread =  QThread()
         self.worker = GPS(self.ip)
         self.stop_signal.connect(self.worker.halt)
