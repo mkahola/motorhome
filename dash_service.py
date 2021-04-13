@@ -7,16 +7,25 @@ import datetime
 import random
 import websockets
 import subprocess
+import configparser
+from pathlib import Path
 
 from virb import Virb
 
 def run_dash_server():
     async def gps(websocket, path):
         ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
-        if ssid == "VIRB-6267":
+        conf_file = str(Path.home()) + "/.motorhome/network.conf"
+        config = configparser.ConfigParser()
+        config.read(conf_file)
+
+        try:
+            ip = config[ssid]['ip']
+        except:
+            print("no ip found, using default")
             ip = "192.168.0.1"
-        else:
-            ip = "192.168.100.15"
+            pass
+        print("Virb ip: " + ip)
 
         cam = Virb((ip, 80))
 
