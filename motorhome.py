@@ -138,7 +138,7 @@ class MainApp(QMainWindow):
         self.TabWidget = QTabWidget(self)
         self.TabWidget.setFont(QFont("Sanserif", 16))
 
-        self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
+        self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
 
         #initialize pages
         self.init_dashboard_ui(self.pages[0])
@@ -147,6 +147,7 @@ class MainApp(QMainWindow):
         self.init_tpms_ui(self.pages[3])
         self.init_msg_ui(self.pages[4])
         self.init_settings_ui(self.pages[5])
+        self.init_info_ui(self.pages[6])
 
         # warn lights
         self.tpms_warn_off = QPixmap(self.prefix + "tpms_warn_off.png").scaled(32, 32, Qt.KeepAspectRatio)
@@ -210,6 +211,11 @@ class MainApp(QMainWindow):
         self.settings_index = self.TabWidget.addTab(self.pages[5], "")
         self.TabWidget.setTabIcon(self.settings_index, QIcon(self.prefix + 'settings.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
+
+        self.info_index = self.TabWidget.addTab(self.pages[6], "")
+        self.TabWidget.setTabIcon(self.info_index, QIcon(self.prefix + 'info.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+
         self.TabWidget.setStyleSheet('''
             QTabBar::tab { height: 32px; width: 64px; color: #000000;}
             QTabBar::tab:selected {background-color: #373636;}
@@ -445,6 +451,40 @@ class MainApp(QMainWindow):
         vbox.addWidget(self.low_pressure)
         vbox.addSpacing(10)
         vbox.addWidget(self.pslider_label)
+        page.setLayout(vbox)
+
+    def init_info_ui(self, page):
+        conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
+        config = configparser.ConfigParser()
+
+        config.read(conf_file)
+        try:
+            model = config['Maker']['model']
+            year = config['Maker']['year']
+        except:
+            model = ""
+            year = ""
+
+        modelLabel = QLabel(model + ", " + year)
+        modelLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
+        modelLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        try:
+            chassisLabel = QLabel(config['Maker']['chassis'])
+        except:
+            chassisLabel = QLabel()
+        chassisLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
+        chassisLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        pixmap = QPixmap(self.prefix + "hymer.jpg").scaled(512, 512, Qt.KeepAspectRatio)
+        typeLabel = QLabel()
+        typeLabel.setPixmap(pixmap)
+        typeLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(modelLabel)
+        vbox.addWidget(chassisLabel)
+        vbox.addWidget(typeLabel)
         page.setLayout(vbox)
 
     def initStartRecThread(self):
