@@ -7,6 +7,7 @@ from PyQt5.QtWebKitWidgets import *
 from PyQt5 import QtWidgets, QtCore, QtGui
 
 from datetime import datetime
+import time
 import cv2
 import qdarkgraystyle
 import psutil
@@ -27,6 +28,7 @@ from camcorder import Camcorder
 from gps import GPS
 from warns import Warnings
 from geolocation import Geolocation
+from ruuvi import RuuviTag
 
 messages = ['Tire pressure low on front left tire',
             'Tire pressure low on front right tire',
@@ -138,27 +140,38 @@ class MainApp(QMainWindow):
         self.TabWidget = QTabWidget(self)
         self.TabWidget.setFont(QFont("Sanserif", 16))
 
-        self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
+        self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
 
         #initialize pages
         self.init_dashboard_ui(self.pages[0])
         self.init_gps_ui(self.pages[1])
         self.init_dashcam_ui(self.pages[2])
         self.init_tpms_ui(self.pages[3])
-        self.init_msg_ui(self.pages[4])
-        self.init_settings_ui(self.pages[5])
-        self.init_info_ui(self.pages[6])
+        self.init_ruuvitag(self.pages[4])
+        self.init_msg_ui(self.pages[5])
+        self.init_settings_ui(self.pages[6])
+        self.init_info_ui(self.pages[7])
 
         # warn lights
+        self.temp_warn_off = QPixmap("")
+        self.temp_warn_on = QPixmap(self.prefix + "snowflake.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.tempWarnLabel = QLabel()
+        self.tempWarnLabel.setPixmap(self.temp_warn_off)
+        self.tempWarnLabel.setAlignment(Qt.AlignVCenter)
+
         self.tpms_warn_off = QPixmap(self.prefix + "tpms_warn_off.png").scaled(32, 32, Qt.KeepAspectRatio)
         self.tpms_warn_on = QPixmap(self.prefix + "tpms_warn_on.png").scaled(32, 32, Qt.KeepAspectRatio)
         self.tpmsWarnLabel = QLabel()
         self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
         self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
 
+        self.tempLabel = QLabel()
+        self.tempLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
+        self.tempLabel.setAlignment(Qt.AlignCenter)
+
         self.virbBattLabel = QLabel()
         self.virbBattLabel.setText(" -- %")
-        self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
+        self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
         self.virbBattLabel.setAlignment(Qt.AlignRight)
 
         powerButton = QPushButton("", self)
@@ -179,7 +192,9 @@ class MainApp(QMainWindow):
                                   "padding: 1px;")
 
         warnLayout = QHBoxLayout()
+        warnLayout.addWidget(self.tempWarnLabel)
         warnLayout.addWidget(self.tpmsWarnLabel)
+        warnLayout.addWidget(self.tempLabel)
         warnLayout.addWidget(self.virbBattLabel)
         warnLayout.addWidget(powerButton)
 
@@ -204,15 +219,19 @@ class MainApp(QMainWindow):
         self.TabWidget.setTabIcon(self.tp_index, QIcon(self.prefix + 'tpms_warn_off.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.warn_index = self.TabWidget.addTab(self.pages[4], "")
+        self.tempp_index = self.TabWidget.addTab(self.pages[4], "")
+        self.TabWidget.setTabIcon(self.tempp_index, QIcon(self.prefix + 'weather.png'))
+        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+
+        self.warn_index = self.TabWidget.addTab(self.pages[5], "")
         self.TabWidget.setTabIcon(self.warn_index, QIcon(self.prefix + 'messages.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.settings_index = self.TabWidget.addTab(self.pages[5], "")
+        self.settings_index = self.TabWidget.addTab(self.pages[6], "")
         self.TabWidget.setTabIcon(self.settings_index, QIcon(self.prefix + 'settings.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.info_index = self.TabWidget.addTab(self.pages[6], "")
+        self.info_index = self.TabWidget.addTab(self.pages[7], "")
         self.TabWidget.setTabIcon(self.info_index, QIcon(self.prefix + 'info.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
@@ -409,6 +428,44 @@ class MainApp(QMainWindow):
         vbox.addWidget(self.rr_label, 1, 3)
         page.setLayout(vbox)
 
+    def init_ruuvitag(self, page):
+        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+
+        outdoor = QLabel("OUTDOOR:")
+        outdoor.setStyleSheet("font: bold 32px;"
+                              "color: white;")
+        outdoor.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+
+        self.temperatureLabel = QLabel(" --\u00b0C")
+        self.temperatureLabel.setStyleSheet("font: 24px;"
+                                            "color: white;")
+        self.temperatureLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        self.humidityLabel = QLabel("-- RH-%")
+        self.humidityLabel.setStyleSheet("font: 24px;"
+                                         "color: white;")
+        self.humidityLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        self.pressureLabel = QLabel("-- hPa")
+        self.pressureLabel.setStyleSheet("font: 24px;"
+                                         "color: white;")
+        self.pressureLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        self.voltageLabel = QLabel()
+        self.voltageLabel.setStyleSheet("font: 16px;"
+                                        "color: yellow")
+        self.voltageLabel.setAlignment(Qt.AlignRight)
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(outdoor)
+        vbox.addWidget(self.temperatureLabel)
+        vbox.addWidget(self.humidityLabel)
+        vbox.addWidget(self.pressureLabel)
+        vbox.addWidget(self.voltageLabel)
+        page.setLayout(vbox)
+
+        self.initRuuvitagThread()
+
     def init_msg_ui(self, page):
         # messages
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
@@ -587,6 +644,38 @@ class MainApp(QMainWindow):
 
         self.thread.start()
 
+    def initRuuvitagThread(self):
+        conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
+        config = configparser.ConfigParser()
+
+        try:
+            config.read(conf_file)
+            mac = config['RuuviTag']['mac']
+        except:
+            return
+
+        self.ruuviThread =  QThread()
+        self.ruuviWorker = RuuviTag(mac)
+        self.exit_signal.connect(self.ruuviWorker.stop)
+        self.ruuviWorker.moveToThread(self.ruuviThread)
+
+        self.ruuviWorker.finished.connect(self.ruuviThread.quit)
+        self.ruuviWorker.finished.connect(self.ruuviWorker.deleteLater)
+        self.ruuviThread.finished.connect(self.ruuviThread.deleteLater)
+
+        self.ruuviThread.started.connect(self.ruuviWorker.run)
+
+        self.ruuviWorker.exit_signal.connect(self.ruuviWorker.stop)
+
+        self.ruuviWorker.temperature.connect(self.updateTemperature)
+        self.ruuviWorker.humidity.connect(self.updateHumidity)
+        self.ruuviWorker.pressure.connect(self.updatePressure)
+        self.ruuviWorker.ruuvi_batt.connect(self.updateRuuviBatt)
+
+        self.ruuviThread.started.connect(self.ruuviWorker.run)
+
+        self.ruuviThread.start()
+
     def record(self, button):
         if button.isChecked():
             button.setIcon(QIcon(self.prefix + 'stop.png'))
@@ -682,6 +771,25 @@ class MainApp(QMainWindow):
     def updatePreview(self, pixmap):
         self.previewLabel.setPixmap(pixmap.scaled(int(704*self.previewScale/100), int(396*self.previewScale/100),
                                                   QtCore.Qt.KeepAspectRatio))
+
+    def updateTemperature(self, temperature):
+        if temperature < 3:
+            self.tempWarnLabel.setPixmap(self.temp_warn_on)
+        elif temperature > 3.2:
+            self.tempWarnLabel.setPixmap(self.temp_warn_off)
+
+        self.tempLabel.setText("{:.1f}".format(round(temperature, 1)) + " \u00b0C")
+        self.temperatureLabel.setText("{:.1f}".format(round(temperature, 1)) + " \u00b0C")
+
+    def updateHumidity(self, humidity):
+        self.humidityLabel.setText("{:.0f}".format(round(humidity)) + " RH-%")
+
+    def updatePressure(self, pressure):
+        self.pressureLabel.setText("{:.0f}".format(round(pressure)) + " hPa")
+
+    def updateRuuviBatt(self, voltage):
+        if voltage < 2.75:
+            self.voltageLabel.setText("RuuviTag battery low: " + "{:.2f}".format(round(voltage/1000, 2)) + " V")
 
     def setup_camera(self):
         if self.previewEnabled:
@@ -818,6 +926,7 @@ class MainApp(QMainWindow):
         if event.key() == Qt.Key_Escape:
             self.exit_signal.emit()
             #ugly but efficient
+            time.sleep(5)
             system = psutil.Process(os.getpid())
             system.terminate()
 
