@@ -518,9 +518,13 @@ class MainApp(QMainWindow):
         try:
             model = config['Maker']['model']
             year = config['Maker']['year']
+            typeLabel = config['Maker']['typeLabel']
+            makerLabel = config['Maker']['makerLabel']
         except:
             model = ""
             year = ""
+            typeLabel = ""
+            makerLabel = ""
 
         modelLabel = QLabel(model + ", " + year)
         modelLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
@@ -533,15 +537,25 @@ class MainApp(QMainWindow):
         chassisLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
         chassisLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
-        pixmap = QPixmap(self.prefix + "hymer.jpg").scaled(512, 512, Qt.KeepAspectRatio)
+        pixmap = QPixmap(typeLabel).scaled(256, 256, Qt.KeepAspectRatio)
         typeLabel = QLabel()
         typeLabel.setPixmap(pixmap)
         typeLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
+        pixmap = QPixmap(makerLabel).scaled(256, 256, Qt.KeepAspectRatio)
+        makerLabel = QLabel()
+        makerLabel.setPixmap(pixmap)
+        makerLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
+        hbox = QHBoxLayout()
+        hbox.addWidget(typeLabel)
+        hbox.addWidget(makerLabel)
+
         vbox = QVBoxLayout()
         vbox.addWidget(modelLabel)
         vbox.addWidget(chassisLabel)
-        vbox.addWidget(typeLabel)
+        vbox.addLayout(hbox)
+
         page.setLayout(vbox)
 
     def initStartRecThread(self):
