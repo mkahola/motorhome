@@ -437,22 +437,22 @@ class MainApp(QMainWindow):
         outdoor.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
         self.temperatureLabel = QLabel(" --\u00b0C")
-        self.temperatureLabel.setStyleSheet("font: 24px;"
+        self.temperatureLabel.setStyleSheet("font: bold 48px;"
                                             "color: white;")
         self.temperatureLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
-        self.humidityLabel = QLabel("-- RH-%")
-        self.humidityLabel.setStyleSheet("font: 24px;"
+        self.humidityLabel = QLabel("-- %")
+        self.humidityLabel.setStyleSheet("font: bold 48px;"
                                          "color: white;")
         self.humidityLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         self.pressureLabel = QLabel("-- hPa")
-        self.pressureLabel.setStyleSheet("font: 24px;"
+        self.pressureLabel.setStyleSheet("font: bold 48px;"
                                          "color: white;")
         self.pressureLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
         self.voltageLabel = QLabel()
-        self.voltageLabel.setStyleSheet("font: 16px;"
+        self.voltageLabel.setStyleSheet("font: bold 32px;"
                                         "color: yellow")
         self.voltageLabel.setAlignment(Qt.AlignRight)
 
@@ -796,7 +796,7 @@ class MainApp(QMainWindow):
         self.temperatureLabel.setText("{:.1f}".format(round(temperature, 1)) + " \u00b0C")
 
     def updateHumidity(self, humidity):
-        self.humidityLabel.setText("{:.0f}".format(round(humidity)) + " RH-%")
+        self.humidityLabel.setText("{:.0f}".format(round(humidity)) + " %")
 
     def updatePressure(self, pressure):
         self.pressureLabel.setText("{:.0f}".format(round(pressure)) + " hPa")
