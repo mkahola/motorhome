@@ -8,7 +8,6 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 
 from datetime import datetime
 import time
-#import cv2
 import qdarkgraystyle
 import psutil
 import sys
@@ -18,9 +17,6 @@ import configparser
 from pathlib import Path
 import python_arptable
 from python_arptable import get_arp_table
-
-import PIL
-from PIL import Image
 
 from tires import Tires
 from virb import Virb
