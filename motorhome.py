@@ -8,7 +8,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 
 from datetime import datetime
 import time
-import cv2
+#import cv2
 import qdarkgraystyle
 import psutil
 import sys
@@ -30,12 +30,6 @@ from warns import Warnings
 from geolocation import Geolocation
 from ruuvi import RuuviTag
 
-messages = ['Tire pressure low on front left tire',
-            'Tire pressure low on front right tire',
-            'Tire pressure low on rear left tire',
-            'Tire pressure low on rear right tire',
-            'Stairs down']
-
 class MainApp(QMainWindow):
     stop_signal = pyqtSignal()
     start_signal = pyqtSignal()
@@ -46,7 +40,6 @@ class MainApp(QMainWindow):
         super().__init__()
         self.setStyleSheet("background-color: black;")
         self.setWindowTitle("Motorhome Info")
-        self.warning = "No messages"
         self.resolution = QDesktopWidget().availableGeometry(-1)
         self.prefix = str(Path.home()) + "/.motorhome/res/"
         self.network_available = False
@@ -127,8 +120,6 @@ class MainApp(QMainWindow):
         print("Virb ip: " + self.ip)
 
     def setup_ui(self):
-        global messages
-
         self.tire = Tires()
         self.tpmsFLflag = False
         self.tpmsFRflag = False
@@ -152,9 +143,8 @@ class MainApp(QMainWindow):
         self.init_dashcam_ui(self.pages[2])
         self.init_tpms_ui(self.pages[3])
         self.init_ruuvitag(self.pages[4])
-        self.init_msg_ui(self.pages[5])
-        self.init_settings_ui(self.pages[6])
-        self.init_info_ui(self.pages[7])
+        self.init_settings_ui(self.pages[5])
+        self.init_info_ui(self.pages[6])
 
         # warn lights
         self.temp_warn_off = QPixmap("")
@@ -229,23 +219,19 @@ class MainApp(QMainWindow):
         self.TabWidget.setTabIcon(self.dc_index, QIcon(self.prefix + 'camera.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.tp_index = self.TabWidget.addTab(self.pages[3], "")
-        self.TabWidget.setTabIcon(self.tp_index, QIcon(self.prefix + 'tpms_warn_off.png'))
+        self.tpms_index = self.TabWidget.addTab(self.pages[3], "")
+        self.TabWidget.setTabIcon(self.tpms_index, QIcon(self.prefix + 'tpms_warn_off.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.tempp_index = self.TabWidget.addTab(self.pages[4], "")
-        self.TabWidget.setTabIcon(self.tempp_index, QIcon(self.prefix + 'weather.png'))
+        self.ruuvi_index = self.TabWidget.addTab(self.pages[4], "")
+        self.TabWidget.setTabIcon(self.ruuvi_index, QIcon(self.prefix + 'weather.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.warn_index = self.TabWidget.addTab(self.pages[5], "")
-        self.TabWidget.setTabIcon(self.warn_index, QIcon(self.prefix + 'messages.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(size, size))
-
-        self.settings_index = self.TabWidget.addTab(self.pages[6], "")
+        self.settings_index = self.TabWidget.addTab(self.pages[5], "")
         self.TabWidget.setTabIcon(self.settings_index, QIcon(self.prefix + 'settings.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
-        self.info_index = self.TabWidget.addTab(self.pages[7], "")
+        self.info_index = self.TabWidget.addTab(self.pages[6], "")
         self.TabWidget.setTabIcon(self.info_index, QIcon(self.prefix + 'info.png'))
         self.TabWidget.setIconSize(QtCore.QSize(size, size))
 
@@ -479,20 +465,6 @@ class MainApp(QMainWindow):
         page.setLayout(vbox)
 
         self.initRuuvitagThread()
-
-    def init_msg_ui(self, page):
-        # messages
-        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
-        self.msg_list = QListWidget()
-        self.msg_list.setFont(QFont("Sanserif", 16))
-        self.msg_model = QStandardItemModel(self.msg_list)
-        vbox = QVBoxLayout()
-        vbox.addWidget(self.msg_list)
-        page.setLayout(vbox)
-
-        font = self.fl_label.font()
-        font.setPointSize(16)
-        font.setBold(True)
 
     def init_settings_ui(self, page):
         # Tire pressure warnig level
@@ -869,26 +841,6 @@ class MainApp(QMainWindow):
         with open(conf_file, 'w') as configfile:
             config.write(configfile)
 
-    def appendMessage(self, flag, msg):
-        if flag == False:
-            item = QListWidgetItem(msg)
-            item.setTextAlignment(Qt.AlignCenter)
-            self.msg_list.addItem(item)
-            return True
-
-        return flag
-
-    def removeMessage(self, flag, msg):
-        if flag:
-            try:
-                item = self.msg_list.findItems(msg, Qt.MatchExactly)
-                row = self.msg_list.row(item[0])
-                self.msg_list.takeItem(row)
-                return False
-            except IndexError:
-                pass
-        return flag
-
     def setTPMS(self, sensor):
         sensor = sensor.split(',')
         self.tire.setPressure(sensor[0], sensor[1])
@@ -897,56 +849,34 @@ class MainApp(QMainWindow):
         if sensor[0] == 'FL':
             if sensor[3] == '1':
                 self.fl_label.setStyleSheet("color:yellow")
-                self.tpmsFLflag = self.appendMessage(self.tpmsFLflag,
-                                                     messages[0])
             else:
                 self.fl_label.setStyleSheet("color:green")
-                self.tpmsFLflag = self.removeMessage(self.tpmsFLflag,
-                                                     messages[0])
             self.fl_label.setText(str(self.tire.FrontLeftPressure)  + " bar\n" + str(self.tire.FrontLeftTemp) + " \u00b0C")
         elif sensor[0] == 'FR':
             if sensor[3] == '1':
                 self.fr_label.setStyleSheet("color:yellow")
-                self.tpmsFRflag = self.appendMessage(self.tpmsFRflag,
-                                                     messages[1])
             else:
                 self.fr_label.setStyleSheet("color:green")
-                self.tpmsFRflag = self.removeMessage(self.tpmsFRflag,
-                                                     messages[1])
             self.fr_label.setText(str(self.tire.FrontRightPressure)  + " bar\n" + str(self.tire.FrontRightTemp) + " \u00b0C")
         elif sensor[0] == 'RL':
             if sensor[3] == '1':
                 self.rl_label.setStyleSheet("color:yellow")
-                self.tpmsRLflag = self.appendMessage(self.tpmsRLflag,
-                                                     messages[2])
             else:
                 self.rl_label.setStyleSheet("color:green")
-                self.tpmsRLflag = self.removeMessage(self.tpmsRLflag,
-                                                     messages[2])
             self.rl_label.setText(str(self.tire.RearLeftPressure)  + " bar\n" + str(self.tire.RearLeftTemp) + " \u00b0C")
         elif sensor[0] == 'RR':
             if sensor[3] == '1':
                 self.rr_label.setStyleSheet("color:yellow")
-                self.tpmsRRflag = self.appendMessage(self.tpmsRRflag,
-                                                     messages[3])
             else:
                 self.rr_label.setStyleSheet("color:green")
-                self.tpmsRRflag = self.removeMessage(self.tpmsRRflag,
-                                                     messages[3])
             self.rr_label.setText(str(self.tire.RearRightPressure)  + " bar\n" + str(self.tire.RearRightTemp) + " \u00b0C")
-
-        if self.msg_list.count() > 0:
-            self.msg_title = str(self.msg_list.count())
-            self.warn_index = self.TabWidget.setTabText(3, self.msg_title)
-        else:
-            self.msg_title = ""
-            self.warn_index = self.TabWidget.setTabText(3, self.msg_title)
 
         # turn on/off TPMS warn light
         if self.tpmsFLflag or self.tpmsFRflag or self.tpmsRLflag or self.tpmsRRflag:
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
             self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
             self.TabWidget.setTabIcon(self.tp_index, QIcon(self.prefix + 'tpms_warn_on.png'))
+            self.TabWidget.setCurrentIndex(self.tabs, self.tpms_index)
         else:
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
             self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
