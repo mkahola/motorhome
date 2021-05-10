@@ -381,10 +381,10 @@ class MainApp(QMainWindow):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
         pressure = "-- bar"
         temperature = "-- "
-        self.fl_label = QLabel(pressure + "\n" + temperature + "\u00b0C")
-        self.fr_label = QLabel(pressure + "\n" + temperature + "\u00b0C")
-        self.rl_label = QLabel(pressure + "\n" + temperature + "\u00b0C")
-        self.rr_label = QLabel(pressure + "\n" + temperature + "\u00b0C")
+        self.fl_label = QLabel(pressure + "\n" + temperature + "\u2103")
+        self.fr_label = QLabel(pressure + "\n" + temperature + "\u2103")
+        self.rl_label = QLabel(pressure + "\n" + temperature + "\u2103")
+        self.rr_label = QLabel(pressure + "\n" + temperature + "\u2103")
 
         font = self.fl_label.font()
         font.setPointSize(32)
@@ -436,7 +436,7 @@ class MainApp(QMainWindow):
                               "color: white;")
         outdoor.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
-        self.temperatureLabel = QLabel(" --\u00b0C")
+        self.temperatureLabel = QLabel(" --\u2103")
         self.temperatureLabel.setStyleSheet("font: bold 48px;"
                                             "color: white;")
         self.temperatureLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
@@ -778,8 +778,8 @@ class MainApp(QMainWindow):
         elif temperature > 3.2:
             self.tempWarnLabel.setPixmap(self.temp_warn_off)
 
-        self.tempLabel.setText("{:.1f}".format(round(temperature, 1)) + " \u00b0C")
-        self.temperatureLabel.setText("{:.1f}".format(round(temperature, 1)) + " \u00b0C")
+        self.tempLabel.setText("{:.1f}".format(round(temperature, 1)) + " \u2103")
+        self.temperatureLabel.setText("{:.1f}".format(round(temperature, 1)) + " \u2103")
 
     def updateHumidity(self, humidity):
         self.humidityLabel.setText("{:.0f}".format(round(humidity)) + " %")
@@ -851,25 +851,25 @@ class MainApp(QMainWindow):
                 self.fl_label.setStyleSheet("color:yellow")
             else:
                 self.fl_label.setStyleSheet("color:green")
-            self.fl_label.setText(str(self.tire.FrontLeftPressure)  + " bar\n" + str(self.tire.FrontLeftTemp) + " \u00b0C")
+            self.fl_label.setText(str(self.tire.FrontLeftPressure)  + " bar\n" + str(self.tire.FrontLeftTemp) + " \u2103")
         elif sensor[0] == 'FR':
             if sensor[3] == '1':
                 self.fr_label.setStyleSheet("color:yellow")
             else:
                 self.fr_label.setStyleSheet("color:green")
-            self.fr_label.setText(str(self.tire.FrontRightPressure)  + " bar\n" + str(self.tire.FrontRightTemp) + " \u00b0C")
+            self.fr_label.setText(str(self.tire.FrontRightPressure)  + " bar\n" + str(self.tire.FrontRightTemp) + " \u2103")
         elif sensor[0] == 'RL':
             if sensor[3] == '1':
                 self.rl_label.setStyleSheet("color:yellow")
             else:
                 self.rl_label.setStyleSheet("color:green")
-            self.rl_label.setText(str(self.tire.RearLeftPressure)  + " bar\n" + str(self.tire.RearLeftTemp) + " \u00b0C")
+            self.rl_label.setText(str(self.tire.RearLeftPressure)  + " bar\n" + str(self.tire.RearLeftTemp) + " \u2103")
         elif sensor[0] == 'RR':
             if sensor[3] == '1':
                 self.rr_label.setStyleSheet("color:yellow")
             else:
                 self.rr_label.setStyleSheet("color:green")
-            self.rr_label.setText(str(self.tire.RearRightPressure)  + " bar\n" + str(self.tire.RearRightTemp) + " \u00b0C")
+            self.rr_label.setText(str(self.tire.RearRightPressure)  + " bar\n" + str(self.tire.RearRightTemp) + " \u2103")
 
         # turn on/off TPMS warn light
         if self.tpmsFLflag or self.tpmsFRflag or self.tpmsRLflag or self.tpmsRRflag:
