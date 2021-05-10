@@ -72,6 +72,10 @@ class MainApp(QMainWindow):
         self.timer.timeout.connect(self.get_ip)
         self.timer.start(1000)
 
+        self.datetimer=QTimer()
+        self.datetimer.timeout.connect(self.updateDateTime)
+        self.datetimer.start(1000)
+
         self.initWarnsThread()
         self.getTPMSwarn()
         self.showFullScreen()
@@ -165,6 +169,14 @@ class MainApp(QMainWindow):
         self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
         self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
 
+        self.dateLabel = QLabel()
+        self.dateLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
+        self.dateLabel.setAlignment(Qt.AlignCenter)
+
+        self.timeLabel = QLabel()
+        self.timeLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
+        self.timeLabel.setAlignment(Qt.AlignCenter)
+
         self.tempLabel = QLabel()
         self.tempLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
         self.tempLabel.setAlignment(Qt.AlignCenter)
@@ -194,6 +206,8 @@ class MainApp(QMainWindow):
         warnLayout = QHBoxLayout()
         warnLayout.addWidget(self.tempWarnLabel)
         warnLayout.addWidget(self.tpmsWarnLabel)
+        warnLayout.addWidget(self.dateLabel)
+        warnLayout.addWidget(self.timeLabel)
         warnLayout.addWidget(self.tempLabel)
         warnLayout.addWidget(self.virbBattLabel)
         warnLayout.addWidget(powerButton)
@@ -805,6 +819,11 @@ class MainApp(QMainWindow):
         if voltage < 2.75:
             self.voltageLabel.setText("RuuviTag battery low: " + "{:.2f}".format(round(voltage/1000, 2)) + " V")
 
+    def updateDateTime(self):
+        t = datetime.now()
+        self.dateLabel.setText("{:02d}".format(t.day) + "." + "{:02d}".format(t.month) + "\n" + str(t.year))
+        self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
+
     def setup_camera(self):
         if self.previewEnabled:
             print("preview enabled")
@@ -938,6 +957,11 @@ class MainApp(QMainWindow):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Escape:
+            try:
+                self.datetimer.stop()
+            except:
+                pass
+
             self.exit_signal.emit()
             #ugly but efficient
             time.sleep(5)
