@@ -871,12 +871,12 @@ class MainApp(QMainWindow):
         if self.tpmsFLflag or self.tpmsFRflag or self.tpmsRLflag or self.tpmsRRflag:
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
             self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
-            self.TabWidget.setTabIcon(self.tp_index, QIcon(self.prefix + 'tpms_warn_on.png'))
+            self.TabWidget.setTabIcon(self.tpms_index, QIcon(self.prefix + 'tpms_warn_on.png'))
             self.TabWidget.setCurrentIndex(self.tabs, self.tpms_index)
         else:
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
             self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
-            self.TabWidget.setTabIcon(self.tp_index, QIcon(self.prefix + 'tpms_warn_off.png'))
+            self.TabWidget.setTabIcon(self.tpms_index, QIcon(self.prefix + 'tpms_warn_off.png'))
 
     def poweroff(self):
         os.system("sudo shutdown -h now")
