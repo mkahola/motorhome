@@ -34,8 +34,7 @@ def run_dash_server():
             try:
                 await websocket.send(speed)
             except:
-                print("unable to send speed data")
-                return
+                await websocket.send("0")
             await asyncio.sleep(1)
 
     try:
