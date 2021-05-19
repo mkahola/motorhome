@@ -6,7 +6,7 @@ from PyQt5.QtWebKit import *
 from PyQt5.QtWebKitWidgets import *
 from PyQt5 import QtWidgets, QtCore, QtGui
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import qdarkgraystyle
 import psutil
@@ -41,6 +41,8 @@ class MainApp(QMainWindow):
         self.network_available = False
         self.updateAddress = False
         self.ip = ""
+        self.gps_ts = datetime.now() - timedelta(seconds=10)
+        self.gps_connection = False
 
         self.setup_ui()
 
@@ -155,6 +157,12 @@ class MainApp(QMainWindow):
         self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
         self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
 
+        self.gps_disconnected = QPixmap(self.prefix + "no_gps.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.gps_connected = QPixmap(self.prefix + "")
+        self.gpsWarnLabel = QLabel()
+        self.gpsWarnLabel.setPixmap(self.gps_disconnected)
+        self.gpsWarnLabel.setAlignment(Qt.AlignVCenter)
+
         self.dateLabel = QLabel()
         self.dateLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
         self.dateLabel.setAlignment(Qt.AlignCenter)
@@ -192,6 +200,7 @@ class MainApp(QMainWindow):
         warnLayout = QHBoxLayout()
         warnLayout.addWidget(self.tempWarnLabel)
         warnLayout.addWidget(self.tpmsWarnLabel)
+        warnLayout.addWidget(self.gpsWarnLabel)
         warnLayout.addWidget(self.dateLabel)
         warnLayout.addWidget(self.timeLabel)
         warnLayout.addWidget(self.tempLabel)
@@ -754,6 +763,8 @@ class MainApp(QMainWindow):
         if self.updateAddress:
             self.address.setText(geolocation.get_address((location[0], location[1])))
 
+        self.gps_ts = datetime.now()
+
     def updateBatt(self, batt):
        if batt < 5:
            self.virbBattLabel.setStyleSheet("QLabel {color: red; font: bold 24px}")
@@ -791,6 +802,14 @@ class MainApp(QMainWindow):
         t = datetime.now()
         self.dateLabel.setText("{:02d}".format(t.day) + "." + "{:02d}".format(t.month) + "\n" + str(t.year))
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
+
+        diff = t - self.gps_ts
+        if diff.total_seconds() > 5:
+            self.gpsWarnLabel.setPixmap(self.gps_disconnected)
+            self.gps_connection = False
+        elif not self.gps_connection:
+            self.gpsWarnLabel.setPixmap(self.gps_connected)
+            self.gps_connection = True
 
     def setup_camera(self):
         if self.previewEnabled:
