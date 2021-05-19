@@ -61,7 +61,7 @@ class Virb():
         try:
             return status['speed']*3.6
         except:
-            return -999
+            return 0
 
     def get_latitude(self):
         status = self.status()
