@@ -19,6 +19,7 @@ import python_arptable
 from python_arptable import get_arp_table
 
 from tires import Tires
+from tpms import TPMS
 from virb import Virb
 from camcorder import Camcorder
 from gps import GPS
@@ -67,7 +68,7 @@ class MainApp(QMainWindow):
         self.datetimer.timeout.connect(self.updateDateTime)
         self.datetimer.start(1000)
 
-        self.initWarnsThread()
+        self.initTPMSThread()
         self.getTPMSwarn()
         self.showFullScreen()
 #        self.showMaximized()
@@ -164,7 +165,7 @@ class MainApp(QMainWindow):
         self.gpsWarnLabel.setAlignment(Qt.AlignVCenter)
 
         self.dateLabel = QLabel()
-        self.dateLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
+        self.dateLabel.setStyleSheet("QLabel {color: white; font: bold 14px}")
         self.dateLabel.setAlignment(Qt.AlignCenter)
 
         self.timeLabel = QLabel()
@@ -607,19 +608,19 @@ class MainApp(QMainWindow):
 
         self.previewThread.start()
 
-    def initWarnsThread(self):
-        self.warnsThread = QThread()
-        self.warnsWorker = Warnings()
-        self.exit_signal.connect(self.warnsWorker.stop)
-        self.warnsWorker.moveToThread(self.warnsThread)
-        self.warnsWorker.finished.connect(self.warnsThread.quit)
-        self.warnsWorker.finished.connect(self.warnsWorker.deleteLater)
-        self.warnsThread.finished.connect(self.warnsThread.deleteLater)
-        self.warnsThread.started.connect(self.warnsWorker.get_warns)
+    def initTPMSThread(self):
+        self.tpmsThread = QThread()
+        self.tpmsWorker = TPMS()
+        self.exit_signal.connect(self.tpmsWorker.stop)
+        self.tpmsWorker.moveToThread(self.tpmsThread)
+        self.tpmsWorker.finished.connect(self.tpmsThread.quit)
+        self.tpmsWorker.finished.connect(self.tpmsWorker.deleteLater)
+        self.tpmsThread.finished.connect(self.tpmsThread.deleteLater)
+        self.tpmsThread.started.connect(self.tpmsWorker.run)
 
-        self.warnsWorker.data.connect(self.setTPMS)
+        self.tpmsWorker.tpms.connect(self.setTPMS)
 
-        self.warnsThread.start()
+        self.tpmsThread.start()
 
     def initGPSThread(self):
         if self.ip == "":
@@ -857,7 +858,6 @@ class MainApp(QMainWindow):
             config.write(configfile)
 
     def setTPMS(self, sensor):
-        sensor = sensor.split(',')
         self.tire.setPressure(sensor[0], sensor[1])
         self.tire.setTemperature(sensor[0], sensor[2])
 
