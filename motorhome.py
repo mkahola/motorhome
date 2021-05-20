@@ -175,11 +175,6 @@ class MainApp(QMainWindow):
         self.tempLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
         self.tempLabel.setAlignment(Qt.AlignCenter)
 
-        self.virbBattLabel = QLabel()
-        self.virbBattLabel.setText(" -- %")
-        self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
-        self.virbBattLabel.setAlignment(Qt.AlignRight)
-
         powerButton = QPushButton("", self)
         powerButton.setIcon(QIcon(self.prefix + 'power.png'))
         powerButton.setIconSize(QSize(32, 32))
@@ -204,7 +199,6 @@ class MainApp(QMainWindow):
         warnLayout.addWidget(self.dateLabel)
         warnLayout.addWidget(self.timeLabel)
         warnLayout.addWidget(self.tempLabel)
-        warnLayout.addWidget(self.virbBattLabel)
         warnLayout.addWidget(powerButton)
 
         centralLayout = QVBoxLayout()
@@ -298,10 +292,16 @@ class MainApp(QMainWindow):
                                         "min-height: 320px;"
                                         "padding: 4px;")
 
+        self.virbBattLabel = QLabel()
+        self.virbBattLabel.setText(" VBat -- %")
+        self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
+        self.virbBattLabel.setAlignment(Qt.AlignRight)
+
         vbox = QVBoxLayout()
         vbox.setAlignment(Qt.AlignCenter)
         vbox.addWidget(recButton)
         vbox.addWidget(snapshotButton)
+        vbox.addWidget(self.virbBattLabel)
 
         hbox = QHBoxLayout()
         hbox.setSpacing(40)
@@ -773,7 +773,7 @@ class MainApp(QMainWindow):
        else:
            self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
 
-       self.virbBattLabel.setText(str(batt) + "%")
+       self.virbBattLabel.setText("VBat " + str(batt) + "%")
 
     def updatePreview(self, pixmap):
         self.previewLabel.setPixmap(pixmap.scaled(int(704*self.previewScale/100), int(396*self.previewScale/100),
