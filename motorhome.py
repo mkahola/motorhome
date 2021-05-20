@@ -530,12 +530,12 @@ class MainApp(QMainWindow):
         chassisLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
         chassisLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
-        pixmap = QPixmap(typeLabel).scaled(256, 256, Qt.KeepAspectRatio)
+        pixmap = QPixmap(typeLabel).scaled(320, 320, Qt.KeepAspectRatio)
         typeLabel = QLabel()
         typeLabel.setPixmap(pixmap)
         typeLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
-        pixmap = QPixmap(makerLabel).scaled(256, 256, Qt.KeepAspectRatio)
+        pixmap = QPixmap(makerLabel).scaled(300, 300, Qt.KeepAspectRatio)
         makerLabel = QLabel()
         makerLabel.setPixmap(pixmap)
         makerLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
