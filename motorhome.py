@@ -804,13 +804,14 @@ class MainApp(QMainWindow):
         self.dateLabel.setText("{:02d}".format(t.day) + "." + "{:02d}".format(t.month) + "\n" + str(t.year))
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
 
-        diff = t - self.gps_ts
-        if diff.total_seconds() > 5:
-            self.gpsWarnLabel.setPixmap(self.gps_disconnected)
-            self.gps_connection = False
-        elif not self.gps_connection:
-            self.gpsWarnLabel.setPixmap(self.gps_connected)
-            self.gps_connection = True
+        if not self.previewEnabled:
+            diff = t - self.gps_ts
+            if diff.total_seconds() > 5:
+                self.gpsWarnLabel.setPixmap(self.gps_disconnected)
+                self.gps_connection = False
+            elif not self.gps_connection:
+                self.gpsWarnLabel.setPixmap(self.gps_connected)
+                self.gps_connection = True
 
     def setup_camera(self):
         if self.previewEnabled:
