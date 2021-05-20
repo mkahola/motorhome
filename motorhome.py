@@ -512,6 +512,7 @@ class MainApp(QMainWindow):
             year = config['Maker']['year']
             typeLabel = config['Maker']['typeLabel']
             makerLabel = config['Maker']['makerLabel']
+            vin = config['Maker']['vin']
         except:
             model = ""
             year = ""
@@ -539,6 +540,14 @@ class MainApp(QMainWindow):
         makerLabel.setPixmap(pixmap)
         makerLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
+        try:
+            vinLabel = QLabel("VIN " + config['Maker']['vin'])
+        except:
+            vinLabel = QLabel()
+
+        vinLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
+        vinLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+
         hbox = QHBoxLayout()
         hbox.addWidget(typeLabel)
         hbox.addWidget(makerLabel)
@@ -546,6 +555,7 @@ class MainApp(QMainWindow):
         vbox = QVBoxLayout()
         vbox.addWidget(modelLabel)
         vbox.addWidget(chassisLabel)
+        vbox.addWidget(vinLabel)
         vbox.addLayout(hbox)
 
         page.setLayout(vbox)
