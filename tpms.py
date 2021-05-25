@@ -14,44 +14,49 @@ from pathlib import Path
 
 class Tire:
     def __init__(self, tire):
-        conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
-        config = configparser.ConfigParser()
-
         self.name = tire
         self.ts = time.time()
+        self.mac = []
+
+        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
+        config = configparser.ConfigParser()
 
         try:
             config.read(conf_file)
-            self.warnPressure = float(config['DEFAULT']['warn'])
+            self.season = "TPMS_" + config['Season']['season']
+            self.warnPressure = float(config[self.season]['warn'])
 
             if tire == 'FL':
-                self.mac = config['FrontLeft']['bt_addr']
+                self.mac.append(config['TPMS_summer']['frontLeft'])
+                self.mac.append(config['TPMS_winter']['frontLeft'])
             elif tire == 'FR':
-                self.mac = config['FrontRight']['bt_addr']
+                self.mac.append(config['TPMS_summer']['frontRight'])
+                self.mac.append(config['TPMS_winter']['frontRight'])
             elif tire == 'RL':
-                self.mac = config['RearLeft']['bt_addr']
+                self.mac.append(config['TPMS_summer']['rearLeft'])
+                self.mac.append(config['TPMS_winter']['rearLeft'])
             elif tire == 'RR':
-                self.mac = config['RearRight']['bt_addr']
+                self.mac.append(config['TPMS_summer']['rearRight'])
+                self.mac.append(config['TPMS_winter']['rearRight'])
         except:
-            print("unable to read conf file")
+            print("TPMS: unable to read conf file for tire " + tire)
             self.warnPressure = 0.0
-            self.mac = '00:00:00:00:00:00'
 
     def set_timestamp(self, ts):
         self.ts = ts
 
-    def updateWarnLevel(self):
-        conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
+    def updateWarnLevel(self, season):
+        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
         config = configparser.ConfigParser()
 
         try:
             config.read(conf_file)
-            self.warnPressure = float(config['DEFAULT']['warn'])
+            self.warnPressure = float(config[season]['warn'])
         except:
             self.warnPressure = 0
 
-    def check_pressure(self, pressure):
-        self.updateWarnLevel()
+    def check_pressure(self, pressure, season):
+        self.updateWarnLevel(season)
 
         if pressure > self.warnPressure:
             return 0
@@ -62,6 +67,7 @@ class TPMS(QObject):
     start_signal = pyqtSignal()
     finished = pyqtSignal()
     exit_signal = pyqtSignal()
+    set_season = pyqtSignal(int)
 
     tpms = pyqtSignal(tuple)
 
@@ -72,6 +78,17 @@ class TPMS(QObject):
         self.rl = Tire('RL')
         self.rr = Tire('RR')
         self.running = True
+
+        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
+        config = configparser.ConfigParser()
+
+        try:
+            config.read(conf_file)
+            self.season = "TPMS_" + config['Season']['season']
+        except:
+            self.season = "TPMS_summer"
+
+        print(self.season)
 
         dev_id = 0  # the bluetooth device is hci0
         try:
@@ -112,7 +129,7 @@ class TPMS(QObject):
             #print("BLE packet: %s %02x %s %d" % (mac, adv_type, data_str, rssi))
             pressure = self.get_pressure(data_str)
             temp = self.get_temperature(data_str)
-            data = (tire.name, "{:.1f}".format(pressure), "{:.1f}".format(temp), str(tire.check_pressure(pressure)))
+            data = (tire.name, "{:.1f}".format(pressure), "{:.1f}".format(temp), str(tire.check_pressure(pressure, self.season)))
             tire.ts = now
             self.tpms.emit(data)
         return 0
@@ -124,13 +141,18 @@ class TPMS(QObject):
                     data_str = raw_packet_to_str(data)
                     data_wo_rssi = (mac, data_str)
 
-                    if mac == self.fl.mac:
+                    if self.season == "TPMS_summer":
+                        index = 0
+                    else:
+                        index = 1
+
+                    if mac == self.fl.mac[index]:
                         ret = self.send_pressure_temp(self.fl, time.time(), mac, adv_type, data_str, rssi)
-                    elif mac == self.fr.mac:
+                    elif mac == self.fr.mac[index]:
                         ret = self.send_pressure_temp(self.fr, time.time(), mac, adv_type, data_str, rssi)
-                    elif mac == self.rl.mac:
+                    elif mac == self.rl.mac[index]:
                         ret = self.send_pressure_temp(self.rl, time.time(), mac, adv_type, data_str, rssi)
-                    elif mac == self.rr.mac:
+                    elif mac == self.rr.mac[index]:
                         ret = self.send_pressure_temp(self.rr, time.time(), mac, adv_type, data_str, rssi)
 
                 # Blocking call (the given handler will be called each time a new LE
@@ -145,7 +167,15 @@ class TPMS(QObject):
         print("thread finished")
         self.finished.emit()
 
+    def update_season(self, season):
+        if season:
+            self.season = "TPMS_winter"
+        else:
+            self.season = "TPMS_summer"
+
+        print("TPMS: " + self.season)
+
     def stop(self):
-        print("received exit signal")
+        print("TPMS: received exit signal")
         disable_le_scan(self.sock)
         self.running = False
