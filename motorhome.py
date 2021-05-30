@@ -32,6 +32,7 @@ class MainApp(QMainWindow):
     start_signal = pyqtSignal()
     exit_signal = pyqtSignal()
     stop_preview = pyqtSignal()
+    set_season = pyqtSignal(int)
 
     def __init__(self):
         super().__init__()
@@ -47,9 +48,8 @@ class MainApp(QMainWindow):
 
         self.setup_ui()
 
-        conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
+        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
         config = configparser.ConfigParser()
-
         try:
             config.read(conf_file)
             self.virb_mac = config['VIRB']['mac']
@@ -475,35 +475,57 @@ class MainApp(QMainWindow):
     def init_settings_ui(self, page):
         # Tire pressure warnig level
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+
+        self.season = QCheckBox("Winter tires")
+        self.season.toggled.connect(self.updateSeason)
+        self.season.setStyleSheet("QCheckBox {color: white; font: bold 32px}")
+
         self.low_pressure = QSlider(Qt.Horizontal, self)
         self.low_pressure.setFocusPolicy(Qt.NoFocus)
         self.low_pressure.setRange(10, 50)
         self.low_pressure.setPageStep(1)
         self.low_pressure.valueChanged.connect(self.changePressureLevel)
         self.low_pressure.sliderReleased.connect(self.updateConfig)
-        self.ptitle_label = QLabel("TPMS warn level", self)
-        self.ptitle_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-        self.ptitle_label.setFont(QFont("Sanserif", 32))
-        self.pslider_label = QLabel(" 1 bar", self)
-        self.pslider_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-        self.pslider_label.setMinimumWidth(60)
-        self.pslider_label.setFont(QFont("Sanserif", 32))
         self.low_pressure.setStyleSheet('''
             QSlider::handle:horizontal { width: 32px; }
             QSlider::groove:horizontal { height: 8px; }
             QSlider::handle:vertical { height: 32px; }
             ''')
 
-        vbox = QHBoxLayout()
+        self.ptitle_label = QLabel("TPMS warn level", self)
+        self.ptitle_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.ptitle_label.setStyleSheet("font: bold 32px; color: white")
+
+        self.pslider_label = QLabel(" 1 bar", self)
+        self.pslider_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.pslider_label.setMinimumWidth(60)
+        self.pslider_label.setStyleSheet("font: bold 32px; color: white")
+
+        hbox = QHBoxLayout()
+        hbox.addWidget(self.low_pressure)
+        hbox.addWidget(self.pslider_label)
+
+        vbox = QVBoxLayout()
+        vbox.addWidget(self.season)
         vbox.addWidget(self.ptitle_label)
-        vbox.addSpacing(10)
-        vbox.addWidget(self.low_pressure)
-        vbox.addSpacing(10)
-        vbox.addWidget(self.pslider_label)
+        vbox.addLayout(hbox)
+
         page.setLayout(vbox)
 
+        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
+        config = configparser.ConfigParser()
+
+        try:
+            config.read(conf_file)
+            season = config['Season']['season']
+
+            if season == "winter":
+                self.season.setChecked(True)
+        except:
+            pass
+
     def init_info_ui(self, page):
-        conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
+        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
         config = configparser.ConfigParser()
 
         config.read(conf_file)
@@ -622,6 +644,7 @@ class MainApp(QMainWindow):
         self.tpmsThread = QThread()
         self.tpmsWorker = TPMS()
         self.exit_signal.connect(self.tpmsWorker.stop)
+        self.set_season.connect(self.tpmsWorker.update_season)
         self.tpmsWorker.moveToThread(self.tpmsThread)
         self.tpmsWorker.finished.connect(self.tpmsThread.quit)
         self.tpmsWorker.finished.connect(self.tpmsWorker.deleteLater)
@@ -661,7 +684,7 @@ class MainApp(QMainWindow):
         self.thread.start()
 
     def initRuuvitagThread(self):
-        conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
+        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
         config = configparser.ConfigParser()
 
         try:
@@ -823,6 +846,11 @@ class MainApp(QMainWindow):
                 self.gpsWarnLabel.setPixmap(self.gps_connected)
                 self.gps_connection = True
 
+    def updateSeason(self):
+        self.set_season.emit(self.season.isChecked())
+        self.getTPMSwarn()
+        self.updateConfig()
+
     def setup_camera(self):
         if self.previewEnabled:
             print("preview enabled")
@@ -836,18 +864,18 @@ class MainApp(QMainWindow):
 
             self.stop_preview.emit()
 
-    def changePressureLevel(self, value):
-        self.tire.setWarnPressure(value/10.0)
-        self.pslider_label.setText(str(self.tire.warnPressure) + " bar")
-
     def getTPMSwarn(self):
-        conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
+        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
         config = configparser.ConfigParser()
 
         try:
             config.read(conf_file)
 
-            val = float(config['DEFAULT']['warn'])
+            if self.season.isChecked():
+                season = "TPMS_winter"
+            else:
+                season = "TPMS_summer"
+            val = float(config[season]['warn'])
             val = int(val * 10)
 
             self.low_pressure.setValue(val)
@@ -857,13 +885,25 @@ class MainApp(QMainWindow):
 
         return val
 
+    def changePressureLevel(self, value):
+        self.tire.setWarnPressure(value/10.0)
+        self.pslider_label.setText(str(self.tire.warnPressure) + " bar")
+
     def updateConfig(self):
-        conf_file = str(Path.home()) + "/.motorhome/tpms.conf"
+        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
         config = configparser.ConfigParser()
         config.read(conf_file)
 
-        Default = config['DEFAULT']
-        Default['warn'] = str(self.low_pressure.value()/10)
+        if self.season.isChecked():
+            season = config['Season']
+            season['season'] = "winter"
+            data = config['TPMS_winter']
+            data['warn'] = str(self.low_pressure.value()/10)
+        else:
+            season = config['Season']
+            season['season'] = "summer"
+            data = config['TPMS_summer']
+            data['warn'] = str(self.low_pressure.value()/10)
 
         with open(conf_file, 'w') as configfile:
             config.write(configfile)
