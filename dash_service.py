@@ -11,9 +11,10 @@ import configparser
 from pathlib import Path
 import nmap3
 import time
+import math
 
 from netifaces import interfaces, ifaddresses, AF_INET
-
+from gps3.agps3threaded import AGPS3mechanism
 from virb import Virb
 
 use_virb = True
@@ -61,6 +62,10 @@ def search_virb(my_device):
 
 def run_dash_server():
     async def gps(websocket, path):
+        gps_thread = AGPS3mechanism()
+        gps_thread.stream_data()
+        gps_thread.run_thread()
+
         global use_virb
 
         if use_virb:
@@ -69,11 +74,18 @@ def run_dash_server():
             cam = Virb((ip, 80))
 
         while True:
-            speed = '{:.0f}'.format(cam.get_speed())
+            try:
+                # speed in knots, convert to km/h
+                speed = round(float(gps_thread.data_stream.speed)*1.852)
+            except:
+                print("GPS speed failed, trying Garmin Virb")
+                speed = '{:.0f}'.format(cam.get_speed())
+
             try:
                 await websocket.send(speed)
             except:
                 await websocket.send("0")
+
             await asyncio.sleep(1)
 
     try:
