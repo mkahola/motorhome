@@ -14,9 +14,9 @@ import sys
 import os.path
 import subprocess
 import configparser
+import nmap3
 from pathlib import Path
-import python_arptable
-from python_arptable import get_arp_table
+from netifaces import interfaces, ifaddresses, AF_INET
 
 from tires import Tires
 from tpms import TPMS
@@ -43,6 +43,7 @@ class MainApp(QMainWindow):
         self.network_available = False
         self.updateAddress = False
         self.ip = ""
+
         self.gps_ts = datetime.now() - timedelta(seconds=10)
         self.gps_connection = False
 
@@ -61,7 +62,7 @@ class MainApp(QMainWindow):
             self.network_available = True
 
         self.timer=QTimer()
-        self.timer.timeout.connect(self.get_ip)
+        self.timer.timeout.connect(self.search_virb)
         self.timer.start(1000)
 
         self.datetimer=QTimer()
@@ -73,50 +74,45 @@ class MainApp(QMainWindow):
         self.showFullScreen()
 #        self.showMaximized()
 
-    def get_ip(self):
-        ip_ok = False
+    def search_virb(self):
+        def is_virb_ssid():
+            ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
+            if ssid == "VIRB-6267":
+                return True
 
-        conf_file = str(Path.home()) + "/.motorhome/network.conf"
-        config = configparser.ConfigParser()
-        config.read(conf_file)
+            return False
 
-        try:
-            ip = config[self.ssid]['ip']
-            response = os.system("ping -c 1 " + ip)
-
-            #and then check the response...
-            if response == 0:
-                ip_ok = True
-                self.ip = ip
-                print("virb responded to ping")
-            else:
-                print("no response from virb!")
-
-            self.initGPSThread()
+        if is_virb_ssid():
+            self.ip = "192.168.0.1"
             self.timer.stop()
-        except:
-            pass
 
-        if not ip_ok:
-            arp = get_arp_table()
-            for i in range(len(arp)):
-                if arp[i]['HW address'] == self.virb_mac:
-                    self.ip = arp[i]['IP address']
-                    # GPS data receiving thread
-                    self.initGPSThread()
-                    self.timer.stop()
+        while self.ip == "":
+            print("Searching Garmin Virb")
 
-                    try:
-                        ssid = config[self.ssid]
-                        ssid['ip'] = self.ip
-                    except:
-                        config.add_section(self.ssid)
-                        config[self.ssid]['ip'] = self.ip
+            for ifaceName in interfaces():
+                addresses = [i['addr'] for i in ifaddresses(ifaceName).setdefault(AF_INET, [{'addr':'No IP addr'}] )]
+                if ifaceName == "wlan0":
+                    my_ip = addresses[0].split('.')
+                    break
 
-                    with open(conf_file, 'w') as configfile:
-                        config.write(configfile)
+            my_ip[3] = "0/24"
+            ip = "."
+            ip = ip.join(my_ip)
+            nmap = nmap3.NmapHostDiscovery()
+            result=nmap.nmap_no_portscan(ip, "-sP")
 
-        print("Virb ip: " + self.ip)
+            for i in range(len(result)):
+                 try:
+                    device = result[list(result.keys())[i]]['hostname'][0]['name']
+                    if device == "Garmin-WiFi":
+                        self.ip = list(result)[i]
+                        print("Virb found: " + self.ip)
+                        self.timer.stop()
+                        self.initGPSThread()
+                        self.initStartRecThread()
+                        break
+                 except:
+                     pass
 
     def setup_ui(self):
         self.tire = Tires()
@@ -251,20 +247,21 @@ class MainApp(QMainWindow):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
 
         recButton = QPushButton("", self)
-        recButton.setIcon(QIcon(self.prefix + 'rec.png'))
+        recButton.setIcon(QIcon(self.prefix + 'stop.png'))
         recButton.setIconSize(QSize(64, 64))
         recButton.setCheckable(True)
+        recButton.setChecked(True)
         recButton.clicked.connect(lambda: self.record(recButton))
-        recButton.setStyleSheet("background-color: darkgrey;"
-                                "border-style: outset;"
-                                "border-width: 2px;"
-                                "border-radius: 10px;"
-                                "border-color: beige;"
-                                "font: bold 32px;"
-                                "color: red;"
-                                "min-width: 72px;"
-                                "min-height: 72px;"
-                                "padding: 12px;")
+        recButton.setStyleSheet("background-color: #373636;"
+                                 "border-style: outset;"
+                                 "border-width: 2px;"
+                                 "border-radius: 10px;"
+                                 "border-color: beige;"
+                                 "font: bold 32px;"
+                                 "color: red;"
+                                 "min-width: 72px;"
+                                 "min-height: 72px;"
+                                 "padding: 12px;")
 
         snapshotButton = QPushButton("", self)
         snapshotButton.setIcon(QIcon(self.prefix + 'snapshot.png'))
