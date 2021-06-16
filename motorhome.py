@@ -109,6 +109,7 @@ class MainApp(QMainWindow):
                         print("Virb found: " + self.ip)
                         self.timer.stop()
                         self.initGPSThread()
+                        self.initStartRecThread()
                         break
                  except:
                      pass
@@ -246,20 +247,21 @@ class MainApp(QMainWindow):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
 
         recButton = QPushButton("", self)
-        recButton.setIcon(QIcon(self.prefix + 'rec.png'))
+        recButton.setIcon(QIcon(self.prefix + 'stop.png'))
         recButton.setIconSize(QSize(64, 64))
         recButton.setCheckable(True)
+        recButton.setChecked(True)
         recButton.clicked.connect(lambda: self.record(recButton))
-        recButton.setStyleSheet("background-color: darkgrey;"
-                                "border-style: outset;"
-                                "border-width: 2px;"
-                                "border-radius: 10px;"
-                                "border-color: beige;"
-                                "font: bold 32px;"
-                                "color: red;"
-                                "min-width: 72px;"
-                                "min-height: 72px;"
-                                "padding: 12px;")
+        recButton.setStyleSheet("background-color: #373636;"
+                                 "border-style: outset;"
+                                 "border-width: 2px;"
+                                 "border-radius: 10px;"
+                                 "border-color: beige;"
+                                 "font: bold 32px;"
+                                 "color: red;"
+                                 "min-width: 72px;"
+                                 "min-height: 72px;"
+                                 "padding: 12px;")
 
         snapshotButton = QPushButton("", self)
         snapshotButton.setIcon(QIcon(self.prefix + 'snapshot.png'))
