@@ -49,18 +49,6 @@ class MainApp(QMainWindow):
 
         self.setup_ui()
 
-        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
-        config = configparser.ConfigParser()
-        try:
-            config.read(conf_file)
-            self.virb_mac = config['VIRB']['mac']
-        except:
-            self.virb_mac = ""
-
-        self.ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
-        if self.ssid != "VIRB-6267":
-            self.network_available = True
-
         self.timer=QTimer()
         self.timer.timeout.connect(self.search_virb)
         self.timer.start(1000)
@@ -85,6 +73,8 @@ class MainApp(QMainWindow):
         if is_virb_ssid():
             self.ip = "192.168.0.1"
             self.timer.stop()
+            self.initGPSThread()
+            self.initStartRecThread()
 
         while self.ip == "":
             print("Searching Garmin Virb")
