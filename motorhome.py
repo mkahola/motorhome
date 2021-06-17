@@ -313,6 +313,14 @@ class MainApp(QMainWindow):
     def init_gps_ui(self, page):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
 
+        self.fix = QLabel("Status: no fix")
+        self.fix.setStyleSheet("font: bold 20px;"
+                               "color: white;")
+
+        hbox1 = QHBoxLayout()
+        hbox1.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
+        hbox1.addWidget(self.fix)
+
         lat_label = QLabel("Latitude")
         lat_label.setFixedWidth(200)
         lat_label.setStyleSheet("font: bold 16px;"
@@ -327,12 +335,12 @@ class MainApp(QMainWindow):
         alt_label.setFixedWidth(200)
         alt_label.setStyleSheet("font: bold 16px;"
                                 "color: white;")
-        hbox1 = QHBoxLayout()
-        hbox1.setSpacing(20)
-        hbox1.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
-        hbox1.addWidget(lat_label)
-        hbox1.addWidget(lon_label)
-        hbox1.addWidget(alt_label)
+        hbox2 = QHBoxLayout()
+        hbox2.setSpacing(20)
+        hbox2.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
+        hbox2.addWidget(lat_label)
+        hbox2.addWidget(lon_label)
+        hbox2.addWidget(alt_label)
 
         self.lat = QLabel("--")
         self.lat.setFixedWidth(200)
@@ -348,25 +356,26 @@ class MainApp(QMainWindow):
         self.alt.setFixedWidth(200)
         self.alt.setStyleSheet("font: bold 32px;"
                                "color: white;")
-        hbox2 = QHBoxLayout()
-        hbox2.setSpacing(20)
-        hbox2.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-        hbox2.addWidget(self.lat)
-        hbox2.addWidget(self.lon)
-        hbox2.addWidget(self.alt)
+        hbox3 = QHBoxLayout()
+        hbox3.setSpacing(20)
+        hbox3.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        hbox3.addWidget(self.lat)
+        hbox3.addWidget(self.lon)
+        hbox3.addWidget(self.alt)
 
         self.address = QLabel("")
         self.address.setStyleSheet("font: 24px;"
                                    "color: white;")
-        hbox3 = QHBoxLayout()
-        hbox3.setSpacing(20)
-        hbox3.setAlignment(Qt.AlignCenter)
-        hbox3.addWidget(self.address)
+        hbox4 = QHBoxLayout()
+        hbox4.setSpacing(20)
+        hbox4.setAlignment(Qt.AlignCenter)
+        hbox4.addWidget(self.address)
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
         vbox.addLayout(hbox2)
         vbox.addLayout(hbox3)
+        vbox.addLayout(hbox4)
 
         page.setLayout(vbox)
 
@@ -664,6 +673,7 @@ class MainApp(QMainWindow):
         self.worker.exit_signal.connect(self.worker.stop)
 
         self.worker.gpsBatt.connect(self.updateBatt)
+        self.worker.gpsFix.connect(self.updateGPSFix)
         self.worker.gpsLocation.connect(self.updateLocation)
 
         self.thread.started.connect(self.worker.run)
@@ -773,6 +783,14 @@ class MainApp(QMainWindow):
         else:
             self.updateAddress = False
 
+
+    def updateGPSFix(self, fix):
+        if fix == 1:
+            self.fix.setText("Status: No fix")
+        elif fix == 2:
+            self.fix.setText("Status: 2D fix")
+        elif fix == 3:
+            self.fix.setText("Status: 3D fix")
 
     def updateLocation(self, location):
         geolocation = Geolocation("motorhome")

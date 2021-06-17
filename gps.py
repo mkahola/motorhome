@@ -36,6 +36,7 @@ class GPS(QObject):
 
     gpsBatt = pyqtSignal(int)
     gpsLocation = pyqtSignal(tuple)
+    gpsFix = pyqtSignal(int)
 
     def __init__(self, ip, parent=None):
         QObject.__init__(self, parent=parent)
@@ -51,6 +52,7 @@ class GPS(QObject):
     def run(self):
         self.gps_thread.run_thread()
         batt_ts = 0
+        mode_prev = 0
 
         while self.running:
             if self.request:
@@ -62,6 +64,9 @@ class GPS(QObject):
 
                 try:
                     mode = int(self.gps_thread.data_stream.mode)
+                    if mode != mode_prev:
+                        self.gpsFix.emit(mode)
+                        mode_prev = mode
 
                     # 2D or 3D fix required
                     if mode > 1:
