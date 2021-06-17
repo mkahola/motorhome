@@ -76,10 +76,12 @@ def run_dash_server():
         while True:
             try:
                 # speed in knots, convert to km/h
-                speed = round(float(gps_thread.data_stream.speed)*1.852)
+                speed = round(float(gps_thread.data_stream.speed)*1.852, 1)
+                speed = '{:.1f}'.format(speed)
             except:
                 print("GPS speed failed, trying Garmin Virb")
-                speed = '{:.0f}'.format(cam.get_speed())
+                speed = round(cam.get_speed(), 1)
+                speed = '{:.1f}'.format(speed)
 
             try:
                 await websocket.send(speed)
