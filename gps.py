@@ -53,60 +53,59 @@ class GPS(QObject):
         self.gps_thread.run_thread()
         batt_ts = 0
         mode_prev = 0
+        prev = 0
 
         while self.running:
+            now = time.monotonic()
             if self.request:
-                now = time.time()
                 try_virb = False
 
                 if not self.date_updated:
                     self.date_updated = update_datetime(self.gps_thread.data_stream.time, self.date_updated)
 
-                try:
-                    mode = int(self.gps_thread.data_stream.mode)
-                    if mode != mode_prev:
-                        self.gpsFix.emit(mode)
-                        mode_prev = mode
-
-                    # 2D or 3D fix required
-                    if mode > 1:
-                        lat = float(self.gps_thread.data_stream.lat)
-                        lon = float(self.gps_thread.data_stream.lon)
-                        alt = float(self.gps_thread.data_stream.alt)
-                        location = (lat, lon, alt)
-                        self.gpsLocation.emit(location)
-                    else:
-                        try_virb = True
-                except:
-                    print("Trying Garmin Virb")
-                    try_virb = True
-
-                if try_virb:
+                if now - prev >= 1.0:
+                    prev = now
                     try:
-                        status = self.camera.status()
-                        location = (status['gpsLatitude'], status['gpsLongitude'], status['altitude'])
-                        self.gpsLocation.emit(location)
+                        mode = int(self.gps_thread.data_stream.mode)
+                        if mode != mode_prev:
+                            self.gpsFix.emit(mode)
+                            mode_prev = mode
 
-                    except ConnectionError:
-                        print("connection error")
-                        time.sleep(10)
-                        self.camera = Virb(self.ip, 80)
-                        pass
+                        # 2D or 3D fix required
+                        if mode > 1:
+                            lat = float(self.gps_thread.data_stream.lat)
+                            lon = float(self.gps_thread.data_stream.lon)
+                            alt = float(self.gps_thread.data_stream.alt)
+                            location = (lat, lon, alt)
+                            self.gpsLocation.emit(location)
+                        else:
+                            try_virb = True
                     except:
-                        print("data unavailable")
-                        pass
+                        print("Trying Garmin Virb")
+                        try_virb = True
 
-                try:
-                    if now - batt_ts > 30:
+                    if try_virb:
+                        print("GPS from Garmin Virb")
+                        try:
+                            status = self.camera.status()
+                            location = (status['gpsLatitude'], status['gpsLongitude'], status['altitude'])
+                            self.gpsLocation.emit(location)
+                        except:
+                            print("data unavailable")
+                            pass
+
+                if now - batt_ts > 30:
+                    print("Garmin Virb battery status update")
+                    try:
                         status = self.camera.status()
                         self.gpsBatt.emit(round(float(status['batteryLevel'])))
                         batt_ts = now
-                except:
-                    pass
+                    except:
+                        pass
             else:
                 print("status requests halted")
 
-            time.sleep(1)
+            time.sleep(0.1)
 
         print("thread finished")
         self.finished.emit()
