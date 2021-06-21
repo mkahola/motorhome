@@ -29,7 +29,7 @@ class Camcorder(QObject):
 
     def stop_recording(self):
         self.camera.stop_recording()
-        self.camera.set_features('autoRecord', 'off')
+        self.camera.set_features('autoRecord', 'whenMoving')
         self.camera.set_features('videoLoop', '30')
         print("stop recording")
         self.finished.emit()
