@@ -74,7 +74,6 @@ class MainApp(QMainWindow):
             self.ip = "192.168.0.1"
             self.timer.stop()
             self.initGPSThread()
-            self.initStartRecThread()
 
         while self.ip == "":
             print("Searching Garmin Virb")
@@ -247,8 +246,8 @@ class MainApp(QMainWindow):
                                 "border-color: beige;"
                                 "font: bold 32px;"
                                 "color: red;"
-                                "min-width: 72px;"
-                                "min-height: 72px;"
+                                "min-width: 64px;"
+                                "min-height: 64px;"
                                 "padding: 12px;")
 
         snapshotButton = QPushButton("", self)
@@ -262,8 +261,8 @@ class MainApp(QMainWindow):
                                      "border-color: beige;"
                                      "font: bold 32px;"
                                      "color: black;"
-                                     "min-width: 72px;"
-                                     "min-height: 72px;"
+                                     "min-width: 64px;"
+                                     "min-height: 64px;"
                                      "padding: 12px;")
 
         self.previewLabel = QLabel("", self)
@@ -280,7 +279,7 @@ class MainApp(QMainWindow):
 
         self.virbBattLabel = QLabel()
         self.virbBattLabel.setText(" VBat -- %")
-        self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
+        self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
         self.virbBattLabel.setAlignment(Qt.AlignRight)
 
         vbox = QVBoxLayout()
@@ -290,7 +289,7 @@ class MainApp(QMainWindow):
         vbox.addWidget(self.virbBattLabel)
 
         hbox = QHBoxLayout()
-        hbox.setSpacing(40)
+        hbox.setSpacing(20)
         hbox.addLayout(vbox)
         hbox.setAlignment(Qt.AlignCenter)
         hbox.addWidget(self.previewLabel)
