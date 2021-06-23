@@ -45,7 +45,6 @@ class GPS(QObject):
         self.camera = Virb((ip, 80))
         self.ip = ip
 
-        self.date_updated = False
         self.gps_thread = AGPS3mechanism()
         self.gps_thread.stream_data()
 
@@ -59,9 +58,6 @@ class GPS(QObject):
             now = time.monotonic()
             if self.request:
                 try_virb = False
-
-                if not self.date_updated:
-                    self.date_updated = update_datetime(self.gps_thread.data_stream.time, self.date_updated)
 
                 if now - prev >= 1.0:
                     prev = now
