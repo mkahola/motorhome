@@ -3,8 +3,27 @@ from PyQt5.QtCore import *
 from PyQt5 import QtCore, QtGui
 
 import time
-
+import math
 from ruuvitag_sensor.ruuvi import RuuviTagSensor, RunFlag
+
+class Ruuvi:
+    def __init__(self):
+        self.temperature = float('nan')
+        self.humidity = float('nan')
+        self.pressure = float('nan')
+        self.vbatt = float('nan')
+
+    def setTemperature(self, temp):
+        self.temperature = temp;
+
+    def setHumidity(self, humidity):
+        self.humidity = humidity
+
+    def setPressure(self, pressure):
+        self.pressure = pressure
+
+    def setVBat(self, vbatt):
+        self.vbatt = vbatt
 
 class RuuviTag(QObject):
     stop_signal = pyqtSignal()
