@@ -4,7 +4,7 @@ import requests
 
 class Virb():
     """Class to interact with Garmin Virb cameras over wifi / http"""
-    def __init__(self, host=('', 80)):
+    def __init__(self, host=('192.168.0.1', 80)):
         """Sets up the connection with the Virb device
 
         Accepts an ip and port which should be routable from the device running

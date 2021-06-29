@@ -11,51 +11,89 @@ import configparser
 from datetime import datetime, timedelta
 from pathlib import Path
 
+stylesheet = """
+    QWidget {
+        background: #323232;
+    }
+    QLabel {
+        background: transparent;
+        color: white;
+        font: 24px;
+    }
+    QToolButton {
+        background: rgba(192, 192, 192, 170);
+        border-style: outset;
+        border-width: 2px;
+        border-radius: 10px;
+        border-color: beige;
+        font: 16px;
+        color: black;
+        min-width: 64px;
+        min-height: 64px;
+        max-width: 128px;
+        max-height: 128px;
+        padding: 12px;
+    }
+    QPushButton {
+        background: transparent;
+        border: 0px;
+    }
+"""
+
 class InfoWindow(QWidget):
-    def createWindow(self, temperature):
+    def createWindow(self, infobar):
         parent = None
         super(InfoWindow, self).__init__(parent)
 
-        self.setStyleSheet("background-color: #323232;")
-        self.setWindowTitle("Dashcam")
+        self.setStyleSheet(stylesheet)
+        self.setWindowTitle("Information")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
         homeButton.setIconSize(QSize(64, 64))
-        homeButton.setStyleSheet("background-color: #323232;"
-                                 "border-style: outset;"
-                                 "border-width: 0px;"
-                                 "border-radius: 0px;"
-                                 "border-color: #323232;"
-                                 "font: 16px;"
-                                 "color: black;"
-                                 "min-width: 64px;"
-                                 "min-height: 64px;"
-                                 "max-width: 64px;"
-                                 "max-height: 64px;"
-                                 "padding: 0px;")
         homeButton.clicked.connect(self.exit)
 
+        # === infobar ===
+        # time
         self.timeLabel = QLabel()
-        self.timeLabel.setStyleSheet("QLabel {color: white; font: 24px}")
 
+        # TPMS warn light
+        self.tpms_warn_off = QPixmap("")
+        self.tpms_warn_on = QPixmap(self.prefix + "tpms_warn_on.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.tpmsWarnLabel = QLabel()
+
+        # GPS fix
+        self.gps_disconnected = QPixmap(self.prefix + "no_gps.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.gps_connected = QPixmap("")
+        self.gpsInfoLabel = QLabel()
+
+        # Ruuvitag
         self.tempInfoLabel = QLabel()
-        self.tempInfoLabel.setStyleSheet("QLabel {color: white; font: 24px}")
-
         self.temp_warn_off = QPixmap("")
         self.temp_warn_on = QPixmap(self.prefix + "snowflake.png").scaled(32, 32, Qt.KeepAspectRatio)
         self.tempWarnLabel = QLabel()
 
-        self.updateTemperature(temperature)
-        self.updateTime(datetime.now())
+        # recording
+        self.recInfoLabel = QLabel()
+        self.rec_off = QPixmap("")
+        self.rec_on = QPixmap(self.prefix + "rec.png").scaled(32, 32, Qt.KeepAspectRatio)
 
-        # TPMS warn light
-        #self.tpms_warn_off = QPixmap(self.prefix + "tpms_warn_off.png").scaled(32, 32, Qt.KeepAspectRatio)
-        self.tpms_warn_off = QPixmap("")
-        self.tpms_warn_on = QPixmap(self.prefix + "tpms_warn_on.png").scaled(32, 32, Qt.KeepAspectRatio)
-        self.tpmsWarnLabel = QLabel()
-        self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
+        self.updateTemperature(infobar.temperature)
+        self.updateTPMSWarn(infobar.tpmsWarn)
+        self.updateTime(datetime.now())
+        self.updateGPSFix(infobar.gpsFix)
+        self.updateRecording(infobar.recording)
+
+        #infobar
+        hbox1 = QHBoxLayout()
+        hbox1.addWidget(self.tpmsWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.tempWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.gpsInfoLabel,  alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.recInfoLabel,  alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.tempInfoLabel, alignment=Qt.AlignTop|Qt.AlignRight)
+        hbox1.addWidget(self.timeLabel,     alignment=Qt.AlignTop|Qt.AlignRight)
+        # === infobar ===
 
         conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
         config = configparser.ConfigParser()
@@ -102,10 +140,6 @@ class InfoWindow(QWidget):
         vinLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
         vinLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
 
-        hbox1 = QHBoxLayout()
-        hbox1.addWidget(self.tpmsWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
-        hbox1.addWidget(self.timeLabel, alignment=Qt.AlignTop|Qt.AlignRight)
-
         hbox2 = QHBoxLayout()
         hbox2.addWidget(typeLabel)
         hbox2.addWidget(makerLabel)
@@ -120,7 +154,7 @@ class InfoWindow(QWidget):
 
         self.setLayout(vbox)
 
-        self.showMaximized()
+        self.showFullScreen()
 
     def updateTime(self, t):
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
@@ -134,7 +168,24 @@ class InfoWindow(QWidget):
             self.tempWarnLabel.setPixmap(self.temp_warn_off)
 
         self.tempInfoLabel.setText("{0:d}".format(round(temperature)) + "\u2103")
-        self.temperatureLabel.setText("{:.1f}".format(round(temperature, 1)) + "\u2103")
+
+    def updateTPMSWarn(self, warn):
+        if warn:
+            self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
+        else:
+            self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
+
+    def updateGPSFix(self, fix):
+        if fix:
+            self.gpsInfoLabel.setPixmap(self.gps_connected)
+        else:
+            self.gpsInfoLabel.setPixmap(self.gps_disconnected)
+
+    def updateRecording(self, recording):
+        if recording:
+            self.recInfoLabel.setPixmap(self.rec_on)
+        else:
+            self.recInfoLabel.setPixmap(self.rec_off)
 
     def exit(self):
         self.close()

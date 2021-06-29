@@ -22,7 +22,7 @@ from tires import Tires
 from tpms import TPMS
 from virb import Virb
 from camcorder import Camcorder
-from gps import GPS
+from gps import Location
 from warns import Warnings
 from geolocation import Geolocation
 from ruuvi import RuuviTag, Ruuvi
@@ -37,7 +37,7 @@ from infowindow import InfoWindow
 
 stylesheet = """
     QMainWindow {
-        background-image: url(res/background.png);
+        border-image: url(res/background.png) 0 0 0 0 stretch stretch;
         background-repeat: no-repeat;
         background-position: center;
     }
@@ -60,9 +60,29 @@ stylesheet = """
         max-height: 128px;
         padding: 12px;
     }
+    QPushButton {
+        background: transparent;
+        border: 0px;
+    }
 """
 
+class InfoBar:
+    def __init__(self):
+        self.temperature = math.nan
+        self.tpmsWarn = False
+        self.gpsFix = False
+        self.recording = False
+
+class GPS:
+    def __init__(self):
+        self.lat = math.nan
+        self.lon = math.nan
+        self.alt = math.nan
+        self.fix = 0
+        self.speed = math.nan
+
 class MainApp(QMainWindow):
+    stop_signal = pyqtSignal()
     exit_signal = pyqtSignal()
     set_season = pyqtSignal(int)
 
@@ -74,14 +94,12 @@ class MainApp(QMainWindow):
         self.resolution = QDesktopWidget().availableGeometry(-1)
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 
+        self.infobar = InfoBar()
+        self.gps = GPS()
+
         self.virb = Virb()
         self.tpms = Tires()
         self.ruuvi = Ruuvi()
-
-        self.initTPMSThread()
-        self.initSearchVirbThread()
-        self.initRuuvitagThread()
-        #self.initGPSThread()
 
         self.centralWidget = QWidget()
 
@@ -161,12 +179,26 @@ class MainApp(QMainWindow):
         self.datetimer.timeout.connect(self.updateTime)
         self.datetimer.start(1000)
 
+        # recording
+        self.recInfoLabel = QLabel()
+        self.rec_off = QPixmap("")
+        self.rec_on = QPixmap(self.prefix + "rec.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.updateRecording(self.infobar.recording)
+
+        # gps
+        self.gpsInfoLabel = QLabel()
+        self.gps_connected = QPixmap("")
+        self.gps_disconnected = QPixmap(self.prefix + "no_gps.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.updateGPSFix(self.infobar.gpsFix)
+
         #infobar
         hbox1 = QHBoxLayout()
         hbox1.addWidget(self.tpmsWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.tempWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.gpsInfoLabel,  alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.recInfoLabel,  alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.tempInfoLabel, alignment=Qt.AlignTop|Qt.AlignRight)
-        hbox1.addWidget(self.timeLabel, alignment=Qt.AlignTop|Qt.AlignRight)
+        hbox1.addWidget(self.timeLabel,     alignment=Qt.AlignTop|Qt.AlignRight)
 
         grid = QGridLayout()
         grid.addWidget(self.speedoButton, 0, 0)
@@ -187,69 +219,104 @@ class MainApp(QMainWindow):
         self.centralWidget.setLayout(vbox)
         self.setCentralWidget(self.centralWidget)
 
-#        self.showFullScreen()
-        self.showMaximized()
+        # start threads
+        self.initTPMSThread()
+        self.initSearchVirbThread()
+        self.initRuuvitagThread()
+        self.initGPSThread()
+
+        self.showFullScreen()
+#        self.showMaximized()
 
     def createSpeedoWindow(self):
         self.speedoWindow = SpeedoWindow(parent=self)
-        self.speedoWindow.createWindow(self.ruuvi.temperature)
+        self.speedoWindow.createWindow(self.infobar)
         self.speedoWindow.show()
 
     def createCameraWindow(self):
         self.cameraWindow = CameraWindow(parent=self)
-        self.cameraWindow.createWindow(self.virb)
+        self.cameraWindow.createWindow(self.infobar, self.virb)
+        self.cameraWindow.recording.connect(self.getRecSignal)
         self.cameraWindow.show()
 
     def createTPMSWindow(self):
         self.tpmsWindow = TPMSWindow(parent=self)
-        self.tpmsWindow.createWindow(self.tpms)
+        self.tpmsWindow.createWindow(self.infobar, self.tpms)
         self.tpmsWindow.show()
 
     def createGPSWindow(self):
         self.gpsWindow = GPSWindow(parent=self)
-        self.gpsWindow.createWindow(self.ruuvi.temperature)
+        self.gpsWindow.createWindow(self.infobar, self.gps)
         self.gpsWindow.show()
 
     def createRuuviWindow(self):
         self.ruuviWindow = RuuviWindow(parent=self)
-        self.ruuviWindow.createWindow(self.ruuvi)
+        self.ruuviWindow.createWindow(self.infobar, self.ruuvi)
         self.ruuviWindow.show()
 
     def createInfoWindow(self):
         self.infoWindow = InfoWindow(parent=self)
-        self.infoWindow.createWindow(self.ruuvi.temperature)
+        self.infoWindow.createWindow(self.infobar)
         self.infoWindow.show()
+
+    def getRecSignal(self, data):
+        self.infobar.recording = data
+        self.updateRecording(self.infobar.recording)
 
     def updateTime(self):
         t = datetime.now()
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
 
         try:
+            self.speedoWindow.updateTPSMWarn(self.infobar.tpsmWarn)
+            self.speedoWindow.updateGPSFix(self.infobar.gpsFix)
+            self.speedoWindow.updateTemperature(self.infobar.temperature)
+            self.speedoWindow.updateRecording(infobar.recording)
             self.speedoWindow.updateTime(t)
         except:
             pass
 
         try:
+            self.cameraWindow.updateTPSMWarn(self.infobar.tpsmWarn)
+            self.cameraWindow.updateGPSFix(self.infobar.gpsFix)
+            self.cameraWindow.updateTemperature(self.infobar.temperature)
+            self.cameraWindow.updateRecording(infobar.recording)
             self.cameraWindow.updateTime(t)
         except AttributeError:
             pass
 
         try:
+            self.tpmsWindow.updateTPSMWarn(self.infobar.tpsmWarn)
+            self.tpmsWindow.updateGPSFix(self.infobar.gpsFix)
+            self.tpmsWindow.updateTemperature(self.infobar.temperature)
+            self.tpmsWindow.updateRecording(infobar.recording)
             self.tpmsWindow.updateTime(t)
         except AttributeError:
             pass
 
         try:
+            self.gpsWindow.updateTPSMWarn(self.infobar.tpsmWarn)
+            self.gpsWindow.updateGPSFix(self.gps.fix)
+            self.gpsWindow.updateTemperature(self.infobar.temperature)
+            self.gpsWindow.updateRecording(infobar.recording)
             self.gpsWindow.updateTime(t)
         except AttributeError:
             pass
 
         try:
+            self.ruuviWindow.updateTPSMWarn(self.infobar.tpsmWarn)
+            self.ruuviWindow.updateGPSFix(self.infobar.gpsFix)
+            self.ruuviWindow.updateTemperature(self.infobar.temperature)
+            self.ruuviWindow.updateRecording(infobar.recording)
             self.ruuviWindow.updateTime(t)
         except AttributeError:
             pass
 
         try:
+            self.infoWindow.updateTPSMWarn(self.infobar.tpsmWarn)
+            self.infoWindow.updateGPSFix(self.infobar.gpsFix)
+            self.infoWindow.updateTemperature(self.infobar.temperature)
+            self.infoWindow.updateRecording(infobar.recording)
             self.infoWindow.updateTime(t)
         except AttributeError:
             pass
@@ -291,26 +358,42 @@ class MainApp(QMainWindow):
 
         self.tpmsThread.start()
 
+    def initGPSThread(self):
+        self.gpsThread =  QThread()
+        self.gpsWorker = Location()
+        self.exit_signal.connect(self.gpsWorker.stop)
+        self.gpsWorker.moveToThread(self.gpsThread)
+        self.gpsWorker.finished.connect(self.gpsThread.quit)
+        self.gpsWorker.finished.connect(self.gpsWorker.deleteLater)
+        self.gpsThread.finished.connect(self.gpsThread.deleteLater)
+        self.gpsThread.started.connect(self.gpsWorker.run)
+
+        self.gpsWorker.gpsFix.connect(self.updateGPSFix)
+        self.gpsWorker.gpsLocation.connect(self.updateLocation)
+
+        self.gpsThread.start()
+
     def setTPMSWarn(self, warn):
         if warn:
+            self.infobar.tpmsWarn = True
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
         else:
+            self.infobar.tpmsWarn = False
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
 
         try:
-            self.TPMSWindow.setTPMSWarn(warn)
+            self.tpmsWindow.setTPMSWarn(warn)
         except:
             print("Error sending tpms warn to tpms")
 
     def setTPMS(self, sensor):
-        print("motorhome: " + sensor[0] + ": " + str(sensor[1]) + " bar" + str(sensor[2]) + "\u2103")
-
-        self.tpms.setPressure(sensor[0], sensor[1])
-        self.tpms.setTemperature(sensor[0], sensor[2])
-        self.tpms.setWarn(sensor[0], sensor[3])
+        tire = sensor[0]
+        self.tpms.setPressure(tire, sensor[1])
+        self.tpms.setTemperature(tire, sensor[2])
+        self.tpms.setWarn(tire, sensor[3])
 
         try:
-            self.TPMSWindow.setTPMS(self.tpms)
+            self.tpmsWindow.setTPMS(self.tpms, tire)
         except AttributeError:
             pass
 
@@ -350,6 +433,7 @@ class MainApp(QMainWindow):
         if math.isnan(temperature):
             return
 
+        self.infobar.temperature = temperature
         self.ruuvi.temperature = temperature
 
         try:
@@ -393,6 +477,40 @@ class MainApp(QMainWindow):
         except AttributeError:
             pass
 
+    def updateGPSFix(self, fix):
+        if fix <= 1:
+            self.infobar.gpsFix = False
+        else:
+            self.infobar.gpsFix = True
+
+        self.gps.fix = fix
+
+        if self.infobar.gpsFix:
+            self.gpsInfoLabel.setPixmap(self.gps_connected)
+        else:
+            self.gpsInfoLabel.setPixmap(self.gps_disconnected)
+
+        try:
+            self.gpsWindow.updateFix(self.gps.fix)
+        except AttributeError:
+            pass
+
+    def updateLocation(self, location):
+        self.gps.lat = location[0]
+        self.gps.lon = location[1]
+        self.gps.alt = location[2]
+
+        try:
+            self.gpsWindow.updateLocation(self.gps)
+        except AttributeError:
+            pass
+
+    def updateRecording(self, recording):
+        if recording:
+            self.recInfoLabel.setPixmap(self.rec_on)
+        else:
+            self.recInfoLabel.setPixmap(self.rec_off)
+
     def poweroff(self):
         os.system("sudo shutdown -h now")
 
@@ -402,7 +520,7 @@ class MainApp(QMainWindow):
 #            self.virbThread.join()
 #            self.TPMSThread.join()
             self.datetimer.stop()
-            system.exit()
+            sys.exit()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

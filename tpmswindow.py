@@ -13,31 +13,90 @@ from pathlib import Path
 from tires import Tires
 from tpms import TPMS
 
+stylesheet = """
+    QWidget {
+        background: #323232;
+    }
+    QLabel {
+        background: transparent;
+        color: white;
+        font: 24px;
+    }
+    QToolButton {
+        background: rgba(192, 192, 192, 170);
+        border-style: outset;
+        border-width: 2px;
+        border-radius: 10px;
+        border-color: beige;
+        font: 16px;
+        color: black;
+        min-width: 64px;
+        min-height: 64px;
+        max-width: 128px;
+        max-height: 128px;
+        padding: 12px;
+    }
+    QPushButton {
+        background: transparent;
+        border: 0px;
+    }
+"""
+
 class TPMSWindow(QWidget):
-    def createWindow(self, tpms):
+    def createWindow(self, infobar, tpms):
         parent = None
         super(TPMSWindow, self).__init__(parent)
 
-        self.setStyleSheet("background-color: #323232;")
+        self.setStyleSheet(stylesheet)
         self.setWindowTitle("TPMS")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
         homeButton.setIconSize(QSize(64, 64))
-        homeButton.setStyleSheet("background-color: #323232;"
-                                 "border: 0px;"
-                                 "font: 16px;"
-                                 "color: black;"
-                                 "min-width: 64px;"
-                                 "min-height: 64px;"
-                                 "max-width: 64px;"
-                                 "max-height: 64px;"
-                                 "padding: 0px;")
         homeButton.clicked.connect(self.exit)
 
+        # === infobar ===
+        # time
         self.timeLabel = QLabel()
-        self.timeLabel.setStyleSheet("QLabel {color: white; font: 24px}")
+
+        # TPMS warn light
+        self.tpms_warn_off = QPixmap("")
+        self.tpms_warn_on = QPixmap(self.prefix + "tpms_warn_on.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.tpmsWarnLabel = QLabel()
+
+        # GPS fix
+        self.gps_disconnected = QPixmap(self.prefix + "no_gps.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.gps_connected = QPixmap("")
+        self.gpsInfoLabel = QLabel()
+
+        # Ruuvitag
+        self.tempInfoLabel = QLabel()
+
+        self.temp_warn_off = QPixmap("")
+        self.temp_warn_on = QPixmap(self.prefix + "snowflake.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.tempWarnLabel = QLabel()
+
+        # recording
+        self.recInfoLabel = QLabel()
+        self.rec_off = QPixmap("")
+        self.rec_on = QPixmap(self.prefix + "rec.png").scaled(32, 32, Qt.KeepAspectRatio)
+
+        self.updateTemperature(infobar.temperature)
+        self.updateTime(datetime.now())
+        self.updateTPMSWarn(infobar.tpmsWarn)
+        self.updateGPSFix(infobar.gpsFix)
+        self.updateRecording(infobar.recording)
+
+        #infobar
+        hbox1 = QHBoxLayout()
+        hbox1.addWidget(self.tpmsWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.tempWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.gpsInfoLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.recInfoLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.tempInfoLabel, alignment=Qt.AlignTop|Qt.AlignRight)
+        hbox1.addWidget(self.timeLabel, alignment=Qt.AlignTop|Qt.AlignRight)
+        # === infobar ===
 
         self.fl_pressure_label = QLabel()
         self.fl_pressure_label.setStyleSheet("font: bold 28px;"
@@ -82,18 +141,10 @@ class TPMSWindow(QWidget):
         tire_rr_label = QLabel()
         tire_rr_label.setPixmap(pixmap)
 
-        #self.tpms_warn_off = QPixmap(self.prefix + "tpms_warn_off.png").scaled(32, 32, Qt.KeepAspectRatio)
-        self.tpms_warn_off = QPixmap("")
-        self.tpms_warn_on = QPixmap(self.prefix + "tpms_warn_on.png").scaled(32, 32, Qt.KeepAspectRatio)
-        self.tpmsWarnLabel = QLabel()
-        self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
-
-        self.updateTime(datetime.now())
-        self.setTPMS(tpms)
-
-        hbox1 = QHBoxLayout()
-        hbox1.addWidget(self.tpmsWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
-        hbox1.addWidget(self.timeLabel, alignment=Qt.AlignTop|Qt.AlignRight)
+        self.setTPMS(tpms, "FL")
+        self.setTPMS(tpms, "FR")
+        self.setTPMS(tpms, "RL")
+        self.setTPMS(tpms, "RR")
 
         vbox1 = QVBoxLayout()
         vbox1.addWidget(self.fl_pressure_label, alignment=Qt.AlignCenter|Qt.AlignBottom)
@@ -131,7 +182,7 @@ class TPMSWindow(QWidget):
 
         self.setLayout(vbox5)
 
-        self.showMaximized()
+        self.showFullScreen()
 
     def setTPMSWarn(self, warn):
         if warn:
@@ -139,7 +190,7 @@ class TPMSWindow(QWidget):
         else:
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
 
-    def setTPMS(self, tpms):
+    def setTPMS(self, tpms, tire):
         flp = False
         frp = False
         rlp = False
@@ -149,134 +200,126 @@ class TPMSWindow(QWidget):
         rlt = False
         rrt = False
 
-        if math.isnan(tpms.FrontLeftPressure):
-            self.fl_pressure_label.setText(" -- bar")
-            self.fl_pressure_label.setStyleSheet("font: bold 24px;"
-                                                "color: #73E420;")
-            flp = True
-        if math.isnan(tpms.FrontRightPressure):
-            self.fr_pressure_label.setText(" -- bar")
-            self.fr_pressure_label.setStyleSheet("font: bold 24px;"
-                                                "color: #73E420;")
-            frp = True
-
-        if math.isnan(tpms.RearLeftPressure):
-            self.rl_pressure_label.setText(" -- bar")
-            self.rl_pressure_label.setStyleSheet("font: bold 24px;"
-                                                "color: #73E420;")
-            rlp = True
-        if math.isnan(tpms.RearRightPressure):
-            self.rr_pressure_label.setText(" -- bar")
-            self.rr_pressure_label.setStyleSheet("font: bold 24px;"
-                                                "color: #73E420;")
-            rrp = True
-        if math.isnan(tpms.FrontLeftTemp):
-            self.fl_temp_label.setText("--\u2103")
-            self.fl_temp_label.setStyleSheet("font: bold 18px;"
-                                             "color: #73E420;")
-            flt = True
-        if math.isnan(tpms.FrontRightTemp):
-            self.fr_temp_label.setText("--\u2103")
-            self.fr_temp_label.setStyleSheet("font: bold 18px;"
-                                             "color: #73E420;")
-            frt = True
-        if math.isnan(tpms.RearLeftTemp):
-            self.rl_temp_label.setText("--\u2103")
-            self.rl_temp_label.setStyleSheet("font: bold 18px;"
-                                             "color: #73E420;")
-            rlt = True
-        if math.isnan(tpms.RearRightTemp):
-            self.rr_temp_label.setText("--\u2103")
-            self.rr_temp_label.setStyleSheet("font: bold 18px;"
-                                             "color: #73E420;")
-            rrt = True
-
-        #pressure
-        if not flp:
-            self.fl_pressure_label.setText("{:.1f}".format(round(tpms.FrontLeftPressure,1)) + " bar")
-            if tpms.FrontLeftWarn:
+        if tire == "FL":
+            if math.isnan(tpms.FrontLeftPressure):
+                self.fl_pressure_label.setText(" -- bar")
                 self.fl_pressure_label.setStyleSheet("font: bold 24px;"
-                                                    "color: #ff9933;")
+                                                "color: #73E420;")
+
+                self.fl_temp_label.setText("--\u2103")
+                self.fl_temp_label.setStyleSheet("font: bold 20px;"
+                                                 "color: #73E420;")
             else:
-                self.fl_pressure_label.setStyleSheet("font: bold 24px;"
+                self.fl_pressure_label.setText("{:.1f}".format(round(tpms.FrontLeftPressure,1)) + " bar")
+                self.fl_temp_label.setText("{:0d}".format(round(tpms.FrontLeftTemp)) + "\u2103")
+                if tpms.FrontLeftWarn:
+                    self.fl_pressure_label.setStyleSheet("font: bold 24px;"
+                                                         "color: #ff9933;")
+                    self.fl_temp_label.setStyleSheet("font: bold 20px;"
+                                                     "color: #ff9933;")
+                else:
+                    self.fl_pressure_label.setStyleSheet("font: bold 24px;"
+                                                         "color: #73E420;")
+                    self.fl_temp_label.setStyleSheet("font: bold 20px;"
+                                                     "color: #73E420;")
+        elif tire == "FR":
+            if math.isnan(tpms.FrontRightPressure):
+                self.fr_pressure_label.setText(" -- bar")
+                self.fr_pressure_label.setStyleSheet("font: bold 24px;"
+                                                     "color: #73E420;")
+
+                self.fr_temp_label.setText("--\u2103")
+                self.fr_temp_label.setStyleSheet("font: bold 20px;"
+                                                 "color: #73E420;")
+            else:
+                self.fr_pressure_label.setText("{:.1f}".format(round(tpms.FrontRightPressure,1)) + " bar")
+                self.fr_temp_label.setText("{0:d}".format(round(tpms.FrontRightTemp)) + "\u2103")
+                if tpms.FrontRightWarn:
+                    self.fr_pressure_label.setStyleSheet("font: bold 24px;"
+                                                         "color: #ff9933;")
+                    self.fr_temp_label.setStyleSheet("font: bold 20px;"
+                                                     "color: #ff9933;")
+                else:
+                    self.fr_pressure_label.setStyleSheet("font: bold 24px;"
+                                                         "color: #73E420;")
+                    self.fr_temp_label.setStyleSheet("font: bold 20px;"
+                                                     "color: #73E420;")
+        elif tire == "RL":
+            if math.isnan(tpms.RearLeftPressure):
+                self.rl_pressure_label.setText(" -- bar")
+                self.rl_pressure_label.setStyleSheet("font: bold 24px;"
+                                                     "color: #73E420;")
+                self.rl_temp_label.setText("--\u2103")
+                self.rl_temp_label.setStyleSheet("font: bold 20px;"
+                                                 "color: #73E420;")
+
+            else:
+                self.rl_pressure_label.setText("{:.1f}".format(round(tpms.RearLeftPressure,1)) + " bar")
+                self.rl_temp_label.setText("{0:d}".format(round(tpms.RearLeftTemp)) + "\u2103")
+                if tpms.RearLeftWarn:
+                    self.rl_pressure_label.setStyleSheet("font: bold 24px;"
+                                                         "color: #ff9933;")
+                    self.rl_temp_label.setStyleSheet("font: bold 20px;"
+                                                     "color: #ff9933;")
+                else:
+                    self.rl_pressure_label.setStyleSheet("font: bold 24px;"
+                                                         "color: #73E420;")
+                    self.rl_temp_label.setStyleSheet("font: bold 20px;"
+                                                     "color: #73E420;")
+        elif tire == "RR":
+            if math.isnan(tpms.RearRightPressure):
+                self.rr_pressure_label.setText(" -- bar")
+                self.rr_pressure_label.setStyleSheet("font: bold 24px;"
                                                     "color: #73E420;")
 
-        if not frp:
-            self.fr_pressure_label.setText("{:.1f}".format(round(tpms.FrontRightPressure,1)) + " bar")
-            if tpms.FrontRightWarn:
-                self.fr_pressure_label.setStyleSheet("font: bold 24px;"
-                                                 "color: #ff9933;")
-            else:
-                self.fr_pressure_label.setStyleSheet("font: bold 24px;"
+                self.rr_temp_label.setText("--\u2103")
+                self.rr_temp_label.setStyleSheet("font: bold 20px;"
                                                  "color: #73E420;")
-
-        if not rlp:
-            self.rl_pressure_label.setText("{:.1f}".format(round(tpms.RearLeftPressure,1)) + " bar")
-            if tpms.RearLeftWarn:
-                self.rl_pressure_label.setStyleSheet("font: bold 24px;"
+            else:
+                self.rr_pressure_label.setText("{:.1f}".format(round(tpms.RearRightPressure,1)) + " bar")
+                self.rr_temp_label.setText("{0:d}".format(round(tpms.RearRightTemp)) + "\u2103")
+                if tpms.RearRightWarn:
+                    self.rr_pressure_label.setStyleSheet("font: bold 24px;"
+                                                         "color: #ff9933;")
+                    self.rl_temp_label.setStyleSheet("font: bold 20px;"
                                                      "color: #ff9933;")
-            else:
-                self.rl_pressure_label.setStyleSheet("font: bold 24px;"
+                else:
+                    self.rr_pressure_label.setStyleSheet("font: bold 24px;"
+                                                         "color: #73E420;")
+                    self.rl_temp_label.setStyleSheet("font: bold 20px;"
                                                      "color: #73E420;")
-
-        if not rrp:
-            self.rr_pressure_label.setText("{:.1f}".format(round(tpms.RearRightPressure,1)) + " bar")
-            if tpms.RearRightWarn:
-                self.rr_pressure_label.setStyleSheet("font: bold 24px;"
-                                                     "color: #ff9933;")
-            else:
-                self.rr_pressure_label.setStyleSheet("font: bold 24px;"
-                                                     "color: #73E420;")
-
-        #temperature
-        if not flt:
-            self.fl_temp_label.setText("{:0d}".format(round(tpms.FrontLeftTemp)) + "\u2103")
-            if tpms.FrontLeftWarn:
-                self.fl_temp_label.setStyleSheet("font: bold 18px;"
-                                               "color: #ff9933;")
-            else:
-                self.fl_temp_label.setStyleSheet("font: bold 18px;"
-                                                 "color: #73E420;")
-
-        if not frt:
-            self.fr_temp_label.setText("{0:d}".format(round(tpms.FrontRightTemp)) + "\u2103")
-            if tpms.FrontRightWarn:
-                self.fr_temp_label.setStyleSheet("font: bold 18px;"
-                                                 "color: #ff9933;")
-            else:
-                self.fr_temp_label.setStyleSheet("font: bold 18px;"
-                                                 "color: #73E420;")
-
-        if not rlt:
-            self.rl_temp_label.setText("{0:d}".format(round(tpms.RearLeftTemp)) + "\u2103")
-            if tpms.RearLeftWarn:
-                self.rl_temp_label.setStyleSheet("font: bold 18px;"
-                                                 "color: #ff9933;")
-            else:
-                self.rl_temp_label.setStyleSheet("font: bold 18px;"
-                                                 "color: #73E420;")
-
-        if not rrt:
-            self.rr_temp_label.setText("{0:d}".format(round(tpms.RearRightTemp)) + "\u2103")
-            if tpms.RearRightWarn:
-                self.rl_temp_label.setStyleSheet("font: bold 18px;"
-                                                 "color: #ff9933;")
-            else:
-                self.rl_temp_label.setStyleSheet("font: bold 18px;"
-                                                 "color: #73E420;")
 
     def updateTime(self, t):
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
 
     def updateTemperature(self, temperature):
+        if math.isnan(temperature):
+            return
+
         if temperature < 3.0:
             self.tempWarnLabel.setPixmap(self.temp_warn_on)
         elif temperature > 3.2:
             self.tempWarnLabel.setPixmap(self.temp_warn_off)
 
         self.tempInfoLabel.setText("{0:d}".format(round(temperature)) + "\u2103")
-        self.temperatureLabel.setText("{:.1f}".format(round(temperature, 1)) + "\u2103")
 
+    def updateTPMSWarn(self, warn):
+        if warn:
+            self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
+        else:
+            self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
+
+    def updateGPSFix(self, fix):
+        if fix:
+            self.gpsInfoLabel.setPixmap(self.gps_connected)
+        else:
+            self.gpsInfoLabel.setPixmap(self.gps_disconnected)
+
+    def updateRecording(self, recording):
+        if recording:
+            self.recInfoLabel.setPixmap(self.rec_on)
+        else:
+            self.recInfoLabel.setPixmap(self.rec_off)
 
     def exit(self):
         self.close()

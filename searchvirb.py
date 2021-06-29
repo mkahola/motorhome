@@ -38,7 +38,6 @@ def search_virb():
             device = result[list(result.keys())[i]]['hostname'][0]['name']
             if device == "Garmin-WiFi":
                 virb_ip = list(result)[i]
-                print("Virb found: " + virb_ip)
                 break
         except:
             pass
@@ -60,7 +59,7 @@ class SearchVirb(QObject):
         while self.running and not virb_ip:
             virb_ip = search_virb()
             if virb_ip:
-                print("Virb ip: " + virb_ip)
+                print("Virb found: " + virb_ip)
                 self.ip.emit(virb_ip)
                 self.running = False
                 continue

@@ -9,7 +9,6 @@ import time
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
-from ruuvi import RuuviTag, Ruuvi
 
 stylesheet = """
     QWidget {
@@ -40,41 +39,34 @@ stylesheet = """
     }
 """
 
-class RuuviWindow(QWidget):
-    def createWindow(self, infobar, ruuvi):
+class GPSWindow(QWidget):
+    def createWindow(self, infobar, gps):
         parent = None
-        super(RuuviWindow, self).__init__(parent)
+        super(GPSWindow, self).__init__(parent)
 
         self.setStyleSheet(stylesheet)
-        self.setWindowTitle("Ruuvitag")
+        self.setWindowTitle("Location")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 
-        outdoor = QLabel("OUTDOOR:")
-        outdoor.setStyleSheet("font: bold 32px;"
-                              "color: white;")
+        lat_label = QLabel("Latitude")
+        lat_label.setStyleSheet("font: bold 24px")
 
-        self.temperatureLabel = QLabel()
-        self.temperatureLabel.setStyleSheet("font: bold 48px;"
-                                            "color: white;")
+        lon_label = QLabel("Longitude")
+        lon_label.setStyleSheet("font: bold 24px")
 
-        self.humidityLabel = QLabel()
-        self.humidityLabel.setStyleSheet("font: bold 48px;"
-                                         "color: white;")
+        alt_label = QLabel("Altitude")
+        alt_label.setStyleSheet("font: bold 24px")
 
-        self.pressureLabel = QLabel()
-        self.pressureLabel.setStyleSheet("font: bold 48px;"
-                                         "color: white;")
-
-        self.voltageLabel = QLabel()
-        self.voltageLabel.setStyleSheet("font: bold 24px;"
-                                        "color: yellow")
+        self.fix = QLabel()
+        self.lat = QLabel()
+        self.lon = QLabel()
+        self.alt = QLabel()
 
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
         homeButton.setIconSize(QSize(64, 64))
         homeButton.clicked.connect(self.exit)
 
-        # === infobar ===
         # time
         self.timeLabel = QLabel()
 
@@ -100,72 +92,85 @@ class RuuviWindow(QWidget):
         self.rec_off = QPixmap("")
         self.rec_on = QPixmap(self.prefix + "rec.png").scaled(32, 32, Qt.KeepAspectRatio)
 
-        self.updateTemperature(ruuvi.temperature)
+        self.updateTemperature(infobar.temperature)
         self.updateTime(datetime.now())
         self.updateTPMSWarn(infobar.tpmsWarn)
-        self.updateGPSFix(infobar.gpsFix)
+        self.updateFix(infobar.gpsFix)
         self.updateRecording(infobar.recording)
+        self.updateLocation(gps)
 
         #infobar
         hbox1 = QHBoxLayout()
         hbox1.addWidget(self.tpmsWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.tempWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
-        hbox1.addWidget(self.gpsInfoLabel,  alignment=Qt.AlignTop|Qt.AlignLeft)
-        hbox1.addWidget(self.recInfoLabel,  alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.gpsInfoLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.recInfoLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.tempInfoLabel, alignment=Qt.AlignTop|Qt.AlignRight)
-        hbox1.addWidget(self.timeLabel,     alignment=Qt.AlignTop|Qt.AlignRight)
-        # === infobar ===
+        hbox1.addWidget(self.timeLabel, alignment=Qt.AlignTop|Qt.AlignRight)
 
-        self.updateTemperature(ruuvi.temperature)
-        self.updateHumidity(ruuvi.humidity)
-        self.updatePressure(ruuvi.pressure)
-        self.updateRuuviBatt(ruuvi.vbatt)
+        hbox2 = QHBoxLayout()
+        hbox2.addWidget(lat_label, alignment=Qt.AlignCenter)
+        hbox2.addWidget(lon_label, alignment=Qt.AlignCenter)
+        hbox2.addWidget(alt_label, alignment=Qt.AlignCenter)
+
+        hbox3 = QHBoxLayout()
+        hbox3.addWidget(self.lat, alignment=Qt.AlignCenter|Qt.AlignTop)
+        hbox3.addWidget(self.lon, alignment=Qt.AlignCenter|Qt.AlignTop)
+        hbox3.addWidget(self.alt, alignment=Qt.AlignCenter|Qt.AlignTop)
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
-        vbox.addWidget(outdoor, alignment=Qt.AlignLeft|Qt.AlignVCenter)
-        vbox.addWidget(self.temperatureLabel, alignment=Qt.AlignCenter|Qt.AlignVCenter)
-        vbox.addWidget(self.humidityLabel, alignment=Qt.AlignCenter|Qt.AlignVCenter)
-        vbox.addWidget(self.pressureLabel, alignment=Qt.AlignCenter|Qt.AlignVCenter)
-        vbox.addWidget(self.voltageLabel, alignment=Qt.AlignRight)
+        vbox.addWidget(self.fix)
+        vbox.addLayout(hbox2)
+        vbox.addLayout(hbox3)
         vbox.addWidget(homeButton, alignment=Qt.AlignCenter)
-
         self.setLayout(vbox)
 
         self.showFullScreen()
 
+    def updateTime(self, t):
+        self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
+
     def updateTemperature(self, temperature):
         if math.isnan(temperature):
-            self.temperatureLabel.setText("--\u2103")
             return
+
+        self.tempInfoLabel.setText("{0:d}".format(round(temperature)) + "\u2103")
         if temperature < 3.0:
             self.tempWarnLabel.setPixmap(self.temp_warn_on)
         elif temperature > 3.2:
             self.tempWarnLabel.setPixmap(self.temp_warn_off)
 
-        self.tempInfoLabel.setText("{0:d}".format(round(temperature)) + "\u2103")
-        self.temperatureLabel.setText("{:.2f}".format(round(temperature, 2)) + "\u2103")
+    def updateFix(self, fix):
+        if fix == 1:
+            self.fix.setText("Fix: None")
+        elif fix == 2:
+            self.fix.setText("Fix: 2D")
+        elif fix == 3:
+            self.fix.setText("Fix: 3D")
 
-    def updateHumidity(self, humidity):
-        if math.isnan(humidity):
-            self.humidityLabel.setText("-- %")
-            return
-        self.humidityLabel.setText("{:.2f}".format(round(humidity, 2)) + " %")
+    def updateLocation(self, gps):
+#        geolocation = Geolocation("motorhome")
 
-    def updatePressure(self, pressure):
-        if math.isnan(pressure):
-            self.pressureLabel.setText("-- hPa")
-            return
-        self.pressureLabel.setText("{:.2f}".format(round(pressure, 2)) + " hPa")
+        if not math.isnan(gps.lat):
+            self.lat.setText("{:.5f}".format(round(gps.lat, 5)))
+        else:
+            self.lat.setText("--")
 
-    def updateRuuviBatt(self, vbatt):
-        if math.isnan(vbatt):
-            return
-        if vbatt < 2.75:
-            self.voltageLabel.setText("low batt: " + "{:.2f}".format(round(vbatt/1000, 2)) + " V")
+        if not math.isnan(gps.lon):
+            self.lon.setText("{:.5f}".format(round(gps.lon, 5)))
+        else:
+            self.lon.setText("--")
 
-    def updateTime(self, t):
-        self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
+        if not math.isnan(gps.alt):
+            self.alt.setText("{0:d}".format(round(gps.alt)))
+        else:
+            self.alt.setText("--")
+
+#        if self.updateAddress:
+#            self.address.setText(geolocation.get_address((location[0], location[1])))
+#
+#        self.gps_ts = datetime.now()
 
     def updateTPMSWarn(self, warn):
         if warn:
@@ -174,10 +179,17 @@ class RuuviWindow(QWidget):
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
 
     def updateGPSFix(self, fix):
-        if fix:
+        if fix > 1:
             self.gpsInfoLabel.setPixmap(self.gps_connected)
         else:
             self.gpsInfoLabel.setPixmap(self.gps_disconnected)
+
+        if fix <= 1:
+            self.fix.setText("Fix: None")
+        elif fix == 2:
+            self.fix.setText("Fix: 2D")
+        else:
+            self.fix.setText("Fix: 3D")
 
     def updateRecording(self, recording):
         if recording:
