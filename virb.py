@@ -59,7 +59,7 @@ class Virb():
     def get_speed(self):
         status = self.status()
         try:
-            return status['speed']*3.6
+            return status['speed']
         except:
             return 0
 

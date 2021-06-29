@@ -49,18 +49,6 @@ class MainApp(QMainWindow):
 
         self.setup_ui()
 
-        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
-        config = configparser.ConfigParser()
-        try:
-            config.read(conf_file)
-            self.virb_mac = config['VIRB']['mac']
-        except:
-            self.virb_mac = ""
-
-        self.ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
-        if self.ssid != "VIRB-6267":
-            self.network_available = True
-
         self.timer=QTimer()
         self.timer.timeout.connect(self.search_virb)
         self.timer.start(1000)
@@ -85,6 +73,7 @@ class MainApp(QMainWindow):
         if is_virb_ssid():
             self.ip = "192.168.0.1"
             self.timer.stop()
+            self.initGPSThread()
 
         while self.ip == "":
             print("Searching Garmin Virb")
@@ -109,7 +98,6 @@ class MainApp(QMainWindow):
                         print("Virb found: " + self.ip)
                         self.timer.stop()
                         self.initGPSThread()
-                        self.initStartRecThread()
                         break
                  except:
                      pass
@@ -247,21 +235,20 @@ class MainApp(QMainWindow):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
 
         recButton = QPushButton("", self)
-        recButton.setIcon(QIcon(self.prefix + 'stop.png'))
+        recButton.setIcon(QIcon(self.prefix + 'rec.png'))
         recButton.setIconSize(QSize(64, 64))
         recButton.setCheckable(True)
-        recButton.setChecked(True)
         recButton.clicked.connect(lambda: self.record(recButton))
-        recButton.setStyleSheet("background-color: #373636;"
-                                 "border-style: outset;"
-                                 "border-width: 2px;"
-                                 "border-radius: 10px;"
-                                 "border-color: beige;"
-                                 "font: bold 32px;"
-                                 "color: red;"
-                                 "min-width: 72px;"
-                                 "min-height: 72px;"
-                                 "padding: 12px;")
+        recButton.setStyleSheet("background-color: darkgrey;"
+                                "border-style: outset;"
+                                "border-width: 2px;"
+                                "border-radius: 10px;"
+                                "border-color: beige;"
+                                "font: bold 32px;"
+                                "color: red;"
+                                "min-width: 64px;"
+                                "min-height: 64px;"
+                                "padding: 12px;")
 
         snapshotButton = QPushButton("", self)
         snapshotButton.setIcon(QIcon(self.prefix + 'snapshot.png'))
@@ -274,8 +261,8 @@ class MainApp(QMainWindow):
                                      "border-color: beige;"
                                      "font: bold 32px;"
                                      "color: black;"
-                                     "min-width: 72px;"
-                                     "min-height: 72px;"
+                                     "min-width: 64px;"
+                                     "min-height: 64px;"
                                      "padding: 12px;")
 
         self.previewLabel = QLabel("", self)
@@ -292,7 +279,7 @@ class MainApp(QMainWindow):
 
         self.virbBattLabel = QLabel()
         self.virbBattLabel.setText(" VBat -- %")
-        self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
+        self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
         self.virbBattLabel.setAlignment(Qt.AlignRight)
 
         vbox = QVBoxLayout()
@@ -302,7 +289,7 @@ class MainApp(QMainWindow):
         vbox.addWidget(self.virbBattLabel)
 
         hbox = QHBoxLayout()
-        hbox.setSpacing(40)
+        hbox.setSpacing(20)
         hbox.addLayout(vbox)
         hbox.setAlignment(Qt.AlignCenter)
         hbox.addWidget(self.previewLabel)
@@ -323,6 +310,14 @@ class MainApp(QMainWindow):
     def init_gps_ui(self, page):
         page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
 
+        self.fix = QLabel("Status: no fix")
+        self.fix.setStyleSheet("font: bold 20px;"
+                               "color: white;")
+
+        hbox1 = QHBoxLayout()
+        hbox1.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
+        hbox1.addWidget(self.fix)
+
         lat_label = QLabel("Latitude")
         lat_label.setFixedWidth(200)
         lat_label.setStyleSheet("font: bold 16px;"
@@ -337,12 +332,12 @@ class MainApp(QMainWindow):
         alt_label.setFixedWidth(200)
         alt_label.setStyleSheet("font: bold 16px;"
                                 "color: white;")
-        hbox1 = QHBoxLayout()
-        hbox1.setSpacing(20)
-        hbox1.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
-        hbox1.addWidget(lat_label)
-        hbox1.addWidget(lon_label)
-        hbox1.addWidget(alt_label)
+        hbox2 = QHBoxLayout()
+        hbox2.setSpacing(20)
+        hbox2.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
+        hbox2.addWidget(lat_label)
+        hbox2.addWidget(lon_label)
+        hbox2.addWidget(alt_label)
 
         self.lat = QLabel("--")
         self.lat.setFixedWidth(200)
@@ -358,25 +353,26 @@ class MainApp(QMainWindow):
         self.alt.setFixedWidth(200)
         self.alt.setStyleSheet("font: bold 32px;"
                                "color: white;")
-        hbox2 = QHBoxLayout()
-        hbox2.setSpacing(20)
-        hbox2.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-        hbox2.addWidget(self.lat)
-        hbox2.addWidget(self.lon)
-        hbox2.addWidget(self.alt)
+        hbox3 = QHBoxLayout()
+        hbox3.setSpacing(20)
+        hbox3.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
+        hbox3.addWidget(self.lat)
+        hbox3.addWidget(self.lon)
+        hbox3.addWidget(self.alt)
 
         self.address = QLabel("")
         self.address.setStyleSheet("font: 24px;"
                                    "color: white;")
-        hbox3 = QHBoxLayout()
-        hbox3.setSpacing(20)
-        hbox3.setAlignment(Qt.AlignCenter)
-        hbox3.addWidget(self.address)
+        hbox4 = QHBoxLayout()
+        hbox4.setSpacing(20)
+        hbox4.setAlignment(Qt.AlignCenter)
+        hbox4.addWidget(self.address)
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
         vbox.addLayout(hbox2)
         vbox.addLayout(hbox3)
+        vbox.addLayout(hbox4)
 
         page.setLayout(vbox)
 
@@ -674,6 +670,7 @@ class MainApp(QMainWindow):
         self.worker.exit_signal.connect(self.worker.stop)
 
         self.worker.gpsBatt.connect(self.updateBatt)
+        self.worker.gpsFix.connect(self.updateGPSFix)
         self.worker.gpsLocation.connect(self.updateLocation)
 
         self.thread.started.connect(self.worker.run)
@@ -783,6 +780,14 @@ class MainApp(QMainWindow):
         else:
             self.updateAddress = False
 
+
+    def updateGPSFix(self, fix):
+        if fix == 1:
+            self.fix.setText("Status: No fix")
+        elif fix == 2:
+            self.fix.setText("Status: 2D fix")
+        elif fix == 3:
+            self.fix.setText("Status: 3D fix")
 
     def updateLocation(self, location):
         geolocation = Geolocation("motorhome")
