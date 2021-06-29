@@ -53,11 +53,14 @@ class GPS(QObject):
         batt_ts = 0
         mode_prev = 0
         prev = 0
+        time_updated = False
 
         while self.running:
             now = time.monotonic()
             if self.request:
                 try_virb = False
+                if not time_updated:
+                    time_updated = update_datetime(self.gps_thread.data_stream.time, time_updated)
 
                 if now - prev >= 1.0:
                     prev = now

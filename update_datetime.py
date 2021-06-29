@@ -28,6 +28,7 @@ def update_datetime():
 
     while not date_updated:
         date_updated = do_update_datetime(gps_thread.data_stream.time, date_updated)
+	time.sleep(10)
 
 if __name__ == "__main__":
     update_datetime()

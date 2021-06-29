@@ -149,15 +149,15 @@ class MainApp(QMainWindow):
         self.gpsWarnLabel.setAlignment(Qt.AlignVCenter)
 
         self.dateLabel = QLabel()
-        self.dateLabel.setStyleSheet("QLabel {color: white; font: bold 14px}")
+        self.dateLabel.setStyleSheet("QLabel {color: white; font: 14px}")
         self.dateLabel.setAlignment(Qt.AlignCenter)
 
         self.timeLabel = QLabel()
-        self.timeLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
+        self.timeLabel.setStyleSheet("QLabel {color: white; font: 22px}")
         self.timeLabel.setAlignment(Qt.AlignCenter)
 
         self.tempLabel = QLabel()
-        self.tempLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
+        self.tempLabel.setStyleSheet("QLabel {color: white; font: 22px}")
         self.tempLabel.setAlignment(Qt.AlignCenter)
 
         powerButton = QPushButton("", self)
