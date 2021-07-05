@@ -1,9 +1,11 @@
+import PyQt5
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5.QtWebKit import *
 from PyQt5.QtWebKitWidgets import *
 from PyQt5 import QtWidgets, QtCore, QtGui
+from qtwidgets import Toggle, AnimatedToggle
 
 import time
 import math
@@ -43,6 +45,8 @@ stylesheet = """
 """
 
 class TPMSWindow(QWidget):
+    set_season = pyqtSignal(int)
+
     def createWindow(self, infobar, tpms):
         parent = None
         super(TPMSWindow, self).__init__(parent)
@@ -141,6 +145,16 @@ class TPMSWindow(QWidget):
         tire_rr_label = QLabel()
         tire_rr_label.setPixmap(pixmap)
 
+        # summer/winter tire selection
+        self.tire_sel = AnimatedToggle(
+            checked_color="#FF1E90FF",
+            pulse_checked_color="#FF1E90FF"
+        )
+        self.tire_sel.clicked.connect(self.updateSeason)
+
+        tireSelLabel = QLabel("Winter tires")
+        tireSelLabel.setStyleSheet("QLabel {background: transparent; color: #1E90FF; font: 16px}")
+
         self.setTPMS(tpms, "FL")
         self.setTPMS(tpms, "FR")
         self.setTPMS(tpms, "RL")
@@ -174,15 +188,33 @@ class TPMSWindow(QWidget):
         hbox3.addWidget(tire_rr_label, alignment=Qt.AlignRight)
         hbox3.addLayout(vbox4)
 
+        hbox_tmp = QHBoxLayout()
+        hbox_tmp.addWidget(self.tire_sel, alignment=Qt.AlignLeft)
+        hbox_tmp.addWidget(tireSelLabel,  alignment=Qt.AlignLeft)
+        hbox_tmp.addStretch()
+
+        hbox4 = QHBoxLayout()
+        hbox4.addLayout(hbox_tmp)
+        hbox4.addWidget(homeButton,    alignment=Qt.AlignCenter)
+        hbox4.addStretch()
+
         vbox5 = QVBoxLayout()
         vbox5.addLayout(hbox1)
         vbox5.addLayout(hbox2)
         vbox5.addLayout(hbox3)
-        vbox5.addWidget(homeButton, alignment=Qt.AlignCenter)
+        vbox5.addLayout(hbox4)
 
         self.setLayout(vbox5)
 
         self.showFullScreen()
+
+    def updateSeason(self, value):
+        self.set_season.emit(value)
+
+        if value:
+            print("tpmswindow: season set to winter")
+        else:
+            print("tpmswindow: season set to summer")
 
     def setTPMSWarn(self, warn):
         if warn:
