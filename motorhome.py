@@ -118,6 +118,7 @@ class MainApp(QMainWindow):
         self.cameraButton.setText("Dashcam")
         self.cameraButton.setIconSize(QSize(104, 104))
         self.cameraButton.clicked.connect(self.createCameraWindow)
+        self.cameraButton.setEnabled(False)
 
         # tpms
         self.tpmsButton = QToolButton(self)
@@ -337,6 +338,7 @@ class MainApp(QMainWindow):
 
     def setVirbIP(self, ip):
         self.virb.ip = ip
+        self.cameraButton.setEnabled(True)
         try:
             self.cameraWindow.setVirbIP(ip)
         except AttributeError:
