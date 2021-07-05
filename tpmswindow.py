@@ -223,15 +223,6 @@ class TPMSWindow(QWidget):
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
 
     def setTPMS(self, tpms, tire):
-        flp = False
-        frp = False
-        rlp = False
-        rrp = False
-        flt = False
-        frt = False
-        rlt = False
-        rrt = False
-
         if tire == "FL":
             if math.isnan(tpms.FrontLeftPressure):
                 self.fl_pressure_label.setText(" -- bar")

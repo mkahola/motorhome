@@ -91,7 +91,6 @@ class MainApp(QMainWindow):
 
         self.setWindowTitle("Motorhome Info")
         self.setStyleSheet(stylesheet)
-        self.resolution = QDesktopWidget().availableGeometry(-1)
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 
         self.infobar = InfoBar()
