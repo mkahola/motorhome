@@ -40,6 +40,8 @@ stylesheet = """
 """
 
 class SpeedoWindow(QWidget):
+    info = pyqtSignal(dict)
+
     def createWindow(self, infobar):
         parent = None
         super(SpeedoWindow, self).__init__(parent)
@@ -104,8 +106,15 @@ class SpeedoWindow(QWidget):
 
         self.showFullScreen()
 
+    def updateInfobar(self, data):
+        self.updateTime(data['time'])
+        self.updateTemperature(data['temperature'])
+        self.updateTPMSWarn(data['tpms'])
+        self.updateGPSFix(data['gpsFix'])
+        self.updateRecording(data['recording'])
+
     def updateTime(self, t):
-        self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
+        self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute) + ":" + "{:02d}".format(t.second))
 
     def updateTemperature(self, temperature):
         if math.isnan(temperature):

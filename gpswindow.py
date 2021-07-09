@@ -40,6 +40,8 @@ stylesheet = """
 """
 
 class GPSWindow(QWidget):
+    info = pyqtSignal(dict)
+
     def createWindow(self, infobar, gps):
         parent = None
         super(GPSWindow, self).__init__(parent)
@@ -127,6 +129,13 @@ class GPSWindow(QWidget):
         self.setLayout(vbox)
 
         self.showFullScreen()
+
+    def updateInfobar(self, data):
+        self.updateTime(data['time'])
+        self.updateTemperature(data['temperature'])
+        self.updateTPMSWarn(data['tpms'])
+        self.updateGPSFix(data['gpsFix'])
+        self.updateRecording(data['recording'])
 
     def updateTime(self, t):
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))

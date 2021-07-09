@@ -55,6 +55,7 @@ stylesheet = """
 class CameraWindow(QWidget):
     stop_preview = pyqtSignal()
     recording = pyqtSignal(bool)
+    info = pyqtSignal(dict)
 
     def createWindow(self, infobar, virb):
         parent = None
@@ -342,6 +343,13 @@ class CameraWindow(QWidget):
             self.virbBattLabel.setStyleSheet("QLabel {color: white; font: 24px}")
 
         self.virbBattLabel.setText(str(round(batt)) + " %")
+
+    def updateInfobar(self, data):
+        self.updateTime(data['time'])
+        self.updateTemperature(data['temperature'])
+        self.updateTPMSWarn(data['tpms'])
+        self.updateGPSFix(data['gpsFix'])
+        self.updateRecording(data['recording'])
 
     def updateTime(self, t):
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))

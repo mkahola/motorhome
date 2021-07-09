@@ -41,6 +41,8 @@ stylesheet = """
 """
 
 class InfoWindow(QWidget):
+    info = pyqtSignal()
+
     def createWindow(self, infobar):
         parent = None
         super(InfoWindow, self).__init__(parent)
@@ -155,6 +157,13 @@ class InfoWindow(QWidget):
         self.setLayout(vbox)
 
         self.showFullScreen()
+
+    def updateInfobar(self, data):
+        self.updateTime(data['time'])
+        self.updateTemperature(data['temperature'])
+        self.updateTPMSWarn(data['tpms'])
+        self.updateGPSFix(data['gpsFix'])
+        self.updateRecording(data['recording'])
 
     def updateTime(self, t):
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))

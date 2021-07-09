@@ -41,6 +41,8 @@ stylesheet = """
 """
 
 class RuuviWindow(QWidget):
+    info = pyqtSignal(dict)
+
     def createWindow(self, infobar, ruuvi):
         parent = None
         super(RuuviWindow, self).__init__(parent)
@@ -163,6 +165,13 @@ class RuuviWindow(QWidget):
             return
         if vbatt < 2.75:
             self.voltageLabel.setText("low batt: " + "{:.2f}".format(round(vbatt/1000, 2)) + " V")
+
+    def updateInfobar(self, data):
+        self.updateTime(data['time'])
+        self.updateTemperature(data['temperature'])
+        self.updateTPMSWarn(data['tpms'])
+        self.updateGPSFix(data['gpsFix'])
+        self.updateRecording(data['recording'])
 
     def updateTime(self, t):
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))

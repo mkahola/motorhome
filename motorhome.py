@@ -68,6 +68,7 @@ stylesheet = """
 
 class InfoBar:
     def __init__(self):
+        self.time = datetime.now()
         self.temperature = math.nan
         self.tpmsWarn = False
         self.gpsFix = False
@@ -85,6 +86,7 @@ class MainApp(QMainWindow):
     stop_signal = pyqtSignal()
     exit_signal = pyqtSignal()
     set_season = pyqtSignal(int)
+    info = pyqtSignal(dict)
 
     def __init__(self):
         super().__init__()
@@ -231,32 +233,38 @@ class MainApp(QMainWindow):
     def createSpeedoWindow(self):
         self.speedoWindow = SpeedoWindow(parent=self)
         self.speedoWindow.createWindow(self.infobar)
+        self.info.connect(self.speedoWindow.updateInfobar)
         self.speedoWindow.show()
 
     def createCameraWindow(self):
         self.cameraWindow = CameraWindow(parent=self)
         self.cameraWindow.createWindow(self.infobar, self.virb)
         self.cameraWindow.recording.connect(self.getRecSignal)
+        self.info.connect(self.cameraWindow.updateInfobar)
         self.cameraWindow.show()
 
     def createTPMSWindow(self):
         self.tpmsWindow = TPMSWindow(parent=self)
         self.tpmsWindow.createWindow(self.infobar, self.tpms)
+        self.info.connect(self.tpmsWindow.updateInfobar)
         self.tpmsWindow.show()
 
     def createGPSWindow(self):
         self.gpsWindow = GPSWindow(parent=self)
         self.gpsWindow.createWindow(self.infobar, self.gps)
+        self.info.connect(self.gpsWindow.updateInfobar)
         self.gpsWindow.show()
 
     def createRuuviWindow(self):
         self.ruuviWindow = RuuviWindow(parent=self)
         self.ruuviWindow.createWindow(self.infobar, self.ruuvi)
+        self.info.connect(self.ruuviWindow.updateInfobar)
         self.ruuviWindow.show()
 
     def createInfoWindow(self):
         self.infoWindow = InfoWindow(parent=self)
         self.infoWindow.createWindow(self.infobar)
+        self.info.connect(self.infoWindow.updateInfobar)
         self.infoWindow.show()
 
     def getRecSignal(self, data):
@@ -266,60 +274,14 @@ class MainApp(QMainWindow):
     def updateTime(self):
         t = datetime.now()
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
+        self.infobar.time = t
 
-        try:
-            self.speedoWindow.updateTPSMWarn(self.infobar.tpsmWarn)
-            self.speedoWindow.updateGPSFix(self.infobar.gpsFix)
-            self.speedoWindow.updateTemperature(self.infobar.temperature)
-            self.speedoWindow.updateRecording(infobar.recording)
-            self.speedoWindow.updateTime(t)
-        except:
-            pass
-
-        try:
-            self.cameraWindow.updateTPSMWarn(self.infobar.tpsmWarn)
-            self.cameraWindow.updateGPSFix(self.infobar.gpsFix)
-            self.cameraWindow.updateTemperature(self.infobar.temperature)
-            self.cameraWindow.updateRecording(infobar.recording)
-            self.cameraWindow.updateTime(t)
-        except AttributeError:
-            pass
-
-        try:
-            self.tpmsWindow.updateTPSMWarn(self.infobar.tpsmWarn)
-            self.tpmsWindow.updateGPSFix(self.infobar.gpsFix)
-            self.tpmsWindow.updateTemperature(self.infobar.temperature)
-            self.tpmsWindow.updateRecording(infobar.recording)
-            self.tpmsWindow.updateTime(t)
-        except AttributeError:
-            pass
-
-        try:
-            self.gpsWindow.updateTPSMWarn(self.infobar.tpsmWarn)
-            self.gpsWindow.updateGPSFix(self.gps.fix)
-            self.gpsWindow.updateTemperature(self.infobar.temperature)
-            self.gpsWindow.updateRecording(infobar.recording)
-            self.gpsWindow.updateTime(t)
-        except AttributeError:
-            pass
-
-        try:
-            self.ruuviWindow.updateTPSMWarn(self.infobar.tpsmWarn)
-            self.ruuviWindow.updateGPSFix(self.infobar.gpsFix)
-            self.ruuviWindow.updateTemperature(self.infobar.temperature)
-            self.ruuviWindow.updateRecording(infobar.recording)
-            self.ruuviWindow.updateTime(t)
-        except AttributeError:
-            pass
-
-        try:
-            self.infoWindow.updateTPSMWarn(self.infobar.tpsmWarn)
-            self.infoWindow.updateGPSFix(self.infobar.gpsFix)
-            self.infoWindow.updateTemperature(self.infobar.temperature)
-            self.infoWindow.updateRecording(infobar.recording)
-            self.infoWindow.updateTime(t)
-        except AttributeError:
-            pass
+        data = dict(time=self.infobar.time,
+                    temperature=self.infobar.temperature,
+                    tpms=self.infobar.tpmsWarn,
+                    gpsFix=self.infobar.gpsFix,
+                    recording=self.infobar.recording)
+        self.info.emit(data)
 
     def initSearchVirbThread(self):
         self.virbThread = QThread()

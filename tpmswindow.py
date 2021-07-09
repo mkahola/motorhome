@@ -46,6 +46,7 @@ stylesheet = """
 
 class TPMSWindow(QWidget):
     set_season = pyqtSignal(int)
+    info = pyqtSignal(dict)
 
     def createWindow(self, infobar, tpms):
         parent = None
@@ -311,6 +312,13 @@ class TPMSWindow(QWidget):
                                                          "color: #73E420;")
                     self.rl_temp_label.setStyleSheet("font: bold 20px;"
                                                      "color: #73E420;")
+
+    def updateInfobar(self, data):
+        self.updateTime(data['time'])
+        self.updateTemperature(data['temperature'])
+        self.updateTPMSWarn(data['tpms'])
+        self.updateGPSFix(data['gpsFix'])
+        self.updateRecording(data['recording'])
 
     def updateTime(self, t):
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
