@@ -72,6 +72,7 @@ class InfoBar:
         self.temperature = math.nan
         self.tpmsWarn = False
         self.gpsFix = False
+        self.speed = math.nan
         self.recording = False
 
 class GPS:
@@ -192,6 +193,7 @@ class MainApp(QMainWindow):
         self.gps_connected = QPixmap("")
         self.gps_disconnected = QPixmap(self.prefix + "no_gps.png").scaled(32, 32, Qt.KeepAspectRatio)
         self.updateGPSFix(self.infobar.gpsFix)
+        self.gpsSpeedLabel = QLabel("-- km/h")
 
         #infobar
         hbox1 = QHBoxLayout()
@@ -199,6 +201,7 @@ class MainApp(QMainWindow):
         hbox1.addWidget(self.tempWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.gpsInfoLabel,  alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.recInfoLabel,  alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.gpsSpeedLabel, alignment=Qt.AlignTop|Qt.AlignRight)
         hbox1.addWidget(self.tempInfoLabel, alignment=Qt.AlignTop|Qt.AlignRight)
         hbox1.addWidget(self.timeLabel,     alignment=Qt.AlignTop|Qt.AlignRight)
 
@@ -280,6 +283,7 @@ class MainApp(QMainWindow):
                     temperature=self.infobar.temperature,
                     tpms=self.infobar.tpmsWarn,
                     gpsFix=self.infobar.gpsFix,
+                    speed=self.infobar.speed,
                     recording=self.infobar.recording)
         self.info.emit(data)
 
@@ -462,11 +466,16 @@ class MainApp(QMainWindow):
         self.gps.lat = location[0]
         self.gps.lon = location[1]
         self.gps.alt = location[2]
+        self.gps.speed = location[3]
+
+        self.infobar.speed = self.gps.speed
 
         try:
             self.gpsWindow.updateLocation(self.gps)
         except AttributeError:
             pass
+
+        self.gpsSpeedLabel.setText("{:d}".format(round(self.infobar.speed*3.6)) + " km/h")
 
     def updateRecording(self, recording):
         if recording:
