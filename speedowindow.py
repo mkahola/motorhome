@@ -114,7 +114,7 @@ class SpeedoWindow(QWidget):
         self.updateRecording(data['recording'])
 
     def updateTime(self, t):
-        self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute) + ":" + "{:02d}".format(t.second))
+        self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
 
     def updateTemperature(self, temperature):
         if math.isnan(temperature):
