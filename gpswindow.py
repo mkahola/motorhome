@@ -97,7 +97,7 @@ class GPSWindow(QWidget):
         self.updateTemperature(infobar.temperature)
         self.updateTime(datetime.now())
         self.updateTPMSWarn(infobar.tpmsWarn)
-        self.updateFix(infobar.gpsFix)
+        self.updateFix(gps.fix)
         self.updateRecording(infobar.recording)
         self.updateLocation(gps)
 
@@ -122,7 +122,7 @@ class GPSWindow(QWidget):
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
-        vbox.addWidget(self.fix)
+        vbox.addWidget(self.fix, alignment=Qt.AlignCenter|Qt.AlignTop)
         vbox.addLayout(hbox2)
         vbox.addLayout(hbox3)
         vbox.addWidget(homeButton, alignment=Qt.AlignCenter)
@@ -188,17 +188,10 @@ class GPSWindow(QWidget):
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
 
     def updateGPSFix(self, fix):
-        if fix > 1:
+        if fix:
             self.gpsInfoLabel.setPixmap(self.gps_connected)
         else:
             self.gpsInfoLabel.setPixmap(self.gps_disconnected)
-
-        if fix <= 1:
-            self.fix.setText("Fix: None")
-        elif fix == 2:
-            self.fix.setText("Fix: 2D")
-        else:
-            self.fix.setText("Fix: 3D")
 
     def updateRecording(self, recording):
         if recording:
