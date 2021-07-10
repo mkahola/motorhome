@@ -90,8 +90,11 @@ class Virb():
             return -999
 
     def get_batt_status(self):
-        status = self.status()
-        return status['batteryLevel']
+        try:
+            status = self.status()
+            return status['batteryLevel']
+        except:
+            pass
 
     def _do_post(self, url='virb', data=None):
         url = 'http://%s:%d/%s' % (self.host[0], self.host[1], url)
