@@ -308,7 +308,7 @@ class CameraWindow(QWidget):
 
     def updateSnapshotButton(self):
         self.snapshotButton.setEnabled(True)
-        self.sanpshotButton.setStyleSheet("background-color: darkgrey;"
+        self.snapshotButton.setStyleSheet("background-color: darkgrey;"
                              "border-style: outset;"
                              "border-width: 2px;"
                              "border-radius: 10px;"
