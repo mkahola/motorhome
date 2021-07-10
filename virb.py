@@ -14,6 +14,8 @@ class Virb():
         """
         self.host = host
         self.requestcount = 0
+        self.ip = self.host[0]
+        self.vbat = "--"
 
     def status(self):
         """Returns the current camera status"""

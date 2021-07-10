@@ -15,8 +15,9 @@ from pathlib import Path
 class Tire:
     def __init__(self, tire):
         self.name = tire
-        self.ts = time.time()
+        self.ts = time.monotonic()
         self.mac = []
+        self.tpms_warn = 0
 
         conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
         config = configparser.ConfigParser()
@@ -70,6 +71,7 @@ class TPMS(QObject):
     set_season = pyqtSignal(int)
 
     tpms = pyqtSignal(tuple)
+    tpms_warn = pyqtSignal(int)
 
     def __init__(self, parent=None):
         QObject.__init__(self, parent=parent)
@@ -129,9 +131,15 @@ class TPMS(QObject):
             #print("BLE packet: %s %02x %s %d" % (mac, adv_type, data_str, rssi))
             pressure = self.get_pressure(data_str)
             temp = self.get_temperature(data_str)
-            data = (tire.name, "{:.1f}".format(pressure), "{:.1f}".format(temp), str(tire.check_pressure(pressure, self.season)))
+            warn = tire.check_pressure(pressure, self.season)
+            if warn != tire.tpms_warn:
+                self.tpms_warn.emit(warn)
+                tire.tpms_warn = warn
+
+            data = (tire.name, pressure, temp, warn)
             tire.ts = now
             self.tpms.emit(data)
+
         return 0
 
     def run(self):
