@@ -103,7 +103,6 @@ class RuuviWindow(QWidget):
         self.rec_off = QPixmap("")
         self.rec_on = QPixmap(self.prefix + "rec.png").scaled(32, 32, Qt.KeepAspectRatio)
 
-        self.updateTemperature(ruuvi.temperature)
         self.updateTime(datetime.now())
         self.updateTPMSWarn(infobar.tpmsWarn)
         self.updateGPSFix(infobar.gpsFix)
