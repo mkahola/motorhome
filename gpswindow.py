@@ -68,6 +68,11 @@ class GPSWindow(QWidget):
         self.alt = QLabel()
         self.course = QLabel()
 
+        # compass
+        self.compass = QPixmap(self.prefix + "compass.png").scaled(280, 280, Qt.KeepAspectRatio)
+        self.compassLabel = QLabel()
+        self.compassLabel.setPixmap(self.compass)
+
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
         homeButton.setIconSize(QSize(64, 64))
@@ -133,6 +138,7 @@ class GPSWindow(QWidget):
         vbox.addWidget(self.fix, alignment=Qt.AlignCenter|Qt.AlignTop)
         vbox.addLayout(hbox2)
         vbox.addLayout(hbox3)
+        vbox.addWidget(self.compassLabel, alignment=Qt.AlignCenter)
         vbox.addWidget(homeButton, alignment=Qt.AlignCenter)
         self.setLayout(vbox)
 
@@ -192,6 +198,10 @@ class GPSWindow(QWidget):
 
         if not math.isnan(gps.course):
             self.course.setText("{0:d}".format(round(gps.course)) + "\u00b0")
+
+            transform = QTransform().rotate(gps.course)
+            self.compass = self.compass.transformed(transform, QtCore.Qt.SmoothTransformation)
+            self.compassLabel.setPixmap(self.compass)
         else:
             self.course.setText("--\u00b0")
 
