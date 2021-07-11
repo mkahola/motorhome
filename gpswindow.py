@@ -59,7 +59,7 @@ class GPSWindow(QWidget):
         alt_label = QLabel("Altitude")
         alt_label.setStyleSheet("font: bold 24px")
 
-        course_label = QLabel("Course")
+        course_label = QLabel("Heading")
         course_label.setStyleSheet("font: bold 24px")
 
         self.fix = QLabel()
