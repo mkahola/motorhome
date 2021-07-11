@@ -89,6 +89,7 @@ class RuuviWindow(QWidget):
         self.gps_disconnected = QPixmap(self.prefix + "no_gps.png").scaled(32, 32, Qt.KeepAspectRatio)
         self.gps_connected = QPixmap("")
         self.gpsInfoLabel = QLabel()
+        self.gpsSpeedLabel = QLabel("-- km/h")
 
         # Ruuvitag
         self.tempInfoLabel = QLabel()
@@ -106,6 +107,7 @@ class RuuviWindow(QWidget):
         self.updateTime(datetime.now())
         self.updateTPMSWarn(infobar.tpmsWarn)
         self.updateGPSFix(infobar.gpsFix)
+        self.updateSpeed(infobar.speed)
         self.updateRecording(infobar.recording)
 
         #infobar
@@ -114,6 +116,7 @@ class RuuviWindow(QWidget):
         hbox1.addWidget(self.tempWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.gpsInfoLabel,  alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.recInfoLabel,  alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.gpsSpeedLabel, alignment=Qt.AlignTop|Qt.AlignRight)
         hbox1.addWidget(self.tempInfoLabel, alignment=Qt.AlignTop|Qt.AlignRight)
         hbox1.addWidget(self.timeLabel,     alignment=Qt.AlignTop|Qt.AlignRight)
         # === infobar ===
@@ -171,10 +174,16 @@ class RuuviWindow(QWidget):
         self.updateTemperature(data['temperature'])
         self.updateTPMSWarn(data['tpms'])
         self.updateGPSFix(data['gpsFix'])
+        self.updateSpeed(data['speed'])
         self.updateRecording(data['recording'])
 
     def updateTime(self, t):
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
+
+    def updateSpeed(self, speed):
+        if math.isnan(speed):
+            return
+        self.gpsSpeedLabel.setText("{:d}".format(round(3.6*speed)) + " km/h")
 
     def updateTPMSWarn(self, warn):
         if warn:
