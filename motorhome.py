@@ -80,6 +80,7 @@ class GPS:
         self.lat = math.nan
         self.lon = math.nan
         self.alt = math.nan
+        self.course = math.nan
         self.fix = 0
         self.speed = math.nan
 
@@ -467,6 +468,7 @@ class MainApp(QMainWindow):
         self.gps.lon = location[1]
         self.gps.alt = location[2]
         self.gps.speed = location[3]
+        self.gps.course = location[4]
 
         self.infobar.speed = self.gps.speed
 

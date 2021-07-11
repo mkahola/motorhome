@@ -59,10 +59,14 @@ class GPSWindow(QWidget):
         alt_label = QLabel("Altitude")
         alt_label.setStyleSheet("font: bold 24px")
 
+        course_label = QLabel("Course")
+        course_label.setStyleSheet("font: bold 24px")
+
         self.fix = QLabel()
         self.lat = QLabel()
         self.lon = QLabel()
         self.alt = QLabel()
+        self.course = QLabel()
 
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
@@ -116,11 +120,13 @@ class GPSWindow(QWidget):
         hbox2.addWidget(lat_label, alignment=Qt.AlignCenter)
         hbox2.addWidget(lon_label, alignment=Qt.AlignCenter)
         hbox2.addWidget(alt_label, alignment=Qt.AlignCenter)
+        hbox2.addWidget(course_label, alignment=Qt.AlignCenter)
 
         hbox3 = QHBoxLayout()
         hbox3.addWidget(self.lat, alignment=Qt.AlignCenter|Qt.AlignTop)
         hbox3.addWidget(self.lon, alignment=Qt.AlignCenter|Qt.AlignTop)
         hbox3.addWidget(self.alt, alignment=Qt.AlignCenter|Qt.AlignTop)
+        hbox3.addWidget(self.course, alignment=Qt.AlignCenter|Qt.AlignTop)
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
@@ -183,6 +189,11 @@ class GPSWindow(QWidget):
             self.alt.setText("{0:d}".format(round(gps.alt)))
         else:
             self.alt.setText("--")
+
+        if not math.isnan(gps.course):
+            self.course.setText("{0:d}".format(round(gps.course)) + "\u00b0")
+        else:
+            self.course.setText("--\u00b0")
 
 #        if self.updateAddress:
 #            self.address.setText(geolocation.get_address((location[0], location[1])))

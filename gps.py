@@ -63,7 +63,8 @@ class Location(QObject):
                         lon   = float(self.gps_thread.data_stream.lon)
                         alt   = float(self.gps_thread.data_stream.alt)
                         speed = float(self.gps_thread.data_stream.speed)
-                        location = (lat, lon, alt, speed)
+                        course = float(self.gps_thread.data_stream.track)
+                        location = (lat, lon, alt, speed, course)
                         self.gpsLocation.emit(location)
                 except:
                     pass
