@@ -69,7 +69,7 @@ class GPSWindow(QWidget):
         self.course = QLabel()
 
         # compass
-        self.compass = QPixmap(self.prefix + "compass.png").scaled(280, 280, Qt.KeepAspectRatio)
+        self.compass = QPixmap(self.prefix + "compass.png").scaled(200, 200, Qt.KeepAspectRatio)
         self.compassLabel = QLabel()
         self.compassLabel.setPixmap(self.compass)
 
@@ -135,7 +135,7 @@ class GPSWindow(QWidget):
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
-        vbox.addWidget(self.fix, alignment=Qt.AlignCenter|Qt.AlignTop)
+#        vbox.addWidget(self.fix, alignment=Qt.AlignCenter|Qt.AlignTop)
         vbox.addLayout(hbox2)
         vbox.addLayout(hbox3)
         vbox.addWidget(self.compassLabel, alignment=Qt.AlignCenter)
@@ -193,22 +193,20 @@ class GPSWindow(QWidget):
 
         if not math.isnan(gps.alt):
             self.alt.setText("{0:d}".format(round(gps.alt)))
+
+            # update compass
+            transform = QTransform()
+            transform.rotate(-gps.course)
+            rotated = self.compass.transformed(transform, QtCore.Qt.SmoothTransformation)
+            self.compassLabel.setPixmap(rotated)
         else:
             self.alt.setText("--")
 
         if not math.isnan(gps.course):
             self.course.setText("{0:d}".format(round(gps.course)) + "\u00b0")
 
-            transform = QTransform().rotate(gps.course)
-            self.compass = self.compass.transformed(transform, QtCore.Qt.SmoothTransformation)
-            self.compassLabel.setPixmap(self.compass)
         else:
             self.course.setText("--\u00b0")
-
-#        if self.updateAddress:
-#            self.address.setText(geolocation.get_address((location[0], location[1])))
-#
-#        self.gps_ts = datetime.now()
 
     def updateTPMSWarn(self, warn):
         if warn:
