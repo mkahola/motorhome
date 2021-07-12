@@ -17,7 +17,7 @@ from netifaces import interfaces, ifaddresses, AF_INET
 from gps3.agps3threaded import AGPS3mechanism
 from virb import Virb
 
-use_virb = True
+use_virb = False
 
 def search_virb(my_device):
     virb_ip = ""
@@ -79,16 +79,18 @@ def run_dash_server():
                 speed = round(float(gps_thread.data_stream.speed)*3.6, 1)
                 speed = '{:.1f}'.format(speed)
             except:
-                print("GPS speed failed, trying Garmin Virb")
-                speed = round(cam.get_speed()*3.6, 1)
-                speed = '{:.1f}'.format(speed)
+                if use_virb:
+                    print("GPS speed failed, trying Garmin Virb")
+                    speed = round(cam.get_speed()*3.6, 1)
+                else:
+                    pass
 
             try:
                 await websocket.send(speed)
             except:
                 await websocket.send("0")
 
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.2)
 
     try:
         start_server = websockets.serve(gps, "127.0.0.1", 5678)

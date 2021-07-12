@@ -71,6 +71,7 @@ class GPSWindow(QWidget):
         # compass
         self.compass = QPixmap(self.prefix + "compass.png").scaled(200, 200, Qt.KeepAspectRatio)
         self.compassLabel = QLabel()
+        self.compassLabel.setFixedSize(300, 300)
         self.compassLabel.setPixmap(self.compass)
 
         homeButton = QPushButton()
