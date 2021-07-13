@@ -17,10 +17,14 @@ def run_compass_server():
         gps_thread.stream_data()
         gps_thread.run_thread()
 
+        track = 0
         while True:
+            track += 1
+            course = track % 360
             try:
-                course = round(gps_thread.data_stream.track)
-                course = '{:d}'.format(track)
+#                course = round(gps_thread.data_stream.track)
+                course = "Speed,0,Course," + '{:d}'.format(track)
+                print(course)
             except:
                 pass
 
@@ -32,7 +36,7 @@ def run_compass_server():
             await asyncio.sleep(0.2)
 
     try:
-        start_server = websockets.serve(gps, "127.0.0.1", 5679)
+        start_server = websockets.serve(gps, "127.0.0.1", 5678)
     except:
         print("unable to start server")
         pass

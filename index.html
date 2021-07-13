@@ -83,7 +83,13 @@ var gaugeSpeedo = new RadialGauge({
 
     var ws = new WebSocket("ws://127.0.0.1:5678/");
     ws.onmessage = function (event) {
-	gaugeSpeedo.value = event.data
+	const values = event.data.split(",")
+        for (let i=0; i < values.length; i++) {
+                if (values[i] == "Speed") {
+                        gaugeSpeedo.value = values[i+1];
+                        break;
+                }
+        }
     };
 }
 </script>

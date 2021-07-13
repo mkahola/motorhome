@@ -77,7 +77,10 @@ def run_dash_server():
             try:
                 # speed in knots, convert to km/h
                 speed = round(float(gps_thread.data_stream.speed)*3.6, 1)
-                speed = '{:.1f}'.format(speed)
+                speed = "Speed," + '{:.1f}'.format(speed)
+                course = round(gps_thread.data_stream.track)
+                course = "Course," + '{:d}'.format(course)
+                data = speed + "," + course
             except:
                 if use_virb:
                     print("GPS speed failed, trying Garmin Virb")
@@ -86,9 +89,9 @@ def run_dash_server():
                     pass
 
             try:
-                await websocket.send(speed)
+                await websocket.send(data)
             except:
-                await websocket.send("0")
+                await websocket.send("Speed,0,Course,0")
 
             await asyncio.sleep(0.2)
 
