@@ -69,10 +69,10 @@ class GPSWindow(QWidget):
         self.course = QLabel()
 
         # compass
-        self.compass = QPixmap(self.prefix + "compass.png").scaled(200, 200, Qt.KeepAspectRatio)
-        self.compassLabel = QLabel()
-        self.compassLabel.setFixedSize(300, 300)
-        self.compassLabel.setPixmap(self.compass)
+        web = QWebView()
+        web.settings().setAttribute(QWebSettings.JavascriptEnabled, True)
+        web.settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls, True);
+        web.load(QUrl("http://my.dashboard.com/compass.html"))
 
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
@@ -139,7 +139,7 @@ class GPSWindow(QWidget):
 #        vbox.addWidget(self.fix, alignment=Qt.AlignCenter|Qt.AlignTop)
         vbox.addLayout(hbox2)
         vbox.addLayout(hbox3)
-        vbox.addWidget(self.compassLabel, alignment=Qt.AlignCenter)
+        vbox.addWidget(web, alignment=Qt.AlignCenter)
         vbox.addWidget(homeButton, alignment=Qt.AlignCenter)
         self.setLayout(vbox)
 
@@ -194,18 +194,11 @@ class GPSWindow(QWidget):
 
         if not math.isnan(gps.alt):
             self.alt.setText("{0:d}".format(round(gps.alt)))
-
-            # update compass
-            transform = QTransform()
-            transform.rotate(-gps.course)
-            rotated = self.compass.transformed(transform, QtCore.Qt.SmoothTransformation)
-            self.compassLabel.setPixmap(rotated)
         else:
             self.alt.setText("--")
 
         if not math.isnan(gps.course):
             self.course.setText("{0:d}".format(round(gps.course)) + "\u00b0")
-
         else:
             self.course.setText("--\u00b0")
 
