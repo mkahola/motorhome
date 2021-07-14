@@ -23,7 +23,7 @@ def run_compass_server():
             course = track % 360
             try:
 #                course = round(gps_thread.data_stream.track)
-                course = "Speed,0,Course," + '{:d}'.format(track)
+                course = "Speed,0,Course," + '{:d}'.format(course)
                 print(course)
             except:
                 pass
@@ -31,7 +31,7 @@ def run_compass_server():
             try:
                 await websocket.send(course)
             except:
-                await websocket.send("0")
+                await websocket.send("Speed,0,Course,0")
 
             await asyncio.sleep(0.2)
 
