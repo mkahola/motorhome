@@ -33,6 +33,7 @@ from camerawindow import CameraWindow
 from tpmswindow import TPMSWindow
 from gpswindow import GPSWindow
 from ruuviwindow import RuuviWindow
+from appswindow import AppsWindow
 from infowindow import InfoWindow
 
 stylesheet = """
@@ -105,13 +106,14 @@ class MainApp(QMainWindow):
         self.ruuvi = Ruuvi()
 
         self.centralWidget = QWidget()
+        size = 80
 
         #speedometer
         self.speedoButton = QToolButton(self)
         self.speedoButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         self.speedoButton.setIcon(QIcon(self.prefix + 'speedo.png'))
         self.speedoButton.setText("Speedo")
-        self.speedoButton.setIconSize(QSize(104, 104))
+        self.speedoButton.setIconSize(QSize(size, size))
         self.speedoButton.clicked.connect(self.createSpeedoWindow)
 
         # dashcam
@@ -119,7 +121,7 @@ class MainApp(QMainWindow):
         self.cameraButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         self.cameraButton.setIcon(QIcon(self.prefix + 'dashcam.png'))
         self.cameraButton.setText("Dashcam")
-        self.cameraButton.setIconSize(QSize(104, 104))
+        self.cameraButton.setIconSize(QSize(size, size))
         self.cameraButton.clicked.connect(self.createCameraWindow)
         self.cameraButton.setEnabled(False)
 
@@ -128,7 +130,7 @@ class MainApp(QMainWindow):
         self.tpmsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         self.tpmsButton.setIcon(QIcon(self.prefix + 'tpms.png'))
         self.tpmsButton.setText("TPMS")
-        self.tpmsButton.setIconSize(QSize(104, 104))
+        self.tpmsButton.setIconSize(QSize(size, size))
         self.tpmsButton.clicked.connect(self.createTPMSWindow)
 
         # GPS
@@ -136,7 +138,7 @@ class MainApp(QMainWindow):
         self.gpsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         self.gpsButton.setIcon(QIcon(self.prefix + 'location.png'))
         self.gpsButton.setText("Location")
-        self.gpsButton.setIconSize(QSize(104, 104))
+        self.gpsButton.setIconSize(QSize(size, size))
         self.gpsButton.clicked.connect(self.createGPSWindow)
 
         # ruuvitag
@@ -144,15 +146,23 @@ class MainApp(QMainWindow):
         self.ruuviButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         self.ruuviButton.setIcon(QIcon(self.prefix + 'ruuvi.png'))
         self.ruuviButton.setText("Ruuvitag")
-        self.ruuviButton.setIconSize(QSize(104, 104))
+        self.ruuviButton.setIconSize(QSize(size, size))
         self.ruuviButton.clicked.connect(self.createRuuviWindow)
+
+        # apps
+        self.appsButton = QToolButton(self)
+        self.appsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.appsButton.setIcon(QIcon(self.prefix + 'apps.png'))
+        self.appsButton.setText("Apps")
+        self.appsButton.setIconSize(QSize(size, size))
+        self.appsButton.clicked.connect(self.createAppsWindow)
 
         # vehicle info
         self.infoButton = QToolButton(self)
         self.infoButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         self.infoButton.setIcon(QIcon(self.prefix + 'info_128x128.png'))
         self.infoButton.setText("Info")
-        self.infoButton.setIconSize(QSize(104, 104))
+        self.infoButton.setIconSize(QSize(size, size))
         self.infoButton.clicked.connect(self.createInfoWindow)
 
         # poweroff
@@ -213,7 +223,9 @@ class MainApp(QMainWindow):
 
         grid.addWidget(self.gpsButton,    1, 0)
         grid.addWidget(self.ruuviButton,  1, 1)
-        grid.addWidget(self.infoButton,   1, 2)
+        grid.addWidget(self.appsButton,   1, 2)
+
+        grid.addWidget(self.infoButton,   2, 0)
 
         grid.setSpacing(10)
 
@@ -264,6 +276,12 @@ class MainApp(QMainWindow):
         self.ruuviWindow.createWindow(self.infobar, self.ruuvi)
         self.info.connect(self.ruuviWindow.updateInfobar)
         self.ruuviWindow.show()
+
+    def createAppsWindow(self):
+        self.appsWindow = AppsWindow(parent=self)
+        self.appsWindow.createWindow(self.infobar)
+        self.info.connect(self.appsWindow.updateInfobar)
+        self.appsWindow.show()
 
     def createInfoWindow(self):
         self.infoWindow = InfoWindow(parent=self)
