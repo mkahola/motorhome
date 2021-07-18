@@ -48,7 +48,7 @@ class AppsWindow(QWidget):
         parent = None
         super(AppsWindow, self).__init__(parent)
 
-        size = 80
+        size = 64
 
         self.setStyleSheet(stylesheet)
         self.setWindowTitle("Applications")

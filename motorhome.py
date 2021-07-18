@@ -106,7 +106,7 @@ class MainApp(QMainWindow):
         self.ruuvi = Ruuvi()
 
         self.centralWidget = QWidget()
-        size = 80
+        size = 64
 
         #speedometer
         self.speedoButton = QToolButton(self)
