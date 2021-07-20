@@ -5,7 +5,7 @@
 </head>
 <body style="background-color:#323232;">
 <div style = "text-align:center;">
-<canvas id="compass" width="250" height="250" style="width: 250px; height: 250px;"></canvas>
+<canvas id="compass" width="245" height="245" style="width: 245px; height: 245px;"></canvas>
 <script>
 function initCompass() {
 var gaugeCompass = new RadialGauge({
@@ -64,14 +64,9 @@ var gaugeCompass = new RadialGauge({
 }).draw();
     var ws = new WebSocket("ws://127.0.0.1:5678/");
     ws.onmessage = function (event) {
-        const values = event.data.split(",")
-	for (let i=0; i < values.length; i++) {
-		if (values[i] == "Course") {
-			gaugeCompass.value = values[i+1];
-			break;
-		}
+        var obj  = JSON.parse(event.data);
+        gaugeCompass.value = obj.course
 	}
-    };
 }
 </script>
 <script async src="gauge.min.js" onload="initCompass()"></script>

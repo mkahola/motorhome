@@ -53,7 +53,7 @@ class SpeedoWindow(QWidget):
         web = QWebView()
         web.settings().setAttribute(QWebSettings.JavascriptEnabled, True)
         web.settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls, True);
-        web.load(QUrl("http://my.dashboard.com"))
+        web.load(QUrl("http://my.dashboard.com/speedo_digital.html"))
 
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
@@ -72,7 +72,7 @@ class SpeedoWindow(QWidget):
         self.gps_disconnected = QPixmap(self.prefix + "no_gps.png").scaled(32, 32, Qt.KeepAspectRatio)
         self.gps_connected = QPixmap("")
         self.gpsInfoLabel = QLabel()
-        self.gpsSpeedLabel = QLabel("-- km/h")
+        self.gpsSpeedLabel = QLabel()
 
         # Ruuvitag
         self.tempInfoLabel = QLabel()
@@ -89,7 +89,7 @@ class SpeedoWindow(QWidget):
         self.updateTPMSWarn(infobar.tpmsWarn)
         self.updateTime(datetime.now())
         self.updateGPSFix(infobar.gpsFix)
-        self.updateSpeed(infobar.speed)
+        #self.updateSpeed(infobar.speed)
         self.updateRecording(infobar.recording)
 
         #infobar
@@ -114,7 +114,7 @@ class SpeedoWindow(QWidget):
         self.updateTemperature(data['temperature'])
         self.updateTPMSWarn(data['tpms'])
         self.updateGPSFix(data['gpsFix'])
-        self.updateSpeed(data['speed'])
+        #self.updateSpeed(data['speed'])
         self.updateRecording(data['recording'])
 
     def updateTime(self, t):
