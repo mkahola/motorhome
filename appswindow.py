@@ -127,8 +127,7 @@ class AppsWindow(QWidget):
         print("appswindow: Launching android auto")
 
         try:
-#            subprocess.call(['/home/pi/openauto/bin/auto'])
-            subprocess.call(['google-chrome', 'https://music.youtube.com'])
+            subprocess.call(['/home/pi/openauto/bin/autoapp'])
         except:
             print("unable to launch android auto")
 
