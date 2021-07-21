@@ -181,7 +181,7 @@ class AppsWindow(QWidget):
         print("appswindow: Launching Radiot.fi")
 
         try:
-            subprocess.call(['chromium-browser', '--start-fullscreen', '--app=https://radiot.fi'])
+            subprocess.call(['chromium-browser', '--start-fullscreen', '--app=https://www.radiot.fi'])
         except:
             print("unable to launch Radiot.fi")
 
