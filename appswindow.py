@@ -62,6 +62,13 @@ class AppsWindow(QWidget):
         self.autoButton.setIconSize(QSize(size, size))
         self.autoButton.clicked.connect(self.launch_android_auto)
 
+        self.ytmusicButton = QToolButton(self)
+        self.ytmusicButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.ytmusicButton.setIcon(QIcon(self.prefix + 'youtube_music.png'))
+        self.ytmusicButton.setText("Youtube Music")
+        self.ytmusicButton.setIconSize(QSize(size, size))
+        self.ytmusicButton.clicked.connect(self.launch_ytmusic)
+
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
         homeButton.setIconSize(QSize(64, 64))
@@ -113,6 +120,7 @@ class AppsWindow(QWidget):
 
         grid = QGridLayout()
         grid.addWidget(self.autoButton, 0, 0)
+        grid.addWidget(self.ytmusicButton, 0, 1)
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
@@ -130,6 +138,16 @@ class AppsWindow(QWidget):
             subprocess.call(['/home/pi/openauto/bin/autoapp'])
         except:
             print("unable to launch android auto")
+
+        self.exit()
+
+    def launch_ytmusic(self):
+        print("appswindow: Launching Youtube Music")
+
+        try:
+            subprocess.call(['chromium-browser', '--start-fullscreen', '--app=https://music.youtube.com'])
+        except:
+            print("unable to launch Youtube Music")
 
         self.exit()
 
