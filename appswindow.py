@@ -76,6 +76,20 @@ class AppsWindow(QWidget):
         self.areenaButton.setIconSize(QSize(size, size))
         self.areenaButton.clicked.connect(self.launch_areena)
 
+        self.netflixButton = QToolButton(self)
+        self.netflixButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.netflixButton.setIcon(QIcon(self.prefix + 'netflix.png'))
+        self.netflixButton.setText("Netflix")
+        self.netflixButton.setIconSize(QSize(size, size))
+        self.netflixButton.clicked.connect(self.launch_netflix)
+
+        self.viihdeButton = QToolButton(self)
+        self.viihdeButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.viihdeButton.setIcon(QIcon(self.prefix + 'elisa_viihde.png'))
+        self.viihdeButton.setText("Elisa Viihde")
+        self.viihdeButton.setIconSize(QSize(size, size))
+        self.viihdeButton.clicked.connect(self.launch_viihde)
+
         self.radiotButton = QToolButton(self)
         self.radiotButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         self.radiotButton.setIcon(QIcon(self.prefix + 'radiot.png'))
@@ -136,7 +150,9 @@ class AppsWindow(QWidget):
         grid.addWidget(self.autoButton, 0, 0)
         grid.addWidget(self.ytmusicButton, 0, 1)
         grid.addWidget(self.areenaButton, 0, 2)
-        grid.addWidget(self.radiotButton, 1, 0)
+        grid.addWidget(self.netflixButton, 1, 0)
+        grid.addWidget(self.viihdeButton, 1, 1)
+        grid.addWidget(self.radiotButton, 1, 2)
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
@@ -174,6 +190,26 @@ class AppsWindow(QWidget):
             subprocess.Popen(['chromium-browser', '--start-fullscreen', '--app=https://areena.yle.fi'])
         except:
             print("unable to launch Yle Areena")
+
+        self.exit()
+
+    def launch_netflix(self):
+        print("appswindow: Launching Netflix")
+
+        try:
+            subprocess.Popen(['chromium-browser', '--start-fullscreen', '--app=https://www.netflix.com'])
+        except:
+            print("unable to launch Netflix")
+
+        self.exit()
+
+    def launch_viihde(self):
+        print("appswindow: Launching Elisa Viihde")
+
+        try:
+            subprocess.Popen(['chromium-browser', '--start-fullscreen', '--app=https://www.elisaviihde.fi'])
+        except:
+            print("unable to launch Elisa Viihde")
 
         self.exit()
 
