@@ -76,6 +76,13 @@ class AppsWindow(QWidget):
         self.areenaButton.setIconSize(QSize(size, size))
         self.areenaButton.clicked.connect(self.launch_areena)
 
+        self.radiotButton = QToolButton(self)
+        self.radiotButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.radiotButton.setIcon(QIcon(self.prefix + 'radiot.png'))
+        self.radiotButton.setText("Radiot.fi")
+        self.radiotButton.setIconSize(QSize(size, size))
+        self.radiotButton.clicked.connect(self.launch_radiot)
+
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
         homeButton.setIconSize(QSize(64, 64))
@@ -129,6 +136,7 @@ class AppsWindow(QWidget):
         grid.addWidget(self.autoButton, 0, 0)
         grid.addWidget(self.ytmusicButton, 0, 1)
         grid.addWidget(self.areenaButton, 0, 2)
+        grid.addWidget(self.radiotButton, 1, 0)
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
@@ -166,6 +174,16 @@ class AppsWindow(QWidget):
             subprocess.call(['chromium-browser', '--start-fullscreen', '--app=https://areena.yle.fi'])
         except:
             print("unable to launch Yle Areena")
+
+        self.exit()
+
+    def launch_radiot(self):
+        print("appswindow: Launching Radiot.fi")
+
+        try:
+            subprocess.call(['chromium-browser', '--start-fullscreen', '--app=https://radiot.fi'])
+        except:
+            print("unable to launch Radiot.fi")
 
         self.exit()
 
