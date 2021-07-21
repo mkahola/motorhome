@@ -151,7 +151,7 @@ class AppsWindow(QWidget):
         print("appswindow: Launching android auto")
 
         try:
-            subprocess.call(['/home/pi/openauto/bin/autoapp'])
+            subprocess.Popen(['/home/pi/openauto/bin/autoapp'])
         except:
             print("unable to launch android auto")
 
@@ -161,7 +161,7 @@ class AppsWindow(QWidget):
         print("appswindow: Launching Youtube Music")
 
         try:
-            subprocess.call(['chromium-browser', '--start-fullscreen', '--app=https://music.youtube.com'])
+            subprocess.Popen(['chromium-browser', '--start-fullscreen', '--app=https://music.youtube.com'])
         except:
             print("unable to launch Youtube Music")
 
@@ -171,7 +171,7 @@ class AppsWindow(QWidget):
         print("appswindow: Launching Yle Areena")
 
         try:
-            subprocess.call(['chromium-browser', '--start-fullscreen', '--app=https://areena.yle.fi'])
+            subprocess.Popen(['chromium-browser', '--start-fullscreen', '--app=https://areena.yle.fi'])
         except:
             print("unable to launch Yle Areena")
 
@@ -181,7 +181,7 @@ class AppsWindow(QWidget):
         print("appswindow: Launching Radiot.fi")
 
         try:
-            subprocess.call(['chromium-browser', '--start-fullscreen', '--app=https://www.radiot.fi'])
+            subprocess.Popen(['chromium-browser', '--start-fullscreen', '--app=https://www.radiot.fi'])
         except:
             print("unable to launch Radiot.fi")
 
