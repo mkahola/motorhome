@@ -69,6 +69,13 @@ class AppsWindow(QWidget):
         self.ytmusicButton.setIconSize(QSize(size, size))
         self.ytmusicButton.clicked.connect(self.launch_ytmusic)
 
+        self.areenaButton = QToolButton(self)
+        self.areenaButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.areenaButton.setIcon(QIcon(self.prefix + 'yle_areena.png'))
+        self.areenaButton.setText("Yle Areena")
+        self.areenaButton.setIconSize(QSize(size, size))
+        self.areenaButton.clicked.connect(self.launch_areena)
+
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
         homeButton.setIconSize(QSize(64, 64))
@@ -121,6 +128,7 @@ class AppsWindow(QWidget):
         grid = QGridLayout()
         grid.addWidget(self.autoButton, 0, 0)
         grid.addWidget(self.ytmusicButton, 0, 1)
+        grid.addWidget(self.areenaButton, 0, 2)
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
@@ -148,6 +156,16 @@ class AppsWindow(QWidget):
             subprocess.call(['chromium-browser', '--start-fullscreen', '--app=https://music.youtube.com'])
         except:
             print("unable to launch Youtube Music")
+
+        self.exit()
+
+    def launch_areena(self):
+        print("appswindow: Launching Yle Areena")
+
+        try:
+            subprocess.call(['chromium-browser', '--start-fullscreen', '--app=https://areena.yle.fi'])
+        except:
+            print("unable to launch Yle Areena")
 
         self.exit()
 
