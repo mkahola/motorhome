@@ -46,7 +46,7 @@ class Location(QObject):
 
         while self.running:
             now = time.monotonic()
-            if now - prev >= 1.0:
+            if now - prev >= 0.2:
                 prev = now
                 try:
                     if not time_updated:
