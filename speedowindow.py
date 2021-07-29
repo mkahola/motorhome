@@ -50,10 +50,10 @@ class SpeedoWindow(QWidget):
         self.setWindowTitle("Speedometer")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 
-        web = QWebView()
-        web.settings().setAttribute(QWebSettings.JavascriptEnabled, True)
-        web.settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls, True);
-        web.load(QUrl("http://my.dashboard.com/speedo_digital.html"))
+#        web = QWebView()
+#        web.settings().setAttribute(QWebSettings.JavascriptEnabled, True)
+#        web.settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls, True);
+#        web.load(QUrl("http://my.dashboard.com/speedo_digital.html"))
 
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
@@ -72,7 +72,8 @@ class SpeedoWindow(QWidget):
         self.gps_disconnected = QPixmap(self.prefix + "no_gps.png").scaled(32, 32, Qt.KeepAspectRatio)
         self.gps_connected = QPixmap("")
         self.gpsInfoLabel = QLabel()
-        self.gpsSpeedLabel = QLabel()
+        self.gpsSpeedLabel = QLabel("--")
+        self.gpsSpeedLabel.setStyleSheet("font: 240px")
 
         # Ruuvitag
         self.tempInfoLabel = QLabel()
@@ -89,7 +90,7 @@ class SpeedoWindow(QWidget):
         self.updateTPMSWarn(infobar.tpmsWarn)
         self.updateTime(datetime.now())
         self.updateGPSFix(infobar.gpsFix)
-        #self.updateSpeed(infobar.speed)
+        self.updateSpeed(infobar.speed)
         self.updateRecording(infobar.recording)
 
         #infobar
@@ -97,13 +98,14 @@ class SpeedoWindow(QWidget):
         hbox1.addWidget(self.tpmsWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.tempWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.gpsInfoLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
-        hbox1.addWidget(self.gpsSpeedLabel, alignment=Qt.AlignTop|Qt.AlignRight)
         hbox1.addWidget(self.tempInfoLabel, alignment=Qt.AlignTop|Qt.AlignRight)
         hbox1.addWidget(self.timeLabel, alignment=Qt.AlignTop|Qt.AlignRight)
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
-        vbox.addWidget(web)
+        #vbox.addWidget(web)
+        vbox.addWidget(QLabel("km/h"), alignment=Qt.AlignCenter)
+        vbox.addWidget(self.gpsSpeedLabel, alignment=Qt.AlignCenter)
         vbox.addWidget(homeButton, alignment=Qt.AlignCenter)
         self.setLayout(vbox)
 
@@ -123,7 +125,7 @@ class SpeedoWindow(QWidget):
     def updateSpeed(self, speed):
         if math.isnan(speed):
             return
-        self.gpsSpeedLabel.setText("{:d}".format(round(3.6*speed)) + " km/h")
+        self.gpsSpeedLabel.setText("{:d}".format(round(3.6*speed)))
 
     def updateTemperature(self, temperature):
         if math.isnan(temperature):
