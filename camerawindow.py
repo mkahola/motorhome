@@ -336,16 +336,21 @@ class CameraWindow(QWidget):
 
     def updateBatt(self):
         camera = Virb((self.virb.ip, 80))
-        batt = camera.get_batt_status()
 
-        if batt < 5:
-            self.virbBattLabel.setStyleSheet("QLabel {color: red; font: 24px}")
-        elif batt >= 5 and batt < 20:
-            self.virbBattLabel.setStyleSheet("QLabel {color: yellow; font: 24px}")
-        else:
-            self.virbBattLabel.setStyleSheet("QLabel {color: white; font: 24px}")
+        try:
+            batt = camera.get_batt_status()
 
-        self.virbBattLabel.setText(str(round(batt)) + " %")
+            if batt < 5:
+                self.virbBattLabel.setStyleSheet("QLabel {color: red; font: 24px}")
+            elif batt >= 5 and batt < 20:
+                self.virbBattLabel.setStyleSheet("QLabel {color: yellow; font: 24px}")
+            else:
+                self.virbBattLabel.setStyleSheet("QLabel {color: white; font: 24px}")
+
+            self.virbBattLabel.setText(str(round(batt)) + " %")
+
+        except:
+            print("camerawindow: Garmin Virb battery info not available")
 
     def updateInfobar(self, data):
         self.updateTime(data['time'])
