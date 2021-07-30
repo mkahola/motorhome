@@ -1,25 +1,27 @@
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5 import QtCore, QtGui
-
+"""
+Garmin Virb camcorder
+"""
 import os
-import cv2
+
+from PyQt5.QtCore import pyqtSignal, QObject
+from PyQt5.QtGui import QPixmap, QImage
+from cv2 import cv2
 from virb import Virb
 
 class Camcorder(QObject):
-    global virb_addr
+    """ Garmin Virb camcorder """
 
     finished = pyqtSignal()
     image = pyqtSignal(QPixmap)
-    stop_preview = pyqtSignal()
 
     def __init__(self, ip, parent=None):
         QObject.__init__(self, parent=parent)
         os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
         self.camera = Virb((ip, 80))
-        self.runVideo = True
+        self.run_video = True
 
     def start_recording(self):
+        """ Start video recording """
         #set autorecord off
         self.camera.set_features('autoRecord', 'off')
         self.camera.set_features('videoLoop', '30')
@@ -28,6 +30,7 @@ class Camcorder(QObject):
         self.finished.emit()
 
     def stop_recording(self):
+        """ Stop video recording """
         self.camera.stop_recording()
         self.camera.set_features('autoRecord', 'off')
         self.camera.set_features('videoLoop', '30')
@@ -35,18 +38,20 @@ class Camcorder(QObject):
         self.finished.emit()
 
     def snapshot(self):
+        """ take a snapshot image """
         self.camera.set_features('selfTimer', '2')
         self.camera.snap_picture()
         print("taking a snapshot")
         self.finished.emit()
 
     def live_preview(self):
+        """ Show live preview """
         print("setting up camera")
 
         url = "rtsp://" + self.camera.host[0] + "/livePreviewStream"
         try:
             cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
-        except:
+        except ConnectionError:
             print("video stream unavailable")
             self.finished.emit()
             return
@@ -58,7 +63,7 @@ class Camcorder(QObject):
         fps = float(cap.get(cv2.CAP_PROP_FPS))
         print("video: " + str(width) + "x" + str(height) + "@" + str(fps))
 
-        while self.runVideo:
+        while self.run_video:
             ret, frame = cap.read()
             if ret:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -71,5 +76,6 @@ class Camcorder(QObject):
         self.finished.emit()
 
     def stop_preview(self):
+        """ Stop video preview """
         print("stopping live preview")
-        self.runVideo = False
+        self.run_video = False
