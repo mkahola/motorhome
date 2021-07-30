@@ -11,7 +11,10 @@ from virb import Virb
 class Camcorder(QObject):
     """ Garmin Virb camcorder """
 
-    finished = pyqtSignal()
+    preview_finished = pyqtSignal()
+    rec_start_finished = pyqtSignal()
+    rec_stop_finished = pyqtSignal()
+    snapshot_finished = pyqtSignal()
     image = pyqtSignal(QPixmap)
 
     def __init__(self, ip, parent=None):
@@ -27,7 +30,7 @@ class Camcorder(QObject):
         self.camera.set_features('videoLoop', '30')
         self.camera.start_recording()
         print("start recording")
-        self.finished.emit()
+        self.rec_start_finished.emit()
 
     def stop_recording(self):
         """ Stop video recording """
@@ -35,14 +38,14 @@ class Camcorder(QObject):
         self.camera.set_features('autoRecord', 'off')
         self.camera.set_features('videoLoop', '30')
         print("stop recording")
-        self.finished.emit()
+        self.rec_stop_finished.emit()
 
     def snapshot(self):
         """ take a snapshot image """
         self.camera.set_features('selfTimer', '2')
         self.camera.snap_picture()
         print("taking a snapshot")
-        self.finished.emit()
+        self.snapshot_finished.emit()
 
     def live_preview(self):
         """ Show live preview """
@@ -53,7 +56,7 @@ class Camcorder(QObject):
             cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
         except ConnectionError:
             print("video stream unavailable")
-            self.finished.emit()
+            self.preview_finished.emit()
             return
 
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 10)
@@ -73,7 +76,7 @@ class Camcorder(QObject):
 
         print("video preview stopped")
         cap.release()
-        self.finished.emit()
+        self.preview_finished.emit()
 
     def stop_preview(self):
         """ Stop video preview """

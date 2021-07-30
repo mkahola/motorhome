@@ -209,8 +209,8 @@ class CameraWindow(QWidget):
         self.previewWorker = Camcorder(self.virb.ip)
         self.stop_preview.connect(self.previewWorker.stop_preview)
         self.previewWorker.moveToThread(self.previewThread)
-        self.previewWorker.finished.connect(self.previewThread.quit)
-        self.previewWorker.finished.connect(self.previewWorker.deleteLater)
+        self.previewWorker.preview_finished.connect(self.previewThread.quit)
+        self.previewWorker.preview_finished.connect(self.previewWorker.deleteLater)
         self.previewThread.finished.connect(self.previewThread.deleteLater)
         self.previewThread.started.connect(self.previewWorker.live_preview)
 
@@ -225,8 +225,8 @@ class CameraWindow(QWidget):
         self.startRecThread = QThread()
         self.startRecWorker = Camcorder(self.virb.ip)
         self.startRecWorker.moveToThread(self.startRecThread)
-        self.startRecWorker.finished.connect(self.startRecThread.quit)
-        self.startRecWorker.finished.connect(self.startRecWorker.deleteLater)
+        self.startRecWorker.rec_start_finished.connect(self.startRecThread.quit)
+        self.startRecWorker.rec_start_finished.connect(self.startRecWorker.deleteLater)
         self.startRecThread.finished.connect(self.startRecThread.deleteLater)
         self.startRecThread.started.connect(self.startRecWorker.start_recording)
 
@@ -239,22 +239,22 @@ class CameraWindow(QWidget):
         self.stopRecThread = QThread()
         self.stopRecWorker = Camcorder(self.virb.ip)
         self.stopRecWorker.moveToThread(self.stopRecThread)
-        self.stopRecWorker.finished.connect(self.stopRecThread.quit)
-        self.stopRecWorker.finished.connect(self.stopRecWorker.deleteLater)
+        self.stopRecWorker.rec_stop_finished.connect(self.stopRecThread.quit)
+        self.stopRecWorker.rec_stop_finished.connect(self.stopRecWorker.deleteLater)
         self.stopRecThread.finished.connect(self.stopRecThread.deleteLater)
         self.stopRecThread.started.connect(self.stopRecWorker.stop_recording)
 
         self.stopRecThread.start()
 
-    def initSnapshotThread(self, button):
+    def initSnapshotThread(self):
         if not self.virb.ip:
             return
 
         self.snapshotThread = QThread()
         self.snapshotWorker = Camcorder(self.virb.ip)
         self.snapshotWorker.moveToThread(self.snapshotThread)
-        self.snapshotWorker.finished.connect(self.snapshotThread.quit)
-        self.snapshotWorker.finished.connect(self.snapshotWorker.deleteLater)
+        self.snapshotWorker.snapshot_finished.connect(self.snapshotThread.quit)
+        self.snapshotWorker.snapshot_finished.connect(self.snapshotWorker.deleteLater)
         self.snapshotThread.finished.connect(self.snapshotThread.deleteLater)
         self.snapshotThread.finished.connect(self.updateSnapshotButton)
         self.snapshotThread.started.connect(self.snapshotWorker.snapshot)
@@ -307,7 +307,7 @@ class CameraWindow(QWidget):
                              "min-height: 72px;"
                              "padding: 12px;")
         self.snapshotButton.setEnabled(False)
-        self.initSnapshotThread(button)
+        self.initSnapshotThread()
 
     def updateSnapshotButton(self):
         self.snapshotButton.setEnabled(True)
