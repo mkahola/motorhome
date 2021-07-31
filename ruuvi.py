@@ -1,31 +1,37 @@
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5 import QtCore, QtGui
-
+"""
+Ruuvitag sensor handling
+"""
 import time
-import math
+
 from ruuvitag_sensor.ruuvi import RuuviTagSensor, RunFlag
+from PyQt5.QtCore import pyqtSignal, QObject
 
 class Ruuvi:
+    """ Ruuvitag sensor class """
     def __init__(self):
         self.temperature = float('nan')
         self.humidity = float('nan')
         self.pressure = float('nan')
         self.vbatt = float('nan')
 
-    def setTemperature(self, temp):
-        self.temperature = temp;
+    def set_temperature(self, temp):
+        """ set temperature """
+        self.temperature = temp
 
-    def setHumidity(self, humidity):
+    def set_humidity(self, humidity):
+        """ set humidity """
         self.humidity = humidity
 
-    def setPressure(self, pressure):
+    def set_pressure(self, pressure):
+        """ set pressure """
         self.pressure = pressure
 
-    def setVBat(self, vbatt):
+    def set_vbat(self, vbatt):
+        """ set battery voltage """
         self.vbatt = vbatt
 
 class RuuviTag(QObject):
+    """ Ruuvitag """
     stop_signal = pyqtSignal()
     start_signal = pyqtSignal()
     finished = pyqtSignal()
@@ -43,6 +49,7 @@ class RuuviTag(QObject):
         self.running = True
 
     def run(self):
+        """ Collect data from ruuvitag sensor """
         def wait_for_finish(run_flag, name):
             max_time = 20
 
@@ -67,5 +74,6 @@ class RuuviTag(QObject):
         self.finished.emit()
 
     def stop(self):
+        """ stop ruuvitag execution """
         print("ruuvi: received stop signal")
         self.running = False
