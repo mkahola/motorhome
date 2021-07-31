@@ -43,6 +43,8 @@ def search_virb():
                 break
         except IndexError:
             pass
+        except KeyError:
+            pass
 
     return virb_ip
 
