@@ -1,73 +1,88 @@
+"""
+Tire class for TPMS
+"""
 import math
 
-class Tires:
+class Tire:
+    """ Single tire """
     def __init__(self):
-        self.FrontLeftPressure = math.nan
-        self.FrontLeftTemp = math.nan
-        self.FrontRightPressure = math.nan
-        self.FrontRightTemp = math.nan
-        self.RearLeftPressure = math.nan
-        self.RearLeftTemp = math.nan
-        self.RearRightPressure = math.nan
-        self.RearRightTemp = math.nan
-        self.FrontLeftWarn = 0
-        self.FrontRightWarn = 0
-        self.RearLeftWarn = 0
-        self.RearRightWarn = 0
-        self.warnPressure = 0.0
+        self.pressure = math.nan
+        self.temperature = math.nan
+        self.warn = 0
+
+    def set_pressure(self, pressure):
+        """ set tire pressure """
+        self.pressure = pressure
+
+    def set_temperature(self, temperature):
+        """ set tire temperature """
+        self.temperature = temperature
+
+    def set_warn(self, warn):
+        """ set tire pressure warn level """
+        self.warn = warn
+
+class Tires:
+    """ Tire class """
+    def __init__(self):
+        self.FrontLeft = Tire()
+        self.FrontRight = Tire()
+        self.RearLeft = Tire()
+        self.RearRight = Tire()
+        self.warn_pressure = 0.0
 
     def setPressure(self, tire, pressure):
         if tire == 'FL':
-            self.FrontLeftPressure = pressure
+            self.FrontLeft.set_pressure(pressure)
         elif tire == 'FR':
-            self.FrontRightPressure = pressure
+            self.FrontRight.set_pressure(pressure)
         elif tire == 'RL':
-            self.RearLeftPressure = pressure
+            self.RearLeft.set_pressure(pressure)
         elif tire == 'RR':
-            self.RearRightPressure = pressure
+            self.RearRight.set_pressure(pressure)
 
     def setTemperature(self, tire, temperature):
         if tire == 'FL':
-            self.FrontLeftTemp = temperature
+            self.FrontLeft.set_temperature(temperature)
         elif tire == 'FR':
-            self.FrontRightTemp = temperature
+            self.FrontRight.set_temperature(temperature)
         elif tire == 'RL':
-            self.RearLeftTemp = temperature
+            self.RearLeft.set_temperature(temperature)
         elif tire == 'RR':
-            self.RearRightTemp = temperature
+            self.RearRight.set_temperature(temperature)
 
     def setWarn(self, tire, val):
         if tire == 'FL':
-            self.FrontLeftWarn = val
+            self.FrontLeft.set_warn(val)
         elif tire == 'FR':
-            self.FrontRightWarn = val
+            self.FrontRight.set_warn(val)
         elif tire == 'RL':
-            self.RearLeftWarn = val
+            self.RearLeft.set_warn(val)
         elif tire == 'RR':
-            self.RearRightWarn = val
+            self.RearRight.set_warn(val)
 
     def setWarnPressure(self, val):
-        self.warnPressure = val
+        self.warn_pressure = val
 
     def getPressure(self, tire):
         if tire == 'FL':
-            return self.FrontLeftPressure
+            return self.FrontLeft.pressure
         elif tire == 'FR':
-            return self.FrontRightPressure
+            return self.FrontRight.pressure
         elif tire == 'RL':
-            return self.RearLeftPressure
+            return self.RearLeft.pressure
         elif tire == 'RR':
-            return self.RearRightPressure
+            return self.RearRight.pressure
 
     def getTemperature(self, tire):
         if tire == 'FL':
-            return self.FrontLeftTemp
+            return self.FrontLeft.temperature
         elif tire == 'FR':
-            return self.FrontRightTemp
+            return self.FrontRight.temperature
         elif tire == 'RL':
-            return self.RearLeftTemp
+            return self.RearLeft.temperature
         elif tire == 'RR':
-            return self.RearRightTemp
+            return self.RearRight.temperature
 
     def getWarnPressure(self):
-        return self.warnPressure
+        return self.warn_pressure

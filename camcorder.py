@@ -12,6 +12,10 @@ class Camcorder(QObject):
     """ Garmin Virb camcorder """
 
     finished = pyqtSignal()
+    rec_start_finished = pyqtSignal()
+    rec_stop_finished = pyqtSignal()
+    snapshot_finished = pyqtSignal()
+    preview_finished = pyqtSignal()
     image = pyqtSignal(QPixmap)
 
     def __init__(self, ip, parent=None):

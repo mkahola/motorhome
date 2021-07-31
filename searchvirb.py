@@ -1,11 +1,9 @@
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5 import QtCore, QtGui
-
 import time
 import subprocess
 import nmap3
+
 from netifaces import interfaces, ifaddresses, AF_INET
+from PyQt5.QtCore import pyqtSignal, QObject
 
 def search_virb():
     def is_virb_ssid():
@@ -64,6 +62,8 @@ class SearchVirb(QObject):
                 self.running = False
                 continue
             time.sleep(10)
+
+        self.finished.emit()
 
     def stop(self):
         print("searchvirb: Received exit signal")
