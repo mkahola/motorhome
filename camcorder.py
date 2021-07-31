@@ -11,10 +11,7 @@ from virb import Virb
 class Camcorder(QObject):
     """ Garmin Virb camcorder """
 
-    preview_finished = pyqtSignal()
-    rec_start_finished = pyqtSignal()
-    rec_stop_finished = pyqtSignal()
-    snapshot_finished = pyqtSignal()
+    finished = pyqtSignal()
     image = pyqtSignal(QPixmap)
 
     def __init__(self, ip, parent=None):
