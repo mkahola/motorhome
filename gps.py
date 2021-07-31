@@ -71,8 +71,7 @@ class Location(QObject):
                         location = (lat, lon, alt, speed, course)
                         self.gpsLocation.emit(location)
                 except ValueError:
-                    print("gps value error")
-
+                    pass
             time.sleep(0.1)
 
         print("GPS thread: thread finished")
