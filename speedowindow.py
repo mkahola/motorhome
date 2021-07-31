@@ -1,16 +1,22 @@
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5.QtWebKit import *
-from PyQt5.QtWebKitWidgets import *
-from PyQt5 import QtWidgets, QtCore, QtGui
-
-import time
+"""
+Speedometer GUI
+"""
 import math
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
-stylesheet = """
+#from PyQt5.QtWidgets import *
+#from PyQt5.QtGui import *
+#from PyQt5.QtCore import *
+#from PyQt5.QtWebKit import *
+#from PyQt5.QtWebKitWidgets import *
+#from PyQt5 import QtWidgets, QtCore, QtGui
+
+from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QVBoxLayout
+from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtCore import Qt, QSize, pyqtSignal
+
+STYLESHEET = """
     QWidget {
         background: #323232;
     }
@@ -40,13 +46,14 @@ stylesheet = """
 """
 
 class SpeedoWindow(QWidget):
+    """ Speedometer GUI implementation """
     info = pyqtSignal(dict)
 
-    def createWindow(self, infobar):
-        parent = None
-        super(SpeedoWindow, self).__init__(parent)
+    def create_window(self, infobar):
+        """ Create window for speedometer """
+        super(SpeedoWindow, self).__init__(None)
 
-        self.setStyleSheet(stylesheet)
+        self.setStyleSheet(STYLESHEET)
         self.setWindowTitle("Speedometer")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 
@@ -55,107 +62,113 @@ class SpeedoWindow(QWidget):
 #        web.settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls, True);
 #        web.load(QUrl("http://my.dashboard.com/speedo_digital.html"))
 
-        homeButton = QPushButton()
-        homeButton.setIcon(QIcon(self.prefix + 'home.png'))
-        homeButton.setIconSize(QSize(64, 64))
-        homeButton.clicked.connect(self.exit)
+        home_button = QPushButton()
+        home_button.setIcon(QIcon(self.prefix + 'home.png'))
+        home_button.setIconSize(QSize(64, 64))
+        home_button.clicked.connect(self.exit)
 
         # time
-        self.timeLabel = QLabel()
+        self.time_label = QLabel()
 
         # TPMS warn light
         self.tpms_warn_off = QPixmap("")
         self.tpms_warn_on = QPixmap(self.prefix + "tpms_warn_on.png").scaled(32, 32, Qt.KeepAspectRatio)
-        self.tpmsWarnLabel = QLabel()
+        self.tpms_warn_label = QLabel()
 
         # GPS fix
         self.gps_disconnected = QPixmap(self.prefix + "no_gps.png").scaled(32, 32, Qt.KeepAspectRatio)
         self.gps_connected = QPixmap("")
-        self.gpsInfoLabel = QLabel()
-        self.gpsSpeedLabel = QLabel("--")
-        self.gpsSpeedLabel.setStyleSheet("font: 240px")
+        self.gps_info_label = QLabel()
+        self.gps_speed_label = QLabel("--")
+        self.gps_speed_label.setStyleSheet("font: 240px")
 
         # Ruuvitag
-        self.tempInfoLabel = QLabel()
+        self.temp_info_label = QLabel()
         self.temp_warn_off = QPixmap("")
         self.temp_warn_on = QPixmap(self.prefix + "snowflake.png").scaled(32, 32, Qt.KeepAspectRatio)
-        self.tempWarnLabel = QLabel()
+        self.temp_warn_label = QLabel()
 
         # recording
-        self.recInfoLabel = QLabel()
+        self.rec_info_label = QLabel()
         self.rec_off = QPixmap("")
         self.rec_on = QPixmap(self.prefix + "rec.png").scaled(32, 32, Qt.KeepAspectRatio)
 
-        self.updateTemperature(infobar.temperature)
-        self.updateTPMSWarn(infobar.tpmsWarn)
-        self.updateTime(datetime.now())
-        self.updateGPSFix(infobar.gpsFix)
-        self.updateSpeed(infobar.speed)
-        self.updateRecording(infobar.recording)
+        self.update_temperature(infobar.temperature)
+        self.update_tpmswarn(infobar.tpmsWarn)
+        self.update_time(datetime.now())
+        self.update_gps_fix(infobar.gpsFix)
+        self.update_speed(infobar.speed)
+        self.update_recording(infobar.recording)
 
         #infobar
         hbox1 = QHBoxLayout()
-        hbox1.addWidget(self.tpmsWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
-        hbox1.addWidget(self.tempWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
-        hbox1.addWidget(self.gpsInfoLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
-        hbox1.addWidget(self.tempInfoLabel, alignment=Qt.AlignTop|Qt.AlignRight)
-        hbox1.addWidget(self.timeLabel, alignment=Qt.AlignTop|Qt.AlignRight)
+        hbox1.addWidget(self.tpms_warn_label, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.temp_warn_label, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.gps_info_label, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.temp_info_label, alignment=Qt.AlignTop|Qt.AlignRight)
+        hbox1.addWidget(self.time_label, alignment=Qt.AlignTop|Qt.AlignRight)
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
         #vbox.addWidget(web)
         vbox.addWidget(QLabel("km/h"), alignment=Qt.AlignCenter)
-        vbox.addWidget(self.gpsSpeedLabel, alignment=Qt.AlignCenter)
-        vbox.addWidget(homeButton, alignment=Qt.AlignCenter)
+        vbox.addWidget(self.gps_speed_label, alignment=Qt.AlignCenter)
+        vbox.addWidget(home_button, alignment=Qt.AlignCenter)
         self.setLayout(vbox)
 
         self.showFullScreen()
 
-    def updateInfobar(self, data):
-        self.updateTime(data['time'])
-        self.updateTemperature(data['temperature'])
-        self.updateTPMSWarn(data['tpms'])
-        self.updateGPSFix(data['gpsFix'])
-        #self.updateSpeed(data['speed'])
-        self.updateRecording(data['recording'])
+    def update_infobar(self, data):
+        """ update infobar on top of the screen """
+        self.update_time(data['time'])
+        self.update_temperature(data['temperature'])
+        self.update_tpmswarn(data['tpms'])
+        self.update_gps_fix(data['gpsFix'])
+        #self.update_speed(data['speed'])
+        self.update_recording(data['recording'])
 
-    def updateTime(self, t):
-        self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
+    def update_time(self, time_data):
+        """ update time """
+        self.time_label.setText("{:02d}".format(time_data.hour) + ":" + "{:02d}".format(time_data.minute))
 
-    def updateSpeed(self, speed):
+    def update_speed(self, speed):
+        """ update speed """
         if math.isnan(speed):
             return
-        self.gpsSpeedLabel.setText("{:d}".format(round(3.6*speed)))
+        self.gps_speed_label.setText("{:d}".format(round(3.6*speed)))
 
-    def updateTemperature(self, temperature):
+    def update_temperature(self, temperature):
+        """ update temperature """
         if math.isnan(temperature):
             return
 
-        self.tempInfoLabel.setText("{0:d}".format(round(temperature)) + "\u2103")
+        self.temp_info_label.setText("{0:d}".format(round(temperature)) + "\u2103")
         if temperature < 3.0:
-            self.tempWarnLabel.setPixmap(self.temp_warn_on)
+            self.temp_warn_label.setPixmap(self.temp_warn_on)
         elif temperature > 3.2:
-            self.tempWarnLabel.setPixmap(self.temp_warn_off)
+            self.temp_warn_label.setPixmap(self.temp_warn_off)
 
-    def updateTPMSWarn(self, warn):
+    def update_tpmswarn(self, warn):
+        """ update tire pressure warn icon """
         if warn:
-            self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
+            self.tpms_warn_label.setPixmap(self.tpms_warn_on)
         else:
-            self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
+            self.tpms_warn_label.setPixmap(self.tpms_warn_off)
 
-    def updateGPSFix(self, fix):
+    def update_gps_fix(self, fix):
+        """ update GPS fix """
         if fix:
-            self.gpsInfoLabel.setPixmap(self.gps_connected)
+            self.gps_info_label.setPixmap(self.gps_connected)
         else:
-            self.gpsInfoLabel.setPixmap(self.gps_disconnected)
+            self.gps_info_label.setPixmap(self.gps_disconnected)
 
-    def updateRecording(self, recording):
+    def update_recording(self, recording):
+        """ update recording info """
         if recording:
-            self.recInfoLabel.setPixmap(self.rec_on)
+            self.rec_info_label.setPixmap(self.rec_on)
         else:
-            self.recInfoLabel.setPixmap(self.rec_off)
+            self.rec_info_label.setPixmap(self.rec_off)
 
     def exit(self):
+        """ exit window """
         self.close()
-
-

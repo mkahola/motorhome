@@ -248,8 +248,8 @@ class MainApp(QMainWindow):
 
     def createSpeedoWindow(self):
         self.speedoWindow = SpeedoWindow(parent=self)
-        self.speedoWindow.createWindow(self.infobar)
-        self.info.connect(self.speedoWindow.updateInfobar)
+        self.speedoWindow.create_window(self.infobar)
+        self.info.connect(self.speedoWindow.update_infobar)
         self.speedoWindow.show()
 
     def createCameraWindow(self):
