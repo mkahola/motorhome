@@ -25,64 +25,81 @@ class Tire:
 class Tires:
     """ Tire class """
     def __init__(self):
-        self.FrontLeft = Tire()
-        self.FrontRight = Tire()
-        self.RearLeft = Tire()
-        self.RearRight = Tire()
+        self.front_left = Tire()
+        self.front_right = Tire()
+        self.rear_left = Tire()
+        self.rear_right = Tire()
         self.warn_pressure = 0.0
 
-    def setPressure(self, tire, pressure):
+    def set_pressure(self, tire, pressure):
+        """ set tire pressure """
         if tire == 'FL':
-            self.FrontLeft.set_pressure(pressure)
+            self.front_left.set_pressure(pressure)
         elif tire == 'FR':
-            self.FrontRight.set_pressure(pressure)
+            self.front_right.set_pressure(pressure)
         elif tire == 'RL':
-            self.RearLeft.set_pressure(pressure)
+            self.rear_left.set_pressure(pressure)
         elif tire == 'RR':
-            self.RearRight.set_pressure(pressure)
+            self.rear_right.set_pressure(pressure)
 
-    def setTemperature(self, tire, temperature):
+    def set_temperature(self, tire, temperature):
+        """ set tire temperature """
         if tire == 'FL':
-            self.FrontLeft.set_temperature(temperature)
+            self.front_left.set_temperature(temperature)
         elif tire == 'FR':
-            self.FrontRight.set_temperature(temperature)
+            self.front_right.set_temperature(temperature)
         elif tire == 'RL':
-            self.RearLeft.set_temperature(temperature)
+            self.rear_left.set_temperature(temperature)
         elif tire == 'RR':
-            self.RearRight.set_temperature(temperature)
+            self.rear_right.set_temperature(temperature)
 
-    def setWarn(self, tire, val):
+    def set_warn(self, tire, val):
+        """ set tire pressure warn level """
         if tire == 'FL':
-            self.FrontLeft.set_warn(val)
+            self.front_left.set_warn(val)
         elif tire == 'FR':
-            self.FrontRight.set_warn(val)
+            self.front_right.set_warn(val)
         elif tire == 'RL':
-            self.RearLeft.set_warn(val)
+            self.rear_left.set_warn(val)
         elif tire == 'RR':
-            self.RearRight.set_warn(val)
+            self.rear_right.set_warn(val)
 
-    def setWarnPressure(self, val):
+    def set_warn_pressure(self, val):
+        """ set tire pressure warn level """
         self.warn_pressure = val
 
-    def getPressure(self, tire):
-        if tire == 'FL':
-            return self.FrontLeft.pressure
-        elif tire == 'FR':
-            return self.FrontRight.pressure
-        elif tire == 'RL':
-            return self.RearLeft.pressure
-        elif tire == 'RR':
-            return self.RearRight.pressure
+    def get_pressure(self, tire):
+        """ get tire pressure """
 
-    def getTemperature(self, tire):
-        if tire == 'FL':
-            return self.FrontLeft.temperature
-        elif tire == 'FR':
-            return self.FrontRight.temperature
-        elif tire == 'RL':
-            return self.RearLeft.temperature
-        elif tire == 'RR':
-            return self.RearRight.temperature
+        pressure = 0.0
 
-    def getWarnPressure(self):
+        if tire == 'FL':
+            pressure = self.front_left.pressure
+        elif tire == 'FR':
+            pressure = self.front_right.pressure
+        elif tire == 'RL':
+            pressure = self.rear_left.pressure
+        elif tire == 'RR':
+            pressure = self.rear_right.pressure
+
+        return pressure
+
+    def get_temperature(self, tire):
+        """ get tire temperature """
+
+        temperature = 0.0
+
+        if tire == 'FL':
+            temperature = self.front_left.temperature
+        elif tire == 'FR':
+            temperature = self.front_right.temperature
+        elif tire == 'RL':
+            temperature = self.rear_left.temperature
+        elif tire == 'RR':
+            temperature = self.rear_right.temperature
+
+        return temperature
+
+    def get_warn_pressure(self):
+        """ get tire pressure warn level """
         return self.warn_pressure

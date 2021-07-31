@@ -374,9 +374,9 @@ class MainApp(QMainWindow):
 
     def setTPMS(self, sensor):
         tire = sensor[0]
-        self.tpms.setPressure(tire, sensor[1])
-        self.tpms.setTemperature(tire, sensor[2])
-        self.tpms.setWarn(tire, sensor[3])
+        self.tpms.set_pressure(tire, sensor[1])
+        self.tpms.set_temperature(tire, sensor[2])
+        self.tpms.set_warn(tire, sensor[3])
 
         try:
             self.tpmsWindow.setTPMS(self.tpms, tire)

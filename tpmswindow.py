@@ -228,7 +228,7 @@ class TPMSWindow(QWidget):
 
     def setTPMS(self, tpms, tire):
         if tire == "FL":
-            if math.isnan(tpms.FrontLeft.pressure):
+            if math.isnan(tpms.front_left.pressure):
                 self.fl_pressure_label.setText(" -- bar")
                 self.fl_pressure_label.setStyleSheet("font: bold 24px;"
                                                 "color: #73E420;")
@@ -237,9 +237,9 @@ class TPMSWindow(QWidget):
                 self.fl_temp_label.setStyleSheet("font: bold 20px;"
                                                  "color: #73E420;")
             else:
-                self.fl_pressure_label.setText("{:.1f}".format(round(tpms.FrontLeft.pressure, 1)) + " bar")
-                self.fl_temp_label.setText("{:0d}".format(round(tpms.FrontLeft.temperature)) + "\u2103")
-                if tpms.FrontLeft.warn:
+                self.fl_pressure_label.setText("{:.1f}".format(round(tpms.front_left.pressure, 1)) + " bar")
+                self.fl_temp_label.setText("{:0d}".format(round(tpms.front_left.temperature)) + "\u2103")
+                if tpms.front_left.warn:
                     self.fl_pressure_label.setStyleSheet("font: bold 24px;"
                                                          "color: #ff9933;")
                     self.fl_temp_label.setStyleSheet("font: bold 20px;"
@@ -250,7 +250,7 @@ class TPMSWindow(QWidget):
                     self.fl_temp_label.setStyleSheet("font: bold 20px;"
                                                      "color: #73E420;")
         elif tire == "FR":
-            if math.isnan(tpms.FrontRight.pressure):
+            if math.isnan(tpms.front_right.pressure):
                 self.fr_pressure_label.setText(" -- bar")
                 self.fr_pressure_label.setStyleSheet("font: bold 24px;"
                                                      "color: #73E420;")
@@ -259,9 +259,9 @@ class TPMSWindow(QWidget):
                 self.fr_temp_label.setStyleSheet("font: bold 20px;"
                                                  "color: #73E420;")
             else:
-                self.fr_pressure_label.setText("{:.1f}".format(round(tpms.FrontRight.pressure, 1)) + " bar")
-                self.fr_temp_label.setText("{0:d}".format(round(tpms.FrontRight.temperature)) + "\u2103")
-                if tpms.FrontRight.warn:
+                self.fr_pressure_label.setText("{:.1f}".format(round(tpms.front_right.pressure, 1)) + " bar")
+                self.fr_temp_label.setText("{0:d}".format(round(tpms.front_right.temperature)) + "\u2103")
+                if tpms.front_right.warn:
                     self.fr_pressure_label.setStyleSheet("font: bold 24px;"
                                                          "color: #ff9933;")
                     self.fr_temp_label.setStyleSheet("font: bold 20px;"
@@ -272,7 +272,7 @@ class TPMSWindow(QWidget):
                     self.fr_temp_label.setStyleSheet("font: bold 20px;"
                                                      "color: #73E420;")
         elif tire == "RL":
-            if math.isnan(tpms.RearLeft.pressure):
+            if math.isnan(tpms.rear_left.pressure):
                 self.rl_pressure_label.setText(" -- bar")
                 self.rl_pressure_label.setStyleSheet("font: bold 24px;"
                                                      "color: #73E420;")
@@ -281,9 +281,9 @@ class TPMSWindow(QWidget):
                                                  "color: #73E420;")
 
             else:
-                self.rl_pressure_label.setText("{:.1f}".format(round(tpms.RearLeft.pressure, 1)) + " bar")
-                self.rl_temp_label.setText("{0:d}".format(round(tpms.RearLeft.temperature)) + "\u2103")
-                if tpms.RearLeft.warn:
+                self.rl_pressure_label.setText("{:.1f}".format(round(tpms.rear_left.pressure, 1)) + " bar")
+                self.rl_temp_label.setText("{0:d}".format(round(tpms.rear_left.temperature)) + "\u2103")
+                if tpms.rear_left.warn:
                     self.rl_pressure_label.setStyleSheet("font: bold 24px;"
                                                          "color: #ff9933;")
                     self.rl_temp_label.setStyleSheet("font: bold 20px;"
@@ -294,7 +294,7 @@ class TPMSWindow(QWidget):
                     self.rl_temp_label.setStyleSheet("font: bold 20px;"
                                                      "color: #73E420;")
         elif tire == "RR":
-            if math.isnan(tpms.RearRight.pressure):
+            if math.isnan(tpms.rear_right.pressure):
                 self.rr_pressure_label.setText(" -- bar")
                 self.rr_pressure_label.setStyleSheet("font: bold 24px;"
                                                     "color: #73E420;")
@@ -303,9 +303,9 @@ class TPMSWindow(QWidget):
                 self.rr_temp_label.setStyleSheet("font: bold 20px;"
                                                  "color: #73E420;")
             else:
-                self.rr_pressure_label.setText("{:.1f}".format(round(tpms.RearRight.pressure, 1)) + " bar")
-                self.rr_temp_label.setText("{0:d}".format(round(tpms.RearRight.temperature)) + "\u2103")
-                if tpms.RearRight.warn:
+                self.rr_pressure_label.setText("{:.1f}".format(round(tpms.rear_right.pressure, 1)) + " bar")
+                self.rr_temp_label.setText("{0:d}".format(round(tpms.rear_right.temperature)) + "\u2103")
+                if tpms.rear_right.warn:
                     self.rr_pressure_label.setStyleSheet("font: bold 24px;"
                                                          "color: #ff9933;")
                     self.rl_temp_label.setStyleSheet("font: bold 20px;"
