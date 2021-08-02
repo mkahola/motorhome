@@ -60,7 +60,7 @@ class Camcorder(QObject):
             self.preview_finished.emit()
             return
 
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 10)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 0)
 
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
