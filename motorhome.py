@@ -2,8 +2,6 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from PyQt5.QtWebKit import *
-from PyQt5.QtWebKitWidgets import *
 from PyQt5 import QtWidgets, QtCore, QtGui
 
 from datetime import datetime, timedelta
@@ -14,7 +12,6 @@ import sys
 import os.path
 import subprocess
 import configparser
-import nmap3
 from pathlib import Path
 from netifaces import interfaces, ifaddresses, AF_INET
 
@@ -24,7 +21,6 @@ from virb import Virb
 from camcorder import Camcorder
 from gps import Location
 from warns import Warnings
-from geolocation import Geolocation
 from ruuvi import RuuviTag, Ruuvi
 from searchvirb import SearchVirb
 

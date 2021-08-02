@@ -1,8 +1,6 @@
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-from PyQt5.QtWebKit import *
-from PyQt5.QtWebKitWidgets import *
 from PyQt5 import QtWidgets, QtCore, QtGui
 
 import time
@@ -69,10 +67,10 @@ class GPSWindow(QWidget):
         self.course = QLabel()
 
         # compass
-        web = QWebView()
-        web.settings().setAttribute(QWebSettings.JavascriptEnabled, True)
-        web.settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls, True);
-        web.load(QUrl("http://my.dashboard.com/compass.html"))
+        #web = QWebView()
+        #web.settings().setAttribute(QWebSettings.JavascriptEnabled, True)
+        #web.settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls, True);
+        #web.load(QUrl("http://my.dashboard.com/compass.html"))
 
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
@@ -139,7 +137,7 @@ class GPSWindow(QWidget):
 #        vbox.addWidget(self.fix, alignment=Qt.AlignCenter|Qt.AlignTop)
         vbox.addLayout(hbox2)
         vbox.addLayout(hbox3)
-        vbox.addWidget(web, alignment=Qt.AlignCenter)
+        #vbox.addWidget(web, alignment=Qt.AlignCenter)
         vbox.addWidget(homeButton, alignment=Qt.AlignCenter)
         self.setLayout(vbox)
 

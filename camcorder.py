@@ -2,10 +2,10 @@
 Garmin Virb camcorder
 """
 import os
+import cv2
 
 from PyQt5.QtCore import pyqtSignal, QObject
 from PyQt5.QtGui import QPixmap, QImage
-from cv2 import cv2
 from virb import Virb
 
 class Camcorder(QObject):

@@ -5,13 +5,6 @@ import math
 from datetime import datetime
 from pathlib import Path
 
-#from PyQt5.QtWidgets import *
-#from PyQt5.QtGui import *
-#from PyQt5.QtCore import *
-#from PyQt5.QtWebKit import *
-#from PyQt5.QtWebKitWidgets import *
-#from PyQt5 import QtWidgets, QtCore, QtGui
-
 from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QVBoxLayout
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
@@ -56,11 +49,6 @@ class SpeedoWindow(QWidget):
         self.setStyleSheet(STYLESHEET)
         self.setWindowTitle("Speedometer")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
-
-#        web = QWebView()
-#        web.settings().setAttribute(QWebSettings.JavascriptEnabled, True)
-#        web.settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls, True);
-#        web.load(QUrl("http://my.dashboard.com/speedo_digital.html"))
 
         home_button = QPushButton()
         home_button.setIcon(QIcon(self.prefix + 'home.png'))
@@ -110,7 +98,6 @@ class SpeedoWindow(QWidget):
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
-        #vbox.addWidget(web)
         vbox.addWidget(QLabel("km/h"), alignment=Qt.AlignCenter)
         vbox.addWidget(self.gps_speed_label, alignment=Qt.AlignCenter)
         vbox.addWidget(home_button, alignment=Qt.AlignCenter)
@@ -124,7 +111,6 @@ class SpeedoWindow(QWidget):
         self.update_temperature(data['temperature'])
         self.update_tpmswarn(data['tpms'])
         self.update_gps_fix(data['gpsFix'])
-        #self.update_speed(data['speed'])
         self.update_recording(data['recording'])
 
     def update_time(self, time_data):
