@@ -12,12 +12,13 @@ from pathlib import Path
 import nmap3
 import time
 import math
+import json
 
 from netifaces import interfaces, ifaddresses, AF_INET
 from gps3.agps3threaded import AGPS3mechanism
 from virb import Virb
 
-use_virb = True
+use_virb = False
 
 def search_virb(my_device):
     virb_ip = ""
@@ -62,6 +63,10 @@ def search_virb(my_device):
 
 def run_dash_server():
     async def gps(websocket, path):
+        d = {'speed':0.0,
+             'course': 0,
+            }
+
         gps_thread = AGPS3mechanism()
         gps_thread.stream_data()
         gps_thread.run_thread()
@@ -76,19 +81,30 @@ def run_dash_server():
         while True:
             try:
                 # speed in knots, convert to km/h
-                speed = round(float(gps_thread.data_stream.speed)*3.6, 1)
-                speed = '{:.1f}'.format(speed)
+                speed = round(gps_thread.data_stream.speed*3.6)
+                course = round(gps_thread.data_stream.track)
+
+                d['speed']  = '{:d}'.format(speed)
+                d['course'] = '{:d}'.format(course)
             except:
-                print("GPS speed failed, trying Garmin Virb")
-                speed = round(cam.get_speed()*3.6, 1)
-                speed = '{:.1f}'.format(speed)
+                if use_virb:
+                    print("GPS speed failed, trying Garmin Virb")
+                    speed = round(cam.get_speed()*3.6, 1)
+                    d['speed'] = '{:.1f}'.format(speed)
+                    d['course'] = "0"
+                else:
+                    pass
 
             try:
-                await websocket.send(speed)
+                data = json.dumps(d)
+                await websocket.send(data)
             except:
-                await websocket.send("0")
+                d['speed'] = "--"
+                d['course'] = "0"
+                data = json.dumps(d)
+                await websocket.send(data)
 
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.2)
 
     try:
         start_server = websockets.serve(gps, "127.0.0.1", 5678)
