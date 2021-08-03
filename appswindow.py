@@ -55,10 +55,10 @@ class AppsWindow(QWidget):
         # apps
         self.autoButton = QToolButton(self)
         self.autoButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        self.autoButton.setIcon(QIcon(self.prefix + 'android_auto.png'))
-        self.autoButton.setText("Android Auto")
+        self.autoButton.setIcon(QIcon(self.prefix + 'spotify.png'))
+        self.autoButton.setText("Spotify")
         self.autoButton.setIconSize(QSize(size, size))
-        self.autoButton.clicked.connect(self.launch_android_auto)
+        self.autoButton.clicked.connect(self.launch_spotify)
 
         self.ytmusicButton = QToolButton(self)
         self.ytmusicButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
@@ -161,13 +161,13 @@ class AppsWindow(QWidget):
 
         self.showFullScreen()
 
-    def launch_android_auto(self):
-        print("appswindow: Launching android auto")
+    def launch_spotify(self):
+        print("appswindow: Launching Spotify")
 
         try:
-            subprocess.Popen(['/home/pi/openauto/bin/autoapp'])
+            subprocess.Popen(['chromium-browser', '--start-fullscreen', '--app=https://open.spotify.com'])
         except:
-            print("unable to launch android auto")
+            print("unable to launch Spotify")
 
         self.exit()
 
