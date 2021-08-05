@@ -4,25 +4,24 @@ Search Garmin Virb from the network
 import time
 import subprocess
 import nmap3
+import configparser
+import netifaces
+from pathlib import Path
 
 from PyQt5.QtCore import pyqtSignal, QObject
-import netifaces
 
-def search_virb():
-    """ Search Garmin Virb """
-    def is_virb_ssid():
-        ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
-        if ssid == "VIRB-6267":
-            return True
-
+def ping_ok(ip):
+    try:
+        cmd = "ping -c 1 " + ip
+        output = subprocess.check_output(cmd, shell=True)
+    except Exception as e:
         return False
 
+    return True
+
+def search_with_nmap():
     virb_ip = ""
 
-    if is_virb_ssid():
-        return "192.168.0.1"
-
-    print("Searching Garmin Virb")
     for iface_name in netifaces.interfaces():
         addresses = [i['addr'] for i in netifaces.ifaddresses(iface_name).setdefault(netifaces.AF_INET, [{'addr':'No IP addr'}])]
         if iface_name == "wlan0":
@@ -37,14 +36,41 @@ def search_virb():
 
     for i in range(len(result)):
         try:
-            device = result[list(result.keys())[i]]['hostname'][0]['name']
-            if device == "Garmin-WiFi":
+           device = result[list(result.keys())[i]]['hostname'][0]['name']
+           if device == "Garmin-WiFi":
                 virb_ip = list(result)[i]
                 break
         except IndexError:
             pass
         except KeyError:
             pass
+
+    return virb_ip
+
+def search_virb():
+    conf_file = str(Path.home()) + "/.motorhome/network.conf"
+    config = configparser.ConfigParser()
+    config.read(conf_file)
+
+    ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
+
+    try:
+        virb_ip = config[ssid]['ip']
+    except Exception as e:
+        virb_ip = ""
+
+    if ping_ok(virb_ip):
+        print("searchvirb: ping to " + virb_ip + " ok")
+        return virb_ip
+    else:
+        print("searchvirb: Searching Garmin Virb with nmap")
+        virb_ip = search_with_nmap()
+        if not virb_ip:
+            data = config[ssid]
+            data['ip'] = virb_ip
+
+            with open(conf_file, 'w') as configfile:
+                config.write(configfile)
 
     return virb_ip
 
