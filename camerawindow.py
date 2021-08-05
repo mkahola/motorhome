@@ -5,6 +5,7 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 
 import time
 import math
+import subprocess
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -49,6 +50,15 @@ stylesheet = """
         padding: 12px;
     }
 """
+
+def ping_ok(ip):
+    try:
+        cmd = "ping -c 1 " + ip
+        output = subprocess.check_output(cmd, shell=True)
+    except Exception as e:
+        return False
+
+    return True
 
 class CameraWindow(QWidget):
     stop_preview = pyqtSignal()
@@ -201,7 +211,10 @@ class CameraWindow(QWidget):
     def initPreviewThread(self):
         if not self.virb.ip:
             return
-        self.previewLabel.setText("")
+        self.previewLabel.setText("Checking connection...")
+        if not ping_ok(self.virb.ip):
+            self.previewLabel.setText("Connection failed")
+            return
 
         self.previewThread = QThread()
         self.previewWorker = Camcorder(self.virb.ip)
