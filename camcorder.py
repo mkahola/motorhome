@@ -28,7 +28,6 @@ class Camcorder(QObject):
         """ Start video recording """
         #set autorecord off
         self.camera.set_features('autoRecord', 'off')
-        self.camera.set_features('videoLoop', '30')
         self.camera.start_recording()
         print("start recording")
         self.rec_start_finished.emit()
@@ -36,8 +35,7 @@ class Camcorder(QObject):
     def stop_recording(self):
         """ Stop video recording """
         self.camera.stop_recording()
-        self.camera.set_features('autoRecord', 'off')
-        self.camera.set_features('videoLoop', '30')
+        self.camera.set_features('autoRecord', 'whenMoving')
         print("stop recording")
         self.rec_stop_finished.emit()
 
@@ -51,6 +49,9 @@ class Camcorder(QObject):
     def live_preview(self):
         """ Show live preview """
         print("setting up camera")
+
+        self.camera.set_features('autoRecord', 'whenMoving')
+        self.camera.set_features('videoLoop', '30')
 
         url = "rtsp://" + self.camera.host[0] + "/livePreviewStream"
         try:
