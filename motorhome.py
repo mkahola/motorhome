@@ -281,7 +281,7 @@ class MainApp(QMainWindow):
 
     def createInfoWindow(self):
         self.infoWindow = InfoWindow(parent=self)
-        self.infoWindow.createWindow(self.infobar)
+        self.infoWindow.createWindow(self.infobar, self.virb.ip)
         self.info.connect(self.infoWindow.updateInfobar)
         self.infoWindow.show()
 

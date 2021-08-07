@@ -6,6 +6,8 @@ from PyQt5 import QtWidgets, QtCore, QtGui
 import time
 import math
 import configparser
+import subprocess
+import netifaces
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -36,18 +38,64 @@ stylesheet = """
         background: transparent;
         border: 0px;
     }
+    QTabBar::tab {
+        height: 32px;
+        width: 128px;
+        color: #ffffff;
+        margin: 0px;
+    }
+    QTabBar::tab:selected {
+        background-color: #323232;
+        font: 24pt;
+        color: #ffffff;
+        margin: 0px;
+    }
+    QTabBar::tab:!selected {
+        background-color: #323232;
+        font: 12pt;
+        color: #ffffff;
+        margin: 0px;
+    }
 """
+
+def get_ssid():
+    return subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
+
+def get_ip():
+    ip = ""
+    for iface_name in netifaces.interfaces():
+        addresses = [i['addr'] for i in netifaces.ifaddresses(iface_name).setdefault(netifaces.AF_INET, [{'addr':'No IP addr'}])]
+        if iface_name == "wlan0":
+            ip = addresses[0]
+            print(ip)
+            break
+
+    return ip
+
+def get_cpu_temp():
+    temp = "--"
+    try:
+        temp = subprocess.check_output(['vcgencmd', 'measure_temp']).decode("utf-8")
+        temp = temp.split('=')[1].split("'")[0]
+    except FileNotFoundError:
+        pass
+
+    return temp
 
 class InfoWindow(QWidget):
     info = pyqtSignal()
 
-    def createWindow(self, infobar):
+    def createWindow(self, infobar, cam_ip):
         parent = None
         super(InfoWindow, self).__init__(parent)
 
         self.setStyleSheet(stylesheet)
         self.setWindowTitle("Information")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
+
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.get_cpu_temp)
+        self.timer.start(15*1000)
 
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
@@ -98,6 +146,8 @@ class InfoWindow(QWidget):
         hbox1.addWidget(self.timeLabel,     alignment=Qt.AlignTop|Qt.AlignRight)
         # === infobar ===
 
+        pages = [QWidget(), QWidget()]
+
         conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
         config = configparser.ConfigParser()
 
@@ -147,17 +197,51 @@ class InfoWindow(QWidget):
         hbox2.addWidget(typeLabel)
         hbox2.addWidget(makerLabel)
 
+        tabs = QTabWidget()
+        tabs.addTab(pages[0], "Vehicle")
+        tabs.addTab(pages[1], "Network")
+
+        vehicle_layout = QVBoxLayout()
+        vehicle_layout.addWidget(modelLabel)
+        vehicle_layout.addWidget(chassisLabel)
+        vehicle_layout.addWidget(vinLabel)
+        vehicle_layout.addLayout(hbox2)
+
+        ssidLabel = QLabel("SSID: " + get_ssid())
+        ipLabel = QLabel("IP: " + get_ip())
+        camLabel = QLabel("Camera IP: " + cam_ip)
+        self.cpuTempLabel = QLabel()
+        self.get_cpu_temp()
+
+        network_layout = QVBoxLayout()
+        network_layout.addWidget(ssidLabel)
+        network_layout.addWidget(ipLabel)
+        network_layout.addWidget(camLabel)
+        network_layout.addWidget(self.cpuTempLabel)
+
+        pages[0].setLayout(vehicle_layout)
+        pages[1].setLayout(network_layout)
+
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
-        vbox.addWidget(modelLabel)
-        vbox.addWidget(chassisLabel)
-        vbox.addWidget(vinLabel)
-        vbox.addLayout(hbox2)
+        vbox.addWidget(tabs, 1)
         vbox.addWidget(homeButton, alignment=Qt.AlignCenter)
 
         self.setLayout(vbox)
 
         self.showFullScreen()
+
+    def get_cpu_temp(self):
+        temp = "--"
+        try:
+            temp = subprocess.check_output(['vcgencmd', 'measure_temp']).decode("utf-8").split('=')[1]
+            temp = temp.split("'")[0]
+            self.cpuTempLabel.setText("CPU temperature: " + temp + "\u2103")
+        except FileNotFoundError:
+            pass
+
+        print("infowindow: CPU temperature: " + temp + "C")
+        return temp
 
     def updateInfobar(self, data):
         self.updateTime(data['time'])
@@ -204,6 +288,11 @@ class InfoWindow(QWidget):
             self.recInfoLabel.setPixmap(self.rec_off)
 
     def exit(self):
+        try:
+            self.timer.stop()
+        except NameError:
+            pass
+
         self.close()
 
 
