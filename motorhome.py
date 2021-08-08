@@ -1,26 +1,22 @@
 #!/usr/bin/env python3
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5 import QtWidgets, QtCore, QtGui
-
-from datetime import datetime, timedelta
-import time
+"""
+Motorhome infotainment project
+"""
 import math
-import psutil
 import sys
 import os.path
-import subprocess
 import configparser
 from pathlib import Path
-from netifaces import interfaces, ifaddresses, AF_INET
+from datetime import datetime
+
+from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel, QPushButton, QToolButton, QHBoxLayout, QVBoxLayout, QGridLayout
+from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtCore import Qt, QThread, QTimer, QSize, pyqtSignal
 
 from tires import Tires
 from tpms import TPMS
 from virb import Virb
-from camcorder import Camcorder
 from gps import Location
-from warns import Warnings
 from ruuvi import RuuviTag, Ruuvi
 from searchvirb import SearchVirb
 
@@ -32,7 +28,7 @@ from ruuviwindow import RuuviWindow
 from appswindow import AppsWindow
 from infowindow import InfoWindow
 
-stylesheet = """
+STYLESHEET = """
     QMainWindow {
         border-image: url(res/background.png) 0 0 0 0 stretch stretch;
         background-repeat: no-repeat;
@@ -63,7 +59,12 @@ stylesheet = """
     }
 """
 
+def poweroff():
+    """ power off the system """
+    os.system("sudo shutdown -h now")
+
 class InfoBar:
+    """ Infobar on top of the screen """
     def __init__(self):
         self.time = datetime.now()
         self.temperature = math.nan
@@ -72,7 +73,28 @@ class InfoBar:
         self.speed = math.nan
         self.recording = False
 
+    def get_temperature(self):
+        """ get temperature """
+        return self.temperature
+
+    def get_tpms_warn(self):
+        """ get TPMS warn status """
+        return self.tpmsWarn
+
+    def get_gps_fix(self):
+        """ get GPS fix status """
+        return self.gpsFix
+
+    def get_speed(self):
+        """ get speed """
+        return self.speed
+
+    def get_recording(self):
+        """ get dashcam recording status """
+        return self.recording
+
 class GPS:
+    """ GPS container """
     def __init__(self):
         self.lat = math.nan
         self.lon = math.nan
@@ -80,6 +102,14 @@ class GPS:
         self.course = math.nan
         self.fix = 0
         self.speed = math.nan
+
+    def get_speed(self):
+        """ get GPS speed """
+        return self.speed
+
+    def set_speed(self, value):
+        """ set GPS speed """
+        self.speed = value
 
 class MainApp(QMainWindow):
     stop_signal = pyqtSignal()
@@ -91,8 +121,32 @@ class MainApp(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("Motorhome Info")
-        self.setStyleSheet(stylesheet)
+        self.setStyleSheet(STYLESHEET)
+
+        self.init_gui()
+
+        # start threads
+        self.initTPMSThread()
+        self.initSearchVirbThread()
+        self.initRuuvitagThread()
+        self.initGPSThread()
+
+        self.showFullScreen()
+#        self.showMaximized()
+
+
+    def init_gui(self):
+        """ initialize GUI """
         self.prefix = str(Path.home()) + "/.motorhome/res/"
+
+        # create infotainment windows
+        self.speedoWindow = SpeedoWindow(parent=self)
+        self.cameraWindow = CameraWindow(parent=self)
+        self.tpmsWindow = TPMSWindow(parent=self)
+        self.gpsWindow = GPSWindow(parent=self)
+        self.ruuviWindow = RuuviWindow(parent=self)
+        self.appsWindow = AppsWindow(parent=self)
+        self.infoWindow = InfoWindow(parent=self)
 
         self.infobar = InfoBar()
         self.gps = GPS()
@@ -105,67 +159,67 @@ class MainApp(QMainWindow):
         size = 64
 
         #speedometer
-        self.speedoButton = QToolButton(self)
-        self.speedoButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        self.speedoButton.setIcon(QIcon(self.prefix + 'speedo.png'))
-        self.speedoButton.setText("Speedo")
-        self.speedoButton.setIconSize(QSize(size, size))
-        self.speedoButton.clicked.connect(self.createSpeedoWindow)
+        speedoButton = QToolButton(self)
+        speedoButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        speedoButton.setIcon(QIcon(self.prefix + 'speedo.png'))
+        speedoButton.setText("Speedo")
+        speedoButton.setIconSize(QSize(size, size))
+        speedoButton.clicked.connect(self.createSpeedoWindow)
 
         # dashcam
-        self.cameraButton = QToolButton(self)
-        self.cameraButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        self.cameraButton.setIcon(QIcon(self.prefix + 'dashcam.png'))
-        self.cameraButton.setText("Dashcam")
-        self.cameraButton.setIconSize(QSize(size, size))
-        self.cameraButton.clicked.connect(self.createCameraWindow)
-        self.cameraButton.setEnabled(False)
+        cameraButton = QToolButton(self)
+        cameraButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        cameraButton.setIcon(QIcon(self.prefix + 'dashcam.png'))
+        cameraButton.setText("Dashcam")
+        cameraButton.setIconSize(QSize(size, size))
+        cameraButton.clicked.connect(self.createCameraWindow)
+        cameraButton.setEnabled(False)
 
         # tpms
-        self.tpmsButton = QToolButton(self)
-        self.tpmsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        self.tpmsButton.setIcon(QIcon(self.prefix + 'tpms.png'))
-        self.tpmsButton.setText("TPMS")
-        self.tpmsButton.setIconSize(QSize(size, size))
-        self.tpmsButton.clicked.connect(self.createTPMSWindow)
+        tpmsButton = QToolButton(self)
+        tpmsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        tpmsButton.setIcon(QIcon(self.prefix + 'tpms.png'))
+        tpmsButton.setText("TPMS")
+        tpmsButton.setIconSize(QSize(size, size))
+        tpmsButton.clicked.connect(self.createTPMSWindow)
 
         # GPS
-        self.gpsButton = QToolButton(self)
-        self.gpsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        self.gpsButton.setIcon(QIcon(self.prefix + 'location.png'))
-        self.gpsButton.setText("Location")
-        self.gpsButton.setIconSize(QSize(size, size))
-        self.gpsButton.clicked.connect(self.createGPSWindow)
+        gpsButton = QToolButton(self)
+        gpsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        gpsButton.setIcon(QIcon(self.prefix + 'location.png'))
+        gpsButton.setText("Location")
+        gpsButton.setIconSize(QSize(size, size))
+        gpsButton.clicked.connect(self.createGPSWindow)
 
         # ruuvitag
-        self.ruuviButton = QToolButton(self)
-        self.ruuviButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        self.ruuviButton.setIcon(QIcon(self.prefix + 'ruuvi.png'))
-        self.ruuviButton.setText("Ruuvitag")
-        self.ruuviButton.setIconSize(QSize(size, size))
-        self.ruuviButton.clicked.connect(self.createRuuviWindow)
+        ruuviButton = QToolButton(self)
+        ruuviButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        ruuviButton.setIcon(QIcon(self.prefix + 'ruuvi.png'))
+        ruuviButton.setText("Ruuvitag")
+        ruuviButton.setIconSize(QSize(size, size))
+        ruuviButton.clicked.connect(self.createRuuviWindow)
 
         # apps
-        self.appsButton = QToolButton(self)
-        self.appsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        self.appsButton.setIcon(QIcon(self.prefix + 'apps.png'))
-        self.appsButton.setText("Apps")
-        self.appsButton.setIconSize(QSize(size, size))
-        self.appsButton.clicked.connect(self.createAppsWindow)
+        appsButton = QToolButton(self)
+        appsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        appsButton.setIcon(QIcon(self.prefix + 'apps.png'))
+        appsButton.setText("Apps")
+        appsButton.setIconSize(QSize(size, size))
+        appsButton.clicked.connect(self.createAppsWindow)
 
         # vehicle info
-        self.infoButton = QToolButton(self)
-        self.infoButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        self.infoButton.setIcon(QIcon(self.prefix + 'info_128x128.png'))
-        self.infoButton.setText("Info")
-        self.infoButton.setIconSize(QSize(size, size))
-        self.infoButton.clicked.connect(self.createInfoWindow)
+        infoButton = QToolButton(self)
+        infoButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        infoButton.setIcon(QIcon(self.prefix + 'info_128x128.png'))
+        infoButton.setText("Info")
+        infoButton.setIconSize(QSize(size, size))
+        infoButton.clicked.connect(self.createInfoWindow)
 
         # poweroff
         powerButton = QPushButton("", self)
         powerButton.setIcon(QIcon(self.prefix + 'power.png'))
         powerButton.setIconSize(QSize(32, 32))
-        powerButton.clicked.connect(self.poweroff)
+        powerButton.clicked.connect(poweroff)
 
         # time
         self.timeLabel = QLabel()
@@ -185,7 +239,7 @@ class MainApp(QMainWindow):
 
         self.updateTemperature(self.ruuvi.temperature)
 
-        self.datetimer=QTimer()
+        self.datetimer = QTimer()
         self.datetimer.timeout.connect(self.updateTime)
         self.datetimer.start(1000)
 
@@ -206,22 +260,22 @@ class MainApp(QMainWindow):
         hbox1 = QHBoxLayout()
         hbox1.addWidget(self.tpmsWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.tempWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
-        hbox1.addWidget(self.gpsInfoLabel,  alignment=Qt.AlignTop|Qt.AlignLeft)
-        hbox1.addWidget(self.recInfoLabel,  alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.gpsInfoLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.recInfoLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.gpsSpeedLabel, alignment=Qt.AlignTop|Qt.AlignRight)
         hbox1.addWidget(self.tempInfoLabel, alignment=Qt.AlignTop|Qt.AlignRight)
-        hbox1.addWidget(self.timeLabel,     alignment=Qt.AlignTop|Qt.AlignRight)
+        hbox1.addWidget(self.timeLabel, alignment=Qt.AlignTop|Qt.AlignRight)
 
         grid = QGridLayout()
-        grid.addWidget(self.speedoButton, 0, 0)
-        grid.addWidget(self.cameraButton, 0, 1)
-        grid.addWidget(self.tpmsButton,   0, 2)
+        grid.addWidget(speedoButton, 0, 0)
+        grid.addWidget(cameraButton, 0, 1)
+        grid.addWidget(tpmsButton, 0, 2)
 
-        grid.addWidget(self.gpsButton,    1, 0)
-        grid.addWidget(self.ruuviButton,  1, 1)
-        grid.addWidget(self.appsButton,   1, 2)
+        grid.addWidget(gpsButton, 1, 0)
+        grid.addWidget(ruuviButton, 1, 1)
+        grid.addWidget(appsButton, 1, 2)
 
-        grid.addWidget(self.infoButton,   2, 0)
+        grid.addWidget(infoButton, 2, 0)
 
         grid.setSpacing(10)
 
@@ -233,63 +287,56 @@ class MainApp(QMainWindow):
         self.centralWidget.setLayout(vbox)
         self.setCentralWidget(self.centralWidget)
 
-        # start threads
-        self.initTPMSThread()
-        self.initSearchVirbThread()
-        self.initRuuvitagThread()
-        self.initGPSThread()
-
-        self.showFullScreen()
-#        self.showMaximized()
-
     def createSpeedoWindow(self):
-        self.speedoWindow = SpeedoWindow(parent=self)
+        """ create window for speedometer """
         self.speedoWindow.create_window(self.infobar)
         self.info.connect(self.speedoWindow.update_infobar)
         self.speedoWindow.show()
 
     def createCameraWindow(self):
-        self.cameraWindow = CameraWindow(parent=self)
+        """ create window for dashcam """
         self.cameraWindow.createWindow(self.infobar, self.virb)
         self.cameraWindow.recording.connect(self.getRecSignal)
         self.info.connect(self.cameraWindow.updateInfobar)
         self.cameraWindow.show()
 
     def createTPMSWindow(self):
-        self.tpmsWindow = TPMSWindow(parent=self)
+        """ create window for tire pressure monitor system """
         self.tpmsWindow.createWindow(self.infobar, self.tpms)
         self.info.connect(self.tpmsWindow.updateInfobar)
         self.tpmsWindow.show()
 
     def createGPSWindow(self):
-        self.gpsWindow = GPSWindow(parent=self)
+        """ create window for GPS data """
         self.gpsWindow.createWindow(self.infobar, self.gps)
         self.info.connect(self.gpsWindow.updateInfobar)
         self.gpsWindow.show()
 
     def createRuuviWindow(self):
-        self.ruuviWindow = RuuviWindow(parent=self)
+        """ create window for Ruuvitag data """
         self.ruuviWindow.createWindow(self.infobar, self.ruuvi)
         self.info.connect(self.ruuviWindow.updateInfobar)
         self.ruuviWindow.show()
 
     def createAppsWindow(self):
-        self.appsWindow = AppsWindow(parent=self)
+        """ create window for 3rd party apps """
         self.appsWindow.createWindow(self.infobar)
         self.info.connect(self.appsWindow.updateInfobar)
         self.appsWindow.show()
 
     def createInfoWindow(self):
-        self.infoWindow = InfoWindow(parent=self)
+        """ create window for system information """
         self.infoWindow.createWindow(self.infobar, self.virb.ip)
         self.info.connect(self.infoWindow.updateInfobar)
         self.infoWindow.show()
 
     def getRecSignal(self, data):
+        """ get dashcam recording status """
         self.infobar.recording = data
         self.updateRecording(self.infobar.recording)
 
     def updateTime(self):
+        """ update date and time """
         t = datetime.now()
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
         self.infobar.time = t
@@ -303,6 +350,7 @@ class MainApp(QMainWindow):
         self.info.emit(data)
 
     def initSearchVirbThread(self):
+        """ initialize search for Garmin Virb ip """
         self.virbThread = QThread()
         self.virbWorker = SearchVirb()
         self.exit_signal.connect(self.virbWorker.stop)
@@ -317,6 +365,7 @@ class MainApp(QMainWindow):
         self.virbThread.start()
 
     def setVirbIP(self, ip):
+        """ set Garmin Virb ip """
         self.virb.ip = ip
         self.cameraButton.setEnabled(True)
         try:
@@ -325,6 +374,7 @@ class MainApp(QMainWindow):
             pass
 
     def initTPMSThread(self):
+        """ initialize TPMS thread """
         self.tpmsThread = QThread()
         self.tpmsWorker = TPMS()
         self.exit_signal.connect(self.tpmsWorker.stop)
@@ -341,7 +391,8 @@ class MainApp(QMainWindow):
         self.tpmsThread.start()
 
     def initGPSThread(self):
-        self.gpsThread =  QThread()
+        """ initialize GPS thread """
+        self.gpsThread = QThread()
         self.gpsWorker = Location()
         self.exit_signal.connect(self.gpsWorker.stop)
         self.gpsWorker.moveToThread(self.gpsThread)
@@ -356,6 +407,7 @@ class MainApp(QMainWindow):
         self.gpsThread.start()
 
     def setTPMSWarn(self, warn):
+        """ Set TPMS warn on/off """
         if warn:
             self.infobar.tpmsWarn = True
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
@@ -365,10 +417,11 @@ class MainApp(QMainWindow):
 
         try:
             self.tpmsWindow.setTPMSWarn(warn)
-        except:
+        except AttributeError:
             print("Error sending tpms warn to tpms")
 
     def setTPMS(self, sensor):
+        """ set TPMS data """
         tire = sensor[0]
         self.tpms.set_pressure(tire, sensor[1])
         self.tpms.set_temperature(tire, sensor[2])
@@ -380,16 +433,17 @@ class MainApp(QMainWindow):
             pass
 
     def initRuuvitagThread(self):
+        """ initialize Ruuvitag thread """
         conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
         config = configparser.ConfigParser()
 
         try:
             config.read(conf_file)
             mac = config['RuuviTag']['mac']
-        except:
+        except IOError:
             return
 
-        self.ruuviThread =  QThread()
+        self.ruuviThread = QThread()
         self.ruuviWorker = RuuviTag(mac)
         self.exit_signal.connect(self.ruuviWorker.stop)
         self.ruuviWorker.moveToThread(self.ruuviThread)
@@ -412,6 +466,7 @@ class MainApp(QMainWindow):
         self.ruuviThread.start()
 
     def updateTemperature(self, temperature):
+        """ update temperature """
         if math.isnan(temperature):
             return
 
@@ -431,6 +486,7 @@ class MainApp(QMainWindow):
         self.tempInfoLabel.setText("{0:d}".format(round(self.ruuvi.temperature)) + "\u2103")
 
     def updateHumidity(self, humidity):
+        """ update humidity """
         if math.isnan(humidity):
             return
         self.ruuvi.humidity = humidity
@@ -440,6 +496,7 @@ class MainApp(QMainWindow):
             pass
 
     def updatePressure(self, pressure):
+        """ update air pressure """
         if math.isnan(pressure):
             return
 
@@ -450,6 +507,7 @@ class MainApp(QMainWindow):
             pass
 
     def updateRuuviBatt(self, voltage):
+        """ update Ruuvitag battery voltage """
         if math.isnan(voltage):
             return
 
@@ -460,6 +518,7 @@ class MainApp(QMainWindow):
             pass
 
     def updateGPSFix(self, fix):
+        """ Update GPS fix status """
         if fix <= 1:
             self.infobar.gpsFix = False
         else:
@@ -478,6 +537,7 @@ class MainApp(QMainWindow):
             pass
 
     def updateLocation(self, location):
+        """ update location """
         self.gps.lat = location[0]
         self.gps.lon = location[1]
         self.gps.alt = location[2]
@@ -494,24 +554,20 @@ class MainApp(QMainWindow):
         self.gpsSpeedLabel.setText("{:d}".format(round(self.infobar.speed*3.6)) + " km/h")
 
     def updateRecording(self, recording):
+        """ Update recording info on infobar """
         if recording:
             self.recInfoLabel.setPixmap(self.rec_on)
         else:
             self.recInfoLabel.setPixmap(self.rec_off)
 
-    def poweroff(self):
-        os.system("sudo shutdown -h now")
-
     def keyPressEvent(self, event):
+        """ check if ESC is pressed """
         if event.key() == Qt.Key_Escape:
             self.exit_signal.emit()
-#            self.virbThread.join()
-#            self.TPMSThread.join()
             self.datetimer.stop()
             sys.exit()
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    win = MainApp()
-    sys.exit(app.exec_())
-
+    APP = QApplication(sys.argv)
+    WIN = MainApp()
+    sys.exit(APP.exec_())
