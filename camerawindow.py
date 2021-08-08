@@ -1,18 +1,19 @@
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5 import QtWidgets, QtCore, QtGui
-
-import time
+"""
+Window implemetation for dashcam
+"""
 import math
 import subprocess
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
+
+from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QVBoxLayout
+from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtCore import Qt, QThread, QTimer, QSize, pyqtSignal
 
 from virb import Virb
 from camcorder import Camcorder
 
-stylesheet = """
+STYLESHEET = """
     QWidget {
         background: #323232;
     }
@@ -52,6 +53,7 @@ stylesheet = """
 """
 
 def ping_ok(ip):
+    """ Check if we can ping to ip """
     try:
         cmd = "ping -c 1 " + ip
         output = subprocess.check_output(cmd, shell=True)
@@ -61,11 +63,13 @@ def ping_ok(ip):
     return True
 
 class CameraWindow(QWidget):
+    """ window implementation for dashcam """
     stop_preview = pyqtSignal()
     recording = pyqtSignal(bool)
     info = pyqtSignal(dict)
 
     def createWindow(self, infobar, virb):
+        """ create window for dashcam """
         parent = None
         super(CameraWindow, self).__init__(parent)
 
@@ -73,7 +77,7 @@ class CameraWindow(QWidget):
         self.previewScale = 80
         self.rec = infobar.recording
 
-        self.setStyleSheet(stylesheet)
+        self.setStyleSheet(STYLESHEET)
         self.setWindowTitle("Dashcam")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 
@@ -86,29 +90,29 @@ class CameraWindow(QWidget):
             self.recButton.setIcon(QIcon(self.prefix + 'stop.png'))
             self.recButton.setIconSize(QSize(64, 64))
             self.recButton.setStyleSheet("background-color: #373636;"
-                                 "border-style: outset;"
-                                 "border-width: 2px;"
-                                 "border-radius: 10px;"
-                                 "border-color: beige;"
-                                 "font: bold 32px;"
-                                 "color: red;"
-                                 "min-width: 72px;"
-                                 "min-height: 72px;"
-                                 "padding: 12px;")
+                                         "border-style: outset;"
+                                         "border-width: 2px;"
+                                         "border-radius: 10px;"
+                                         "border-color: beige;"
+                                         "font: bold 32px;"
+                                         "color: red;"
+                                         "min-width: 72px;"
+                                         "min-height: 72px;"
+                                         "padding: 12px;")
         else:
             self.recButton.setChecked(False)
             self.recButton.setIcon(QIcon(self.prefix + 'rec.png'))
             self.recButton.setIconSize(QSize(64, 64))
             self.recButton.setStyleSheet("background-color: darkgrey;"
-                                 "border-style: outset;"
-                                 "border-width: 2px;"
-                                 "border-radius: 10px;"
-                                 "border-color: beige;"
-                                 "font: bold 32px;"
-                                 "color: red;"
-                                 "min-width: 72px;"
-                                 "min-height: 72px;"
-                                 "padding: 12px;")
+                                         "border-style: outset;"
+                                         "border-width: 2px;"
+                                         "border-radius: 10px;"
+                                         "border-color: beige;"
+                                         "font: bold 32px;"
+                                         "color: red;"
+                                         "min-width: 72px;"
+                                         "min-height: 72px;"
+                                         "padding: 12px;")
 
         self.snapshotButton = QPushButton("", self)
         self.snapshotButton.setIcon(QIcon(self.prefix + 'snapshot.png'))
@@ -201,14 +205,16 @@ class CameraWindow(QWidget):
         self.initPreviewThread()
 
         if self.virb.ip:
-            self.updateBatt()
-            self.timer=QTimer()
+            self.camera = Virb((self.virb.ip, 80))
+            self.timer = QTimer()
             self.timer.timeout.connect(self.updateBatt)
             self.timer.start(30*1000)
+            self.updateBatt()
 
         self.showFullScreen()
 
     def initPreviewThread(self):
+        """ intialize preview thread """
         if not self.virb.ip:
             return
         self.previewLabel.setText("Checking connection...")
@@ -230,6 +236,7 @@ class CameraWindow(QWidget):
         self.previewThread.start()
 
     def initStartRecThread(self):
+        """ initialize to start recording thread """
         if not self.virb.ip:
             return
 
@@ -247,6 +254,7 @@ class CameraWindow(QWidget):
         self.startRecThread.start()
 
     def initStopRecThread(self):
+        """ initialize to stop recording thread """
         if not self.recording or not self.virb.ip:
             return
 
@@ -264,6 +272,7 @@ class CameraWindow(QWidget):
         self.stopRecThread.start()
 
     def initSnapshotThread(self):
+        """ initialize snapshot thread """
         if not self.virb.ip:
             return
 
@@ -282,21 +291,22 @@ class CameraWindow(QWidget):
         self.snapshotThread.start()
 
     def record(self):
+        """ start/stop recording """
         if self.recButton.isChecked():
             self.recording.emit(True)
             self.updateRecording(True)
             self.recButton.setIcon(QIcon(self.prefix + 'stop.png'))
             self.recButton.setIconSize(QSize(64, 64))
             self.recButton.setStyleSheet("background-color: #373636;"
-                                 "border-style: outset;"
-                                 "border-width: 2px;"
-                                 "border-radius: 10px;"
-                                 "border-color: beige;"
-                                 "font: bold 32px;"
-                                 "color: red;"
-                                 "min-width: 72px;"
-                                 "min-height: 72px;"
-                                 "padding: 12px;")
+                                         "border-style: outset;"
+                                         "border-width: 2px;"
+                                         "border-radius: 10px;"
+                                         "border-color: beige;"
+                                         "font: bold 32px;"
+                                         "color: red;"
+                                         "min-width: 72px;"
+                                         "min-height: 72px;"
+                                         "padding: 12px;")
             self.initStartRecThread()
         else:
             self.recording.emit(False)
@@ -304,49 +314,53 @@ class CameraWindow(QWidget):
             self.recButton.setIcon(QIcon(self.prefix + 'rec.png'))
             self.recButton.setIconSize(QSize(64, 64))
             self.recButton.setStyleSheet("background-color: darkgrey;"
-                                 "border-style: outset;"
-                                 "border-width: 2px;"
-                                 "border-radius: 10px;"
-                                 "border-color: beige;"
-                                 "font: bold 32px;"
-                                 "color: red;"
-                                 "min-width: 72px;"
-                                 "min-height: 72px;"
-                                 "padding: 12px;")
+                                         "border-style: outset;"
+                                         "border-width: 2px;"
+                                         "border-radius: 10px;"
+                                         "border-color: beige;"
+                                         "font: bold 32px;"
+                                         "color: red;"
+                                         "min-width: 72px;"
+                                         "min-height: 72px;"
+                                         "padding: 12px;")
             self.initStopRecThread()
 
     def snapshot(self):
+        """ take a snapshot """
         self.snapshotButton.setStyleSheet("background-color: #373636;"
-                             "border-style: outset;"
-                             "border-width: 2px;"
-                             "border-radius: 10px;"
-                             "border-color: beige;"
-                             "font: bold 32px;"
-                             "color: red;"
-                             "min-width: 72px;"
-                             "min-height: 72px;"
-                             "padding: 12px;")
+                                          "border-style: outset;"
+                                          "border-width: 2px;"
+                                          "border-radius: 10px;"
+                                          "border-color: beige;"
+                                          "font: bold 32px;"
+                                          "color: red;"
+                                          "min-width: 72px;"
+                                          "min-height: 72px;"
+                                          "padding: 12px;")
         self.snapshotButton.setEnabled(False)
         self.initSnapshotThread()
 
     def updateSnapshotButton(self):
+        """ update snapshot button status """
         self.snapshotButton.setEnabled(True)
         self.snapshotButton.setStyleSheet("background-color: darkgrey;"
-                             "border-style: outset;"
-                             "border-width: 2px;"
-                             "border-radius: 10px;"
-                             "border-color: beige;"
-                             "font: bold 32px;"
-                             "color: black;"
-                             "min-width: 72px;"
-                             "min-height: 72px;"
-                             "padding: 12px;")
+                                          "border-style: outset;"
+                                          "border-width: 2px;"
+                                          "border-radius: 10px;"
+                                          "border-color: beige;"
+                                          "font: bold 32px;"
+                                          "color: black;"
+                                          "min-width: 72px;"
+                                          "min-height: 72px;"
+                                          "padding: 12px;")
 
     def updatePreview(self, pixmap):
+        """ update preview """
         self.previewLabel.setPixmap(pixmap.scaled(int(704*self.previewScale/100), int(396*self.previewScale/100),
-                                                  QtCore.Qt.KeepAspectRatio))
+                                                  Qt.KeepAspectRatio))
 
     def setVirbIP(self, ip):
+        """ set Garmin Virb ip """
         self.virb.ip = ip
         self.recButton.setEnabled(True)
         self.snapshotButton.setEnabled(True)
@@ -355,14 +369,13 @@ class CameraWindow(QWidget):
             self.initPreviewThread()
 
     def updateBatt(self):
-        camera = Virb((self.virb.ip, 80))
-
+        """ update Garmin Virb battery status """
         try:
-            batt = camera.get_batt_status()
+            batt = self.camera.get_batt_status()
 
             if batt < 5:
                 self.virbBattLabel.setStyleSheet("QLabel {color: red; font: 24px}")
-            elif batt >= 5 and batt < 20:
+            elif 5 <= batt <= 20:
                 self.virbBattLabel.setStyleSheet("QLabel {color: yellow; font: 24px}")
             else:
                 self.virbBattLabel.setStyleSheet("QLabel {color: white; font: 24px}")
@@ -373,6 +386,7 @@ class CameraWindow(QWidget):
             print("camerawindow: Garmin Virb battery info not available")
 
     def updateInfobar(self, data):
+        """ update infobar """
         self.updateTime(data['time'])
         self.updateTemperature(data['temperature'])
         self.updateTPMSWarn(data['tpms'])
@@ -381,14 +395,17 @@ class CameraWindow(QWidget):
         self.updateRecording(data['recording'])
 
     def updateTime(self, t):
+        """ update time """
         self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
 
     def updateSpeed(self, speed):
+        """ update speed """
         if math.isnan(speed):
             return
         self.gpsSpeedLabel.setText("{:d}".format(round(3.6*speed)) + " km/h")
 
     def updateTemperature(self, temperature):
+        """ update temperature """
         if math.isnan(temperature):
             return
 
@@ -400,26 +417,28 @@ class CameraWindow(QWidget):
         self.tempInfoLabel.setText("{0:d}".format(round(temperature)) + "\u2103")
 
     def updateTPMSWarn(self, warn):
+        """ update TPMS status """
         if warn:
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
         else:
             self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
 
     def updateGPSFix(self, fix):
+        """ update GPS fix """
         if fix:
             self.gpsInfoLabel.setPixmap(self.gps_connected)
         else:
             self.gpsInfoLabel.setPixmap(self.gps_disconnected)
 
     def updateRecording(self, recording):
+        """ update recording status """
         if recording:
             self.recInfoLabel.setPixmap(self.rec_on)
         else:
             self.recInfoLabel.setPixmap(self.rec_off)
 
     def exit(self):
+        """ exit window """
         self.timer.stop()
         self.stop_preview.emit()
         self.close()
-
-
