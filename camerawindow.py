@@ -3,10 +3,11 @@ Window implemetation for dashcam
 """
 import math
 import subprocess
+import vlc
 from datetime import datetime
 from pathlib import Path
 
-from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QVBoxLayout
+from PyQt5.QtWidgets import QWidget, QFrame, QLabel, QPushButton, QSizePolicy, QHBoxLayout, QVBoxLayout
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import Qt, QThread, QTimer, QSize, pyqtSignal
 
@@ -119,18 +120,18 @@ class CameraWindow(QWidget):
         self.snapshotButton.setIconSize(QSize(64, 64))
         self.snapshotButton.clicked.connect(self.snapshot)
 
-        self.previewLabel = QLabel("No preview available", self)
-        self.previewLabel.setStyleSheet("background-color: black;"
-                                        "border-style: outset;"
-                                        "border-width: 1px;"
-                                        "border-radius: 8px;"
-                                        "border-color: beige;"
-                                        "font: 16px;"
-                                        "color: white;"
-                                        "min-width: 565px;"
-                                        "min-height: 320px;"
-                                        "padding: 4px;")
-        self.previewLabel.setAlignment(Qt.AlignCenter)
+#        self.previewLabel = QLabel("No preview available", self)
+#        self.previewLabel.setStyleSheet("background-color: black;"
+#                                        "border-style: outset;"
+#                                        "border-width: 1px;"
+#                                        "border-radius: 8px;"
+#                                        "border-color: beige;"
+#                                        "font: 16px;"
+#                                        "color: white;"
+#                                        "min-width: 565px;"
+#                                        "min-height: 320px;"
+#                                        "padding: 4px;")
+#        self.previewLabel.setAlignment(Qt.AlignCenter)
 
         if not self.virb.ip:
             self.recButton.setEnabled(False)
@@ -138,6 +139,29 @@ class CameraWindow(QWidget):
 
         self.virbBattLabel = QLabel()
         self.virbBattLabel.setText(" N/A %")
+
+        scale = 90
+        height = round(396*scale/100)
+        width = round(704*scale/100)
+        self.video_frame = QFrame()
+        self.video_frame.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.video_frame.setMinimumHeight(height)
+        self.video_frame.setMinimumWidth(width)
+
+        vlc_args = ['--video-on-top',
+                    '--avcodec-hw=any',
+                    '--width=' + str(width),
+                    '--height=' + str(height),
+                    '--network-caching=0',
+                    '--clock-synchro=0',
+                    '--clock-jitter=0']
+        self.vlcInstance = vlc.Instance(vlc_args)
+        self.video_player = self.vlcInstance.media_player_new()
+        self.video_player.video_set_mouse_input(False)
+        self.video_player.video_set_key_input(False)
+        self.video_player.set_mrl("rtsp://" + self.virb.ip + "/livePreviewStream")
+        self.video_player.audio_set_mute(True)
+        self.video_player.set_xwindow(self.video_frame.winId())
 
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
@@ -194,7 +218,8 @@ class CameraWindow(QWidget):
         hbox2 = QHBoxLayout()
         hbox2.setSpacing(20)
         hbox2.addLayout(vbox1)
-        hbox2.addWidget(self.previewLabel)
+#        hbox2.addWidget(self.previewLabel)
+        hbox2.addWidget(self.video_frame)
 
         vbox2 = QVBoxLayout()
         vbox2.addLayout(hbox1)
@@ -202,8 +227,8 @@ class CameraWindow(QWidget):
         vbox2.addWidget(homeButton, alignment=Qt.AlignCenter)
         self.setLayout(vbox2)
 
-        self.initPreviewThread()
-
+        #self.initPreviewThread()
+        self.video_player.play()
         if self.virb.ip:
             self.camera = Virb((self.virb.ip, 80))
             self.timer = QTimer()
@@ -248,7 +273,7 @@ class CameraWindow(QWidget):
         self.startRecWorker.rec_start_finished.connect(self.startRecThread.quit)
         self.startRecWorker.rec_start_finished.connect(self.startRecWorker.deleteLater)
         self.startRecThread.finished.connect(self.startRecThread.deleteLater)
-        self.startRecThread.finished.connect(self.initPreviewThread)
+        #self.startRecThread.finished.connect(self.initPreviewThread)
         self.startRecThread.started.connect(self.startRecWorker.start_recording)
 
         self.startRecThread.start()
@@ -266,7 +291,7 @@ class CameraWindow(QWidget):
         self.stopRecWorker.rec_stop_finished.connect(self.stopRecThread.quit)
         self.stopRecWorker.rec_stop_finished.connect(self.stopRecWorker.deleteLater)
         self.stopRecThread.finished.connect(self.stopRecThread.deleteLater)
-        self.stopRecThread.finished.connect(self.initPreviewThread)
+        #self.stopRecThread.finished.connect(self.initPreviewThread)
         self.stopRecThread.started.connect(self.stopRecWorker.stop_recording)
 
         self.stopRecThread.start()
@@ -285,7 +310,7 @@ class CameraWindow(QWidget):
         self.snapshotWorker.snapshot_finished.connect(self.snapshotWorker.deleteLater)
         self.snapshotThread.finished.connect(self.snapshotThread.deleteLater)
         self.snapshotThread.finished.connect(self.updateSnapshotButton)
-        self.snapshotThread.finished.connect(self.initPreviewThread)
+        #self.snapshotThread.finished.connect(self.initPreviewThread)
         self.snapshotThread.started.connect(self.snapshotWorker.snapshot)
 
         self.snapshotThread.start()
@@ -441,4 +466,5 @@ class CameraWindow(QWidget):
         """ exit window """
         self.timer.stop()
         self.stop_preview.emit()
+        self.video_player.stop()
         self.close()

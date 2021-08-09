@@ -167,13 +167,13 @@ class MainApp(QMainWindow):
         speedoButton.clicked.connect(self.createSpeedoWindow)
 
         # dashcam
-        cameraButton = QToolButton(self)
-        cameraButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        cameraButton.setIcon(QIcon(self.prefix + 'dashcam.png'))
-        cameraButton.setText("Dashcam")
-        cameraButton.setIconSize(QSize(size, size))
-        cameraButton.clicked.connect(self.createCameraWindow)
-        cameraButton.setEnabled(False)
+        self.cameraButton = QToolButton(self)
+        self.cameraButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.cameraButton.setIcon(QIcon(self.prefix + 'dashcam.png'))
+        self.cameraButton.setText("Dashcam")
+        self.cameraButton.setIconSize(QSize(size, size))
+        self.cameraButton.clicked.connect(self.createCameraWindow)
+        self.cameraButton.setEnabled(False)
 
         # tpms
         tpmsButton = QToolButton(self)
@@ -268,7 +268,7 @@ class MainApp(QMainWindow):
 
         grid = QGridLayout()
         grid.addWidget(speedoButton, 0, 0)
-        grid.addWidget(cameraButton, 0, 1)
+        grid.addWidget(self.cameraButton, 0, 1)
         grid.addWidget(tpmsButton, 0, 2)
 
         grid.addWidget(gpsButton, 1, 0)
