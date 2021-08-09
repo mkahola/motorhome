@@ -11,8 +11,12 @@ from pathlib import Path
 from PyQt5.QtCore import pyqtSignal, QObject
 
 def ping_ok(ip):
+    if not ip:
+        return False
+
     try:
         cmd = "ping -c 1 " + ip
+        print("searchvirb: " + cmd)
         output = subprocess.check_output(cmd, shell=True)
     except Exception as e:
         return False
@@ -59,13 +63,10 @@ def search_virb():
     except Exception as e:
         virb_ip = ""
 
-    if ping_ok(virb_ip):
-        print("searchvirb: ping to " + virb_ip + " ok")
-        return virb_ip
-    else:
+    if not ping_ok(virb_ip):
         print("searchvirb: Searching Garmin Virb with nmap")
         virb_ip = search_with_nmap()
-        if not virb_ip:
+        if virb_ip:
             data = config[ssid]
             data['ip'] = virb_ip
 
@@ -94,7 +95,7 @@ class SearchVirb(QObject):
                 print("Virb found: " + virb_ip)
                 self.ip.emit(virb_ip)
                 self.running = False
-                continue
+                break
             time.sleep(10)
 
         self.finished.emit()
