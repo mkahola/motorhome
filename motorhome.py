@@ -183,6 +183,14 @@ class MainApp(QMainWindow):
         tpmsButton.setIconSize(QSize(size, size))
         tpmsButton.clicked.connect(self.createTPMSWindow)
 
+        # Navit
+        navitButton = QToolButton(self)
+        navitButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        navitButton.setIcon(QIcon(self.prefix + 'navit.png'))
+        navitButton.setText("Navigation")
+        navitButton.setIconSize(QSize(size, size))
+        navitButton.clicked.connect(self.startNavigation)
+
         # GPS
         gpsButton = QToolButton(self)
         gpsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
@@ -271,11 +279,12 @@ class MainApp(QMainWindow):
         grid.addWidget(self.cameraButton, 0, 1)
         grid.addWidget(tpmsButton, 0, 2)
 
-        grid.addWidget(gpsButton, 1, 0)
-        grid.addWidget(ruuviButton, 1, 1)
-        grid.addWidget(appsButton, 1, 2)
+        grid.addWidget(navitButton, 1, 0)
+        grid.addWidget(gpsButton, 1, 1)
+        grid.addWidget(ruuviButton, 1, 2)
 
-        grid.addWidget(infoButton, 2, 0)
+        grid.addWidget(appsButton, 2, 0)
+        grid.addWidget(infoButton, 2, 1)
 
         grid.setSpacing(10)
 
@@ -305,6 +314,14 @@ class MainApp(QMainWindow):
         self.tpmsWindow.createWindow(self.infobar, self.tpms)
         self.info.connect(self.tpmsWindow.updateInfobar)
         self.tpmsWindow.show()
+
+    def startNavigation(self):
+        """ Navit navigation """
+        print("motorhome: Launching Navit navigation")
+        try:
+            os.system('/usr/bin/navit')
+        except:
+            print("motorhome: unable to launch Navit navigation")
 
     def createGPSWindow(self):
         """ create window for GPS data """
