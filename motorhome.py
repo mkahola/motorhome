@@ -194,8 +194,8 @@ class MainApp(QMainWindow):
         # GPS
         gpsButton = QToolButton(self)
         gpsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        gpsButton.setIcon(QIcon(self.prefix + 'location.png'))
-        gpsButton.setText("Location")
+        gpsButton.setIcon(QIcon(self.prefix + 'compass.png'))
+        gpsButton.setText("Compass")
         gpsButton.setIconSize(QSize(size, size))
         gpsButton.clicked.connect(self.createGPSWindow)
 
