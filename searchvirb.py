@@ -3,7 +3,8 @@ Search Garmin Virb from the network
 """
 import time
 import subprocess
-import nmap3
+import socket
+import nmap
 import configparser
 import netifaces
 from pathlib import Path
@@ -35,18 +36,18 @@ def search_with_nmap():
     my_ip[3] = "0/24"
     ip_addr = "."
     ip_addr = ip_addr.join(my_ip)
-    nmap = nmap3.NmapHostDiscovery()
-    result = nmap.nmap_no_portscan(ip_addr, "-sP")
 
-    for i in range(len(result)):
+    nm = nmap.PortScanner()
+    nm.scan(hosts=ip_addr, arguments='-sP')
+
+    for i in nm.all_hosts():
         try:
-           device = result[list(result.keys())[i]]['hostname'][0]['name']
-           if device == "Garmin-WiFi":
-                virb_ip = list(result)[i]
+            device = socket.gethostbyaddr(i)[0]
+            if device == "Garmin-WiFi":
+                virb_ip = i
                 break
-        except IndexError:
-            pass
-        except KeyError:
+        except Exception as e:
+            print("searchvirb: no hostname for " + i)
             pass
 
     return virb_ip
