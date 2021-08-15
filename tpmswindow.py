@@ -104,6 +104,21 @@ class TPMSWindow(QWidget):
         hbox1.addWidget(self.timeLabel, alignment=Qt.AlignTop|Qt.AlignRight)
         # === infobar ===
 
+        front_left = QLabel("Front Left")
+        front_left.setStyleSheet("font: bold 20px;"
+                                 "color: white;")
+
+        front_right = QLabel("Front Right")
+        front_right.setStyleSheet("font: bold 20px;"
+                                 "color: white;")
+
+        rear_left = QLabel("Rear Left")
+        rear_left.setStyleSheet("font: bold 20px;"
+                                 "color: white;")
+        rear_right = QLabel("Rear Right")
+        rear_right.setStyleSheet("font: bold 20px;"
+                                 "color: white;")
+
         self.fl_pressure_label = QLabel()
         self.fl_pressure_label.setStyleSheet("font: bold 28px;"
                                              "color: #73E420;")
@@ -163,10 +178,12 @@ class TPMSWindow(QWidget):
         self.setTPMS(tpms, "RR")
 
         vbox1 = QVBoxLayout()
+        vbox1.addWidget(front_left, alignment=Qt.AlignCenter|Qt.AlignBottom)
         vbox1.addWidget(self.fl_pressure_label, alignment=Qt.AlignCenter|Qt.AlignBottom)
         vbox1.addWidget(self.fl_temp_label, alignment=Qt.AlignCenter|Qt.AlignTop)
 
         vbox2 = QVBoxLayout()
+        vbox2.addWidget(front_right, alignment=Qt.AlignCenter|Qt.AlignBottom)
         vbox2.addWidget(self.fr_pressure_label,alignment=Qt.AlignCenter|Qt.AlignBottom)
         vbox2.addWidget(self.fr_temp_label, alignment=Qt.AlignCenter|Qt.AlignTop)
 
@@ -177,10 +194,12 @@ class TPMSWindow(QWidget):
         hbox2.addLayout(vbox2)
 
         vbox3 = QVBoxLayout()
+        vbox3.addWidget(rear_left, alignment=Qt.AlignCenter|Qt.AlignBottom)
         vbox3.addWidget(self.rl_pressure_label, alignment=Qt.AlignCenter|Qt.AlignBottom)
         vbox3.addWidget(self.rl_temp_label, alignment=Qt.AlignCenter|Qt.AlignTop)
 
         vbox4 = QVBoxLayout()
+        vbox4.addWidget(rear_right, alignment=Qt.AlignCenter|Qt.AlignBottom)
         vbox4.addWidget(self.rr_pressure_label, alignment=Qt.AlignCenter|Qt.AlignBottom)
         vbox4.addWidget(self.rr_temp_label, alignment=Qt.AlignCenter|Qt.AlignTop)
 
