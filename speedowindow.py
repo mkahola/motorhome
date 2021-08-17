@@ -107,6 +107,7 @@ class SpeedoWindow(QWidget):
 
     def update_infobar(self, data):
         """ update infobar on top of the screen """
+        self.update_speed(data['speed'])
         self.update_time(data['time'])
         self.update_temperature(data['temperature'])
         self.update_tpmswarn(data['tpms'])
