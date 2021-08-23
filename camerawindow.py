@@ -139,6 +139,7 @@ class CameraWindow(QWidget):
 
         self.virbBattLabel = QLabel()
         self.virbBattLabel.setText(" N/A %")
+        self.virbBattLabel.setStyleSheet("font: 18px")
 
         scale = 90
         height = round(396*scale/100)
@@ -194,6 +195,14 @@ class CameraWindow(QWidget):
         self.rec_off = QPixmap("")
         self.rec_on = QPixmap(self.prefix + "rec.png").scaled(32, 32, Qt.KeepAspectRatio)
 
+        # battery status
+        self.batt_status = QLabel()
+        self.batt_100 = QPixmap(self.prefix + "batt_100.png").scaled(64, 64, Qt.KeepAspectRatio)
+        self.batt_80 = QPixmap(self.prefix + "batt_80.png").scaled(64, 64, Qt.KeepAspectRatio)
+        self.batt_60 = QPixmap(self.prefix + "batt_60.png").scaled(64, 64, Qt.KeepAspectRatio)
+        self.batt_40 = QPixmap(self.prefix + "batt_40.png").scaled(64, 64, Qt.KeepAspectRatio)
+        self.batt_20 = QPixmap(self.prefix + "batt_20.png").scaled(64, 64, Qt.KeepAspectRatio)
+
         self.updateTemperature(infobar.temperature)
         self.updateTime(datetime.now())
         self.updateTPMSWarn(infobar.tpmsWarn)
@@ -210,10 +219,15 @@ class CameraWindow(QWidget):
         hbox1.addWidget(self.tempInfoLabel, alignment=Qt.AlignTop|Qt.AlignRight)
         hbox1.addWidget(self.timeLabel, alignment=Qt.AlignTop|Qt.AlignRight)
 
+        batt = QHBoxLayout()
+        batt.setSpacing(0)
+        batt.addWidget(self.batt_status, alignment=Qt.AlignRight)
+        batt.addWidget(self.virbBattLabel, alignment=Qt.AlignLeft)
+
         vbox1 = QVBoxLayout()
         vbox1.addWidget(self.recButton, alignment=Qt.AlignCenter)
         vbox1.addWidget(self.snapshotButton, alignment=Qt.AlignCenter)
-        vbox1.addWidget(self.virbBattLabel, alignment=Qt.AlignCenter)
+        vbox1.addLayout(batt)
 
         hbox2 = QHBoxLayout()
         hbox2.setSpacing(20)
@@ -397,13 +411,22 @@ class CameraWindow(QWidget):
         """ update Garmin Virb battery status """
         try:
             batt = self.camera.get_batt_status()
+            self.virbBattLabel.setStyleSheet("QLabel {color: white; font: 18px}")
 
             if batt < 5:
-                self.virbBattLabel.setStyleSheet("QLabel {color: red; font: 24px}")
+                self.batt_status.setPixmap(self.batt_20)
+                self.virbBattLabel.setStyleSheet("QLabel {color: red; font: 18px}")
             elif 5 <= batt <= 20:
-                self.virbBattLabel.setStyleSheet("QLabel {color: yellow; font: 24px}")
+                self.batt_status.setPixmap(self.batt_20)
+                self.virbBattLabel.setStyleSheet("QLabel {color: yellow; font: 18px}")
+            elif 20 < batt <= 40:
+                self.batt_status.setPixmap(self.batt_40)
+            elif 40 < batt <= 60:
+                self.batt_status.setPixmap(self.batt_60)
+            elif 60 < batt <= 80:
+                self.batt_status.setPixmap(self.batt_80)
             else:
-                self.virbBattLabel.setStyleSheet("QLabel {color: white; font: 24px}")
+                self.batt_status.setPixmap(self.batt_100)
 
             self.virbBattLabel.setText(str(round(batt)) + " %")
 
