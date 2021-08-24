@@ -8,13 +8,9 @@ from PyQt5.QtCore import pyqtSignal, QObject
 from PyQt5.QtGui import QPixmap, QImage
 from virb import Virb
 
-class Camcorder(QObject):
+class Preview(QObject):
     """ Garmin Virb camcorder """
 
-    finished = pyqtSignal()
-    rec_start_finished = pyqtSignal()
-    rec_stop_finished = pyqtSignal()
-    snapshot_finished = pyqtSignal()
     preview_finished = pyqtSignal()
     image = pyqtSignal(QPixmap)
 
@@ -22,36 +18,12 @@ class Camcorder(QObject):
         QObject.__init__(self, parent=parent)
         os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
         self.camera = Virb((ip, 80))
+
         self.run_video = True
-
-    def start_recording(self):
-        """ Start video recording """
-        #set autorecord off
-        self.camera.set_features('autoRecord', 'off')
-        self.camera.start_recording()
-        print("start recording")
-        self.rec_start_finished.emit()
-
-    def stop_recording(self):
-        """ Stop video recording """
-        self.camera.stop_recording()
-        self.camera.set_features('autoRecord', 'whenMoving')
-        print("stop recording")
-        self.rec_stop_finished.emit()
-
-    def snapshot(self):
-        """ take a snapshot image """
-        self.camera.set_features('selfTimer', '2')
-        self.camera.snap_picture()
-        print("taking a snapshot")
-        self.snapshot_finished.emit()
 
     def live_preview(self):
         """ Show live preview """
         print("setting up camera")
-
-        self.camera.set_features('autoRecord', 'whenMoving')
-        self.camera.set_features('videoLoop', '30')
 
         url = "rtsp://" + self.camera.host[0] + "/livePreviewStream"
         try:
@@ -84,3 +56,52 @@ class Camcorder(QObject):
         """ Stop video preview """
         print("stopping live preview")
         self.run_video = False
+
+class StartRec(QObject):
+    """ Garmin Virb camcorder """
+    finished = pyqtSignal()
+
+    def __init__(self, ip, parent=None):
+        QObject.__init__(self, parent=parent)
+        self.camera = Virb((ip, 80))
+
+    def start_recording(self):
+        """ Start video recording """
+        #set autorecord off
+        #self.camera.set_features('autoRecord', 'whenMoving')
+        self.camera.set_features('autoRecord', 'off')
+        self.camera.set_features('videoLoop', '30')
+        self.camera.start_recording()
+        print("start recording")
+        self.finished.emit()
+
+class StopRec(QObject):
+    """ Garmin Virb camcorder """
+    finished = pyqtSignal()
+
+    def __init__(self, ip, parent=None):
+        QObject.__init__(self, parent=parent)
+        self.camera = Virb((ip, 80))
+
+    def stop_recording(self):
+        """ Stop video recording """
+        self.camera.stop_recording()
+        print("stop recording")
+        self.finished.emit()
+
+class Snapshot(QObject):
+    """ Garmin Virb camcorder """
+    finished = pyqtSignal()
+
+    def __init__(self, ip, parent=None):
+        QObject.__init__(self, parent=parent)
+        self.camera = Virb((ip, 80))
+
+        self.run_video = True
+
+    def snapshot(self):
+        """ take a snapshot image """
+        self.camera.set_features('selfTimer', '2')
+        self.camera.snap_picture()
+        print("taking a snapshot")
+        self.finished.emit()

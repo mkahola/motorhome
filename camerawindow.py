@@ -12,7 +12,7 @@ from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import Qt, QThread, QTimer, QSize, pyqtSignal
 
 from virb import Virb
-from camcorder import Camcorder
+from camcorder import Preview, StartRec, StopRec, Snapshot
 
 STYLESHEET = """
     QWidget {
@@ -120,18 +120,18 @@ class CameraWindow(QWidget):
         self.snapshotButton.setIconSize(QSize(64, 64))
         self.snapshotButton.clicked.connect(self.snapshot)
 
-#        self.previewLabel = QLabel("No preview available", self)
-#        self.previewLabel.setStyleSheet("background-color: black;"
-#                                        "border-style: outset;"
-#                                        "border-width: 1px;"
-#                                        "border-radius: 8px;"
-#                                        "border-color: beige;"
-#                                        "font: 16px;"
-#                                        "color: white;"
-#                                        "min-width: 565px;"
-#                                        "min-height: 320px;"
-#                                        "padding: 4px;")
-#        self.previewLabel.setAlignment(Qt.AlignCenter)
+        self.previewLabel = QLabel("No preview available", self)
+        self.previewLabel.setStyleSheet("background-color: black;"
+                                        "border-style: outset;"
+                                        "border-width: 1px;"
+                                        "border-radius: 8px;"
+                                        "border-color: beige;"
+                                        "font: 16px;"
+                                        "color: white;"
+                                        "min-width: 565px;"
+                                        "min-height: 320px;"
+                                        "padding: 4px;")
+        self.previewLabel.setAlignment(Qt.AlignCenter)
 
         if not self.virb.ip:
             self.recButton.setEnabled(False)
@@ -141,28 +141,29 @@ class CameraWindow(QWidget):
         self.virbBattLabel.setText(" N/A %")
         self.virbBattLabel.setStyleSheet("font: 18px")
 
-        scale = 90
-        height = round(396*scale/100)
-        width = round(704*scale/100)
-        self.video_frame = QFrame()
-        self.video_frame.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.video_frame.setMinimumHeight(height)
-        self.video_frame.setMinimumWidth(width)
-
-        vlc_args = ['--video-on-top',
-                    '--avcodec-hw=any',
-                    '--width=' + str(width),
-                    '--height=' + str(height),
-                    '--network-caching=0',
-                    '--clock-synchro=0',
-                    '--clock-jitter=0']
-        self.vlcInstance = vlc.Instance(vlc_args)
-        self.video_player = self.vlcInstance.media_player_new()
-        self.video_player.video_set_mouse_input(False)
-        self.video_player.video_set_key_input(False)
-        self.video_player.set_mrl("rtsp://" + self.virb.ip + "/livePreviewStream")
-        self.video_player.audio_set_mute(True)
-        self.video_player.set_xwindow(self.video_frame.winId())
+        # VLC config
+        #scale = 90
+        #height = round(396*scale/100)
+        #width = round(704*scale/100)
+        #self.video_frame = QFrame()
+        #self.video_frame.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        #self.video_frame.setMinimumHeight(height)
+        #self.video_frame.setMinimumWidth(width)
+        #
+        #vlc_args = ['--video-on-top',
+        #            '--avcodec-hw=any',
+        #            '--width=' + str(width),
+        #            '--height=' + str(height),
+        #            '--network-caching=0',
+        #            '--clock-synchro=0',
+        #            '--clock-jitter=0']
+        #self.vlcInstance = vlc.Instance(vlc_args)
+        #self.video_player = self.vlcInstance.media_player_new()
+        #self.video_player.video_set_mouse_input(False)
+        #self.video_player.video_set_key_input(False)
+        #self.video_player.set_mrl("rtsp://" + self.virb.ip + "/livePreviewStream")
+        #self.video_player.audio_set_mute(True)
+        #self.video_player.set_xwindow(self.video_frame.winId())
 
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
@@ -232,8 +233,8 @@ class CameraWindow(QWidget):
         hbox2 = QHBoxLayout()
         hbox2.setSpacing(20)
         hbox2.addLayout(vbox1)
-#        hbox2.addWidget(self.previewLabel)
-        hbox2.addWidget(self.video_frame)
+        hbox2.addWidget(self.previewLabel)
+        #hbox2.addWidget(self.video_frame)
 
         vbox2 = QVBoxLayout()
         vbox2.addLayout(hbox1)
@@ -241,8 +242,8 @@ class CameraWindow(QWidget):
         vbox2.addWidget(homeButton, alignment=Qt.AlignCenter)
         self.setLayout(vbox2)
 
-        #self.initPreviewThread()
-        self.video_player.play()
+        self.initPreviewThread()
+        #self.video_player.play()
         if self.virb.ip:
             self.camera = Virb((self.virb.ip, 80))
             self.timer = QTimer()
@@ -262,12 +263,13 @@ class CameraWindow(QWidget):
             return
 
         self.previewThread = QThread()
-        self.previewWorker = Camcorder(self.virb.ip)
+        self.previewWorker = Preview(self.virb.ip)
         self.stop_preview.connect(self.previewWorker.stop_preview)
         self.previewWorker.moveToThread(self.previewThread)
         self.previewWorker.preview_finished.connect(self.previewThread.quit)
         self.previewWorker.preview_finished.connect(self.previewWorker.deleteLater)
         self.previewThread.finished.connect(self.previewThread.deleteLater)
+        self.previewThread.finished.connect(self.updatePreviewText)
         self.previewThread.started.connect(self.previewWorker.live_preview)
 
         self.previewWorker.image.connect(self.updatePreview)
@@ -282,12 +284,12 @@ class CameraWindow(QWidget):
         self.stop_preview.emit()
 
         self.startRecThread = QThread()
-        self.startRecWorker = Camcorder(self.virb.ip)
+        self.startRecWorker = StartRec(self.virb.ip)
         self.startRecWorker.moveToThread(self.startRecThread)
-        self.startRecWorker.rec_start_finished.connect(self.startRecThread.quit)
-        self.startRecWorker.rec_start_finished.connect(self.startRecWorker.deleteLater)
+        self.startRecWorker.finished.connect(self.startRecThread.quit)
+        self.startRecWorker.finished.connect(self.startRecWorker.deleteLater)
         self.startRecThread.finished.connect(self.startRecThread.deleteLater)
-        #self.startRecThread.finished.connect(self.initPreviewThread)
+        self.startRecThread.finished.connect(self.initPreviewThread)
         self.startRecThread.started.connect(self.startRecWorker.start_recording)
 
         self.startRecThread.start()
@@ -300,12 +302,12 @@ class CameraWindow(QWidget):
         self.stop_preview.emit()
 
         self.stopRecThread = QThread()
-        self.stopRecWorker = Camcorder(self.virb.ip)
+        self.stopRecWorker = StopRec(self.virb.ip)
         self.stopRecWorker.moveToThread(self.stopRecThread)
-        self.stopRecWorker.rec_stop_finished.connect(self.stopRecThread.quit)
-        self.stopRecWorker.rec_stop_finished.connect(self.stopRecWorker.deleteLater)
+        self.stopRecWorker.finished.connect(self.stopRecThread.quit)
+        self.stopRecWorker.finished.connect(self.stopRecWorker.deleteLater)
         self.stopRecThread.finished.connect(self.stopRecThread.deleteLater)
-        #self.stopRecThread.finished.connect(self.initPreviewThread)
+        self.stopRecThread.finished.connect(self.initPreviewThread)
         self.stopRecThread.started.connect(self.stopRecWorker.stop_recording)
 
         self.stopRecThread.start()
@@ -318,13 +320,13 @@ class CameraWindow(QWidget):
         self.stop_preview.emit()
 
         self.snapshotThread = QThread()
-        self.snapshotWorker = Camcorder(self.virb.ip)
+        self.snapshotWorker = Snapshot(self.virb.ip)
         self.snapshotWorker.moveToThread(self.snapshotThread)
-        self.snapshotWorker.snapshot_finished.connect(self.snapshotThread.quit)
-        self.snapshotWorker.snapshot_finished.connect(self.snapshotWorker.deleteLater)
+        self.snapshotWorker.finished.connect(self.snapshotThread.quit)
+        self.snapshotWorker.finished.connect(self.snapshotWorker.deleteLater)
         self.snapshotThread.finished.connect(self.snapshotThread.deleteLater)
         self.snapshotThread.finished.connect(self.updateSnapshotButton)
-        #self.snapshotThread.finished.connect(self.initPreviewThread)
+        self.snapshotThread.finished.connect(self.initPreviewThread)
         self.snapshotThread.started.connect(self.snapshotWorker.snapshot)
 
         self.snapshotThread.start()
@@ -364,6 +366,11 @@ class CameraWindow(QWidget):
                                          "padding: 12px;")
             self.initStopRecThread()
 
+        if self.previewThread.isRunning():
+            print("preview running")
+        else:
+            print("preview not running")
+
     def snapshot(self):
         """ take a snapshot """
         self.snapshotButton.setStyleSheet("background-color: #373636;"
@@ -397,6 +404,19 @@ class CameraWindow(QWidget):
         """ update preview """
         self.previewLabel.setPixmap(pixmap.scaled(int(704*self.previewScale/100), int(396*self.previewScale/100),
                                                   Qt.KeepAspectRatio))
+
+    def updatePreviewText(self):
+        self.previewLabel.setText("Stream unavailable")
+        self.previewLabel.setStyleSheet("background-color: black;"
+                                        "border-style: outset;"
+                                        "border-width: 1px;"
+                                        "border-radius: 8px;"
+                                        "border-color: beige;"
+                                        "font: 16px;"
+                                        "color: white;"
+                                        "min-width: 565px;"
+                                        "min-height: 320px;"
+                                        "padding: 4px;")
 
     def setVirbIP(self, ip):
         """ set Garmin Virb ip """
@@ -489,5 +509,5 @@ class CameraWindow(QWidget):
         """ exit window """
         self.timer.stop()
         self.stop_preview.emit()
-        self.video_player.stop()
+        #self.video_player.stop()
         self.close()
