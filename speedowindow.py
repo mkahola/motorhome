@@ -93,6 +93,7 @@ class SpeedoWindow(QWidget):
         hbox1.addWidget(self.tpms_warn_label, alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.temp_warn_label, alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.gps_info_label, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.rec_info_label, alignment=Qt.AlignTop|Qt.AlignLeft)
         hbox1.addWidget(self.temp_info_label, alignment=Qt.AlignTop|Qt.AlignRight)
         hbox1.addWidget(self.time_label, alignment=Qt.AlignTop|Qt.AlignRight)
 
