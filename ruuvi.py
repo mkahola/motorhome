@@ -2,6 +2,9 @@
 Ruuvitag sensor handling
 """
 import time
+import websockets
+import asyncio
+import json
 
 from ruuvitag_sensor.ruuvi import RuuviTagSensor, RunFlag
 from PyQt5.QtCore import pyqtSignal, QObject
@@ -45,30 +48,24 @@ class RuuviTag(QObject):
     def __init__(self, mac, parent=None):
         QObject.__init__(self, parent=parent)
         self.mac = mac
-        self.flag = RunFlag()
+        self.uri = "ws://localhost:5679"
         self.running = True
 
     def run(self):
-        """ Collect data from ruuvitag sensor """
-        def wait_for_finish(run_flag, name):
-            max_time = 20
+        async def ruuvi():
+            async with websockets.connect(self.uri) as websocket:
+                while self.running:
+                    data = await websocket.recv()
+                    data = json.loads(data)
 
-            while run_flag.running:
-                time.sleep(0.1)
-                max_time -= 0.1
-                if max_time < 0:
-                    raise Exception('%s not finished' % name)
-
-        def handle_data(received_data):
-            self.flag.running = self.running
-            data = received_data[1]
-            self.temperature.emit(data['temperature'])
-            self.humidity.emit(data['humidity'])
-            self.pressure.emit(data['pressure'])
-            self.ruuvi_batt.emit(data['battery'])
-
-        RuuviTagSensor.get_datas(handle_data, self.mac, run_flag=self.flag)
-        wait_for_finish(self.flag, 'RuuviTagSensor.get_datas')
+                    try:
+                        self.temperature.emit(data['temperature'])
+                        self.humidity.emit(data['humidity'])
+                        self.pressure.emit(data['pressure'])
+                        self.ruuvi_batt.emit(data['battery'])
+                    except KeyError:
+                        print("ruuvitag failed due to key error")
+        asyncio.run(ruuvi())
 
         print("thread finished")
         self.finished.emit()

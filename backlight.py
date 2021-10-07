@@ -14,12 +14,11 @@ from gps3.agps3threaded import AGPS3mechanism
 def set_brightness(val, comment, timedata):
     val = str(round(val*255/100))
 
-    #platform = "intel"
     platform = "rpi"
 
     cmd = "echo " + val + " | sudo tee -a /sys/class/backlight/" + platform + "_backlight/brightness > /dev/null"
 
-    cron = CronTab(user='mika')
+    cron = CronTab(user='pi')
     cron.remove_all(comment=comment)
     job = cron.new(command=cmd, comment=comment)
     job.hour.on(timedata.hour)
@@ -46,7 +45,7 @@ def backlight_ctrl():
         except ValueError:
             pass
 
-        time.sleep(10)
+        time.sleep(15)
 
     location = ephem.Observer()
     location.lat = str(lat)
@@ -70,10 +69,8 @@ def backlight_ctrl():
     now = now.hour*60*60 + now.minute*60 + now.second
 
     if sunrise_stamp <= now <= sunset_stamp:
-        print("sunrise brightness")
         subprocess.call(cmd_sunrise, shell=True)
     elif now > sunset_stamp:
-        print("sunset brightness")
         subprocess.call(cmd_sunset, shell=True)
 
 if __name__ == "__main__":
