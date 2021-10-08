@@ -49,7 +49,7 @@ class RuuviWindow(QWidget):
         self.setWindowTitle("Ruuvitag")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 
-        outdoor = QLabel("OUTDOOR:")
+        outdoor = QLabel("OUTDOOR")
         outdoor.setStyleSheet("font: bold 32px;"
                               "color: white;")
 
