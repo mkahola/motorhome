@@ -127,7 +127,7 @@ class MainApp(QMainWindow):
         # start threads
         self.initGPSThread()
         self.initTPMSThread()
-        #self.initRuuvitagThread()
+        self.initRuuvitagThread()
         self.initSearchVirbThread()
 
         self.init_gui()
@@ -209,12 +209,13 @@ class MainApp(QMainWindow):
         ruuviButton.clicked.connect(self.createRuuviWindow)
 
         # apps
-        appsButton = QToolButton(self)
-        appsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        appsButton.setIcon(QIcon(self.prefix + 'apps.png'))
-        appsButton.setText("Apps")
-        appsButton.setIconSize(QSize(size, size))
-        appsButton.clicked.connect(self.createAppsWindow)
+        self.appsButton = QToolButton(self)
+        self.appsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.appsButton.setIcon(QIcon(self.prefix + 'apps.png'))
+        self.appsButton.setText("Apps")
+        self.appsButton.setIconSize(QSize(size, size))
+        self.appsButton.clicked.connect(self.createAppsWindow)
+        self.appsButton.setEnabled(False)
 
         # vehicle info
         infoButton = QToolButton(self)
@@ -284,7 +285,7 @@ class MainApp(QMainWindow):
         grid.addWidget(gpsButton, 1, 1)
         grid.addWidget(ruuviButton, 1, 2)
 
-        grid.addWidget(appsButton, 2, 0)
+        grid.addWidget(self.appsButton, 2, 0)
         grid.addWidget(infoButton, 2, 1)
 
         grid.setSpacing(10)
@@ -402,10 +403,14 @@ class MainApp(QMainWindow):
     def setVirbIP(self, ip):
         """ set Garmin Virb ip """
         self.virb.ip = ip
+        self.virb_ip.emit(self.virb.ip)
+
         self.cameraButton.setEnabled(True)
 
-        print("emit virb ip")
-        self.virb_ip.emit(self.virb.ip)
+        if self.virb.ip != "192.168.0.1":
+            print("enabling apps button")
+            self.appsButton.setEnabled(True)
+
 
         try:
             self.cameraWindow.setVirbIP(ip)
