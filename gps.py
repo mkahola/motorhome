@@ -3,9 +3,11 @@ GPS daemon thread
 """
 import time
 import subprocess
+import math
 
 from datetime import datetime, timedelta
 from gps3.agps3threaded import AGPS3mechanism
+from virb import Virb
 
 from PyQt5.QtCore import pyqtSignal, QObject
 
@@ -36,15 +38,15 @@ class Location(QObject):
     def __init__(self, parent=None):
         QObject.__init__(self, parent=parent)
         self.running = True
-
+        self.virb = Virb()
+        self.virb_initialized = False
         self.gps_thread = AGPS3mechanism()
         self.gps_thread.stream_data()
 
     def run(self):
         """ Run gps sensor data receiver """
         self.gps_thread.run_thread()
-        mode_prev = 0
-        prev = 0
+        mode, mode_prev, prev = 0, 0, 0
         time_updated = False
 
         while self.running:
@@ -57,9 +59,6 @@ class Location(QObject):
                                                        time_updated)
 
                     mode = int(self.gps_thread.data_stream.mode)
-                    if mode != mode_prev:
-                        self.gpsFix.emit(mode)
-                        mode_prev = mode
 
                     # 2D or 3D fix required
                     if mode > 1:
@@ -68,10 +67,32 @@ class Location(QObject):
                         alt = float(self.gps_thread.data_stream.alt)
                         speed = float(self.gps_thread.data_stream.speed)
                         course = float(self.gps_thread.data_stream.track)
+                    elif self.virb_initialized:
+                        lat = self.virb.get_latitude()
+                        lon = self.virb.get_longitude()
+                        alt = self.virb.get_altitude()
+                        speed = self.virb.get_speed()
+                        course = math.nan
+
+                        if lat != -999 or lon != -999 or alt != -999:
+                            mode = 3
+                        else:
+                            mode = 0
+
+                        time.sleep(0.9)
+
+                    # emit GPS fix if changed
+                    if mode != mode_prev:
+                        self.gpsFix.emit(mode)
+                        mode_prev = mode
+
+                    if mode > 1:
                         location = (lat, lon, alt, speed, course)
                         self.gpsLocation.emit(location)
+
                 except ValueError:
                     pass
+
             time.sleep(0.1)
 
         print("GPS thread: thread finished")
@@ -81,3 +102,11 @@ class Location(QObject):
         """Stop running the gps thread"""
         print("GPS thread: received exit signal")
         self.running = False
+        self.virb_initialized = False
+
+    def init_virb(self, ip):
+        """Received Garmin Virb ip"""
+        print("GPS thread: received Garmin Virb ip: " + ip)
+        self.virb.ip = ip
+        self.virb = Virb((self.virb.ip, 80))
+        self.virb_initialized = True

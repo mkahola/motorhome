@@ -116,6 +116,7 @@ class MainApp(QMainWindow):
     exit_signal = pyqtSignal()
     set_season = pyqtSignal(int)
     info = pyqtSignal(dict)
+    virb_ip = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -123,13 +124,13 @@ class MainApp(QMainWindow):
         self.setWindowTitle("Motorhome Info")
         self.setStyleSheet(STYLESHEET)
 
-        self.init_gui()
-
         # start threads
-        self.initTPMSThread()
-        self.initSearchVirbThread()
-        self.initRuuvitagThread()
         self.initGPSThread()
+        self.initTPMSThread()
+        #self.initRuuvitagThread()
+        self.initSearchVirbThread()
+
+        self.init_gui()
 
         self.showFullScreen()
 #        self.showMaximized()
@@ -366,6 +367,23 @@ class MainApp(QMainWindow):
                     recording=self.infobar.recording)
         self.info.emit(data)
 
+    def initGPSThread(self):
+        """ initialize GPS thread """
+        self.gpsThread = QThread()
+        self.gpsWorker = Location()
+        self.exit_signal.connect(self.gpsWorker.stop)
+        self.virb_ip.connect(self.gpsWorker.init_virb)
+        self.gpsWorker.moveToThread(self.gpsThread)
+        self.gpsWorker.finished.connect(self.gpsThread.quit)
+        self.gpsWorker.finished.connect(self.gpsWorker.deleteLater)
+        self.gpsThread.finished.connect(self.gpsThread.deleteLater)
+        self.gpsThread.started.connect(self.gpsWorker.run)
+
+        self.gpsWorker.gpsFix.connect(self.updateGPSFix)
+        self.gpsWorker.gpsLocation.connect(self.updateLocation)
+
+        self.gpsThread.start()
+
     def initSearchVirbThread(self):
         """ initialize search for Garmin Virb ip """
         self.virbThread = QThread()
@@ -385,6 +403,10 @@ class MainApp(QMainWindow):
         """ set Garmin Virb ip """
         self.virb.ip = ip
         self.cameraButton.setEnabled(True)
+
+        print("emit virb ip")
+        self.virb_ip.emit(self.virb.ip)
+
         try:
             self.cameraWindow.setVirbIP(ip)
         except AttributeError:
@@ -406,22 +428,6 @@ class MainApp(QMainWindow):
         self.tpmsWorker.tpms_warn.connect(self.setTPMSWarn)
 
         self.tpmsThread.start()
-
-    def initGPSThread(self):
-        """ initialize GPS thread """
-        self.gpsThread = QThread()
-        self.gpsWorker = Location()
-        self.exit_signal.connect(self.gpsWorker.stop)
-        self.gpsWorker.moveToThread(self.gpsThread)
-        self.gpsWorker.finished.connect(self.gpsThread.quit)
-        self.gpsWorker.finished.connect(self.gpsWorker.deleteLater)
-        self.gpsThread.finished.connect(self.gpsThread.deleteLater)
-        self.gpsThread.started.connect(self.gpsWorker.run)
-
-        self.gpsWorker.gpsFix.connect(self.updateGPSFix)
-        self.gpsWorker.gpsLocation.connect(self.updateLocation)
-
-        self.gpsThread.start()
 
     def setTPMSWarn(self, warn):
         """ Set TPMS warn on/off """
