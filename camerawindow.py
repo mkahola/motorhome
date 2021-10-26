@@ -3,7 +3,6 @@ Window implemetation for dashcam
 """
 import math
 import subprocess
-import vlc
 from datetime import datetime
 from pathlib import Path
 
@@ -141,30 +140,6 @@ class CameraWindow(QWidget):
         self.virbBattLabel.setText(" N/A %")
         self.virbBattLabel.setStyleSheet("font: 18px")
 
-        # VLC config
-        #scale = 90
-        #height = round(396*scale/100)
-        #width = round(704*scale/100)
-        #self.video_frame = QFrame()
-        #self.video_frame.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        #self.video_frame.setMinimumHeight(height)
-        #self.video_frame.setMinimumWidth(width)
-        #
-        #vlc_args = ['--video-on-top',
-        #            '--avcodec-hw=any',
-        #            '--width=' + str(width),
-        #            '--height=' + str(height),
-        #            '--network-caching=0',
-        #            '--clock-synchro=0',
-        #            '--clock-jitter=0']
-        #self.vlcInstance = vlc.Instance(vlc_args)
-        #self.video_player = self.vlcInstance.media_player_new()
-        #self.video_player.video_set_mouse_input(False)
-        #self.video_player.video_set_key_input(False)
-        #self.video_player.set_mrl("rtsp://" + self.virb.ip + "/livePreviewStream")
-        #self.video_player.audio_set_mute(True)
-        #self.video_player.set_xwindow(self.video_frame.winId())
-
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
         homeButton.setIconSize(QSize(64, 64))
@@ -234,7 +209,6 @@ class CameraWindow(QWidget):
         hbox2.setSpacing(20)
         hbox2.addLayout(vbox1)
         hbox2.addWidget(self.previewLabel)
-        #hbox2.addWidget(self.video_frame)
 
         vbox2 = QVBoxLayout()
         vbox2.addLayout(hbox1)
@@ -243,7 +217,6 @@ class CameraWindow(QWidget):
         self.setLayout(vbox2)
 
         self.initPreviewThread()
-        #self.video_player.play()
         if self.virb.ip:
             self.camera = Virb((self.virb.ip, 80))
             self.timer = QTimer()
@@ -509,5 +482,4 @@ class CameraWindow(QWidget):
         """ exit window """
         self.timer.stop()
         self.stop_preview.emit()
-        #self.video_player.stop()
         self.close()
