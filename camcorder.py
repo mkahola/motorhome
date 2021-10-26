@@ -1,64 +1,46 @@
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5 import QtCore, QtGui
-
+"""
+Garmin Virb camcorder
+"""
 import os
 import cv2
+
+from PyQt5.QtCore import pyqtSignal, QObject
+from PyQt5.QtGui import QPixmap, QImage
 from virb import Virb
 
-class Camcorder(QObject):
-    global virb_addr
+class Preview(QObject):
+    """ Garmin Virb camcorder """
 
-    finished = pyqtSignal()
+    preview_finished = pyqtSignal()
     image = pyqtSignal(QPixmap)
-    stop_preview = pyqtSignal()
 
     def __init__(self, ip, parent=None):
         QObject.__init__(self, parent=parent)
         os.environ["OPENCV_FFMPEG_CAPTURE_OPTIONS"] = "rtsp_transport;udp"
         self.camera = Virb((ip, 80))
-        self.runVideo = True
 
-    def start_recording(self):
-        #set autorecord off
-        self.camera.set_features('autoRecord', 'off')
-        self.camera.set_features('videoLoop', '30')
-        self.camera.start_recording()
-        print("start recording")
-        self.finished.emit()
-
-    def stop_recording(self):
-        self.camera.stop_recording()
-        self.camera.set_features('autoRecord', 'off')
-        self.camera.set_features('videoLoop', '30')
-        print("stop recording")
-        self.finished.emit()
-
-    def snapshot(self):
-        self.camera.set_features('selfTimer', '2')
-        self.camera.snap_picture()
-        print("taking a snapshot")
-        self.finished.emit()
+        self.run_video = True
 
     def live_preview(self):
+        """ Show live preview """
         print("setting up camera")
 
         url = "rtsp://" + self.camera.host[0] + "/livePreviewStream"
         try:
             cap = cv2.VideoCapture(url, cv2.CAP_FFMPEG)
-        except:
+        except ConnectionError:
             print("video stream unavailable")
-            self.finished.emit()
+            self.preview_finished.emit()
             return
 
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 10)
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 0)
 
         width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
         fps = float(cap.get(cv2.CAP_PROP_FPS))
         print("video: " + str(width) + "x" + str(height) + "@" + str(fps))
 
-        while self.runVideo:
+        while self.run_video:
             ret, frame = cap.read()
             if ret:
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -68,8 +50,58 @@ class Camcorder(QObject):
 
         print("video preview stopped")
         cap.release()
-        self.finished.emit()
+        self.preview_finished.emit()
 
     def stop_preview(self):
+        """ Stop video preview """
         print("stopping live preview")
-        self.runVideo = False
+        self.run_video = False
+
+class StartRec(QObject):
+    """ Garmin Virb camcorder """
+    finished = pyqtSignal()
+
+    def __init__(self, ip, parent=None):
+        QObject.__init__(self, parent=parent)
+        self.camera = Virb((ip, 80))
+
+    def start_recording(self):
+        """ Start video recording """
+        #set autorecord off
+        #self.camera.set_features('autoRecord', 'whenMoving')
+        self.camera.set_features('autoRecord', 'off')
+        self.camera.set_features('videoLoop', '30')
+        self.camera.start_recording()
+        print("start recording")
+        self.finished.emit()
+
+class StopRec(QObject):
+    """ Garmin Virb camcorder """
+    finished = pyqtSignal()
+
+    def __init__(self, ip, parent=None):
+        QObject.__init__(self, parent=parent)
+        self.camera = Virb((ip, 80))
+
+    def stop_recording(self):
+        """ Stop video recording """
+        self.camera.stop_recording()
+        print("stop recording")
+        self.finished.emit()
+
+class Snapshot(QObject):
+    """ Garmin Virb camcorder """
+    finished = pyqtSignal()
+
+    def __init__(self, ip, parent=None):
+        QObject.__init__(self, parent=parent)
+        self.camera = Virb((ip, 80))
+
+        self.run_video = True
+
+    def snapshot(self):
+        """ take a snapshot image """
+        self.camera.set_features('selfTimer', '2')
+        self.camera.snap_picture()
+        print("taking a snapshot")
+        self.finished.emit()

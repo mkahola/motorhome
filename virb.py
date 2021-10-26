@@ -4,7 +4,7 @@ import requests
 
 class Virb():
     """Class to interact with Garmin Virb cameras over wifi / http"""
-    def __init__(self, host=('192.168.0.1', 80)):
+    def __init__(self, host=("", 80)):
         """Sets up the connection with the Virb device
 
         Accepts an ip and port which should be routable from the device running
@@ -14,6 +14,8 @@ class Virb():
         """
         self.host = host
         self.requestcount = 0
+        self.ip = self.host[0]
+        self.vbat = "--"
 
     def status(self):
         """Returns the current camera status"""
@@ -88,8 +90,11 @@ class Virb():
             return -999
 
     def get_batt_status(self):
-        status = self.status()
-        return status['batteryLevel']
+        try:
+            status = self.status()
+            return status['batteryLevel']
+        except:
+            pass
 
     def _do_post(self, url='virb', data=None):
         url = 'http://%s:%d/%s' % (self.host[0], self.host[1], url)

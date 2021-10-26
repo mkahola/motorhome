@@ -1,639 +1,424 @@
 #!/usr/bin/env python3
-from PyQt5.QtWidgets import *
-from PyQt5.QtGui import *
-from PyQt5.QtCore import *
-from PyQt5.QtWebKit import *
-from PyQt5.QtWebKitWidgets import *
-from PyQt5 import QtWidgets, QtCore, QtGui
-
-from datetime import datetime, timedelta
-import time
-import qdarkgraystyle
-import psutil
+"""
+Motorhome infotainment project
+"""
+import math
 import sys
 import os.path
-import subprocess
 import configparser
-import nmap3
 from pathlib import Path
-from netifaces import interfaces, ifaddresses, AF_INET
+from datetime import datetime
+
+from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QLabel, QPushButton, QToolButton, QHBoxLayout, QVBoxLayout, QGridLayout
+from PyQt5.QtGui import QIcon, QPixmap
+from PyQt5.QtCore import Qt, QThread, QTimer, QSize, pyqtSignal
 
 from tires import Tires
 from tpms import TPMS
 from virb import Virb
-from camcorder import Camcorder
-from gps import GPS
-from warns import Warnings
-from geolocation import Geolocation
-from ruuvi import RuuviTag
+from gps import Location
+from ruuvi import RuuviTag, Ruuvi
+from searchvirb import SearchVirb
+
+from speedowindow import SpeedoWindow
+from camerawindow import CameraWindow
+from tpmswindow import TPMSWindow
+from gpswindow import GPSWindow
+from ruuviwindow import RuuviWindow
+from appswindow import AppsWindow
+from infowindow import InfoWindow
+
+STYLESHEET = """
+    QMainWindow {
+        border-image: url(res/background.png) 0 0 0 0 stretch stretch;
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+    QLabel {
+        background: transparent;
+        color: white;
+        font: 24px
+    }
+    QToolButton {
+        background: rgba(192, 192, 192, 170);
+        border-style: outset;
+        border-width: 2px;
+        border-radius: 10px;
+        border-color: beige;
+        font: 16px;
+        color: black;
+        min-width: 64px;
+        min-height: 64px;
+        max-width: 128px;
+        max-height: 128px;
+        padding: 12px;
+    }
+    QPushButton {
+        background: transparent;
+        border: 0px;
+    }
+"""
+
+def poweroff():
+    """ power off the system """
+    os.system("sudo shutdown -h now")
+
+class InfoBar:
+    """ Infobar on top of the screen """
+    def __init__(self):
+        self.time = datetime.now()
+        self.temperature = math.nan
+        self.tpmsWarn = False
+        self.gpsFix = False
+        self.speed = math.nan
+        self.recording = False
+
+    def get_temperature(self):
+        """ get temperature """
+        return self.temperature
+
+    def get_tpms_warn(self):
+        """ get TPMS warn status """
+        return self.tpmsWarn
+
+    def get_gps_fix(self):
+        """ get GPS fix status """
+        return self.gpsFix
+
+    def get_speed(self):
+        """ get speed """
+        return self.speed
+
+    def get_recording(self):
+        """ get dashcam recording status """
+        return self.recording
+
+class GPS:
+    """ GPS container """
+    def __init__(self):
+        self.lat = math.nan
+        self.lon = math.nan
+        self.alt = math.nan
+        self.course = math.nan
+        self.fix = 0
+        self.speed = math.nan
+
+    def get_speed(self):
+        """ get GPS speed """
+        return self.speed
+
+    def set_speed(self, value):
+        """ set GPS speed """
+        self.speed = value
 
 class MainApp(QMainWindow):
     stop_signal = pyqtSignal()
-    start_signal = pyqtSignal()
     exit_signal = pyqtSignal()
-    stop_preview = pyqtSignal()
     set_season = pyqtSignal(int)
+    info = pyqtSignal(dict)
+    virb_ip = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
-        self.setStyleSheet("background-color: black;")
+
         self.setWindowTitle("Motorhome Info")
-        self.resolution = QDesktopWidget().availableGeometry(-1)
-        self.prefix = str(Path.home()) + "/.motorhome/res/"
-        self.network_available = False
-        self.updateAddress = False
-        self.ip = ""
+        self.setStyleSheet(STYLESHEET)
 
-        self.gps_ts = datetime.now() - timedelta(seconds=10)
-        self.gps_connection = False
-
-        self.setup_ui()
-
-        self.timer=QTimer()
-        self.timer.timeout.connect(self.search_virb)
-        self.timer.start(1000)
-
-        self.datetimer=QTimer()
-        self.datetimer.timeout.connect(self.updateDateTime)
-        self.datetimer.start(1000)
-
+        # start threads
+        self.initGPSThread()
         self.initTPMSThread()
-        self.getTPMSwarn()
+        self.initRuuvitagThread()
+        self.initSearchVirbThread()
+
+        self.init_gui()
+
         self.showFullScreen()
 #        self.showMaximized()
 
-    def search_virb(self):
-        def is_virb_ssid():
-            ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
-            if ssid == "VIRB-6267":
-                return True
 
-            return False
+    def init_gui(self):
+        """ initialize GUI """
+        self.prefix = str(Path.home()) + "/.motorhome/res/"
 
-        if is_virb_ssid():
-            self.ip = "192.168.0.1"
-            self.timer.stop()
-            self.initGPSThread()
+        # create infotainment windows
+        self.speedoWindow = SpeedoWindow(parent=self)
+        self.cameraWindow = CameraWindow(parent=self)
+        self.tpmsWindow = TPMSWindow(parent=self)
+        self.gpsWindow = GPSWindow(parent=self)
+        self.ruuviWindow = RuuviWindow(parent=self)
+        self.appsWindow = AppsWindow(parent=self)
+        self.infoWindow = InfoWindow(parent=self)
 
-        while self.ip == "":
-            print("Searching Garmin Virb")
+        self.infobar = InfoBar()
+        self.gps = GPS()
 
-            for ifaceName in interfaces():
-                addresses = [i['addr'] for i in ifaddresses(ifaceName).setdefault(AF_INET, [{'addr':'No IP addr'}] )]
-                if ifaceName == "wlan0":
-                    my_ip = addresses[0].split('.')
-                    break
+        self.virb = Virb()
+        self.tpms = Tires()
+        self.ruuvi = Ruuvi()
 
-            my_ip[3] = "0/24"
-            ip = "."
-            ip = ip.join(my_ip)
-            nmap = nmap3.NmapHostDiscovery()
-            result=nmap.nmap_no_portscan(ip, "-sP")
-
-            for i in range(len(result)):
-                 try:
-                    device = result[list(result.keys())[i]]['hostname'][0]['name']
-                    if device == "Garmin-WiFi":
-                        self.ip = list(result)[i]
-                        print("Virb found: " + self.ip)
-                        self.timer.stop()
-                        self.initGPSThread()
-                        break
-                 except:
-                     pass
-
-    def setup_ui(self):
-        self.tire = Tires()
-        self.tpmsFLflag = False
-        self.tpmsFRflag = False
-        self.tpmsRLflag = False
-        self.tpmsRRflag = False
-        self.speed = -1
-        self.previewEnabled = False
-        self.previewScale = 80
-
-        #Initialize widgets
         self.centralWidget = QWidget()
+        size = 64
 
-        self.TabWidget = QTabWidget(self)
-        self.TabWidget.setFont(QFont("Sanserif", 16))
+        #speedometer
+        speedoButton = QToolButton(self)
+        speedoButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        speedoButton.setIcon(QIcon(self.prefix + 'speedo.png'))
+        speedoButton.setText("Speedo")
+        speedoButton.setIconSize(QSize(size, size))
+        speedoButton.clicked.connect(self.createSpeedoWindow)
 
-        self.pages = [QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget(), QWidget()]
+        # dashcam
+        self.cameraButton = QToolButton(self)
+        self.cameraButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.cameraButton.setIcon(QIcon(self.prefix + 'dashcam.png'))
+        self.cameraButton.setText("Dashcam")
+        self.cameraButton.setIconSize(QSize(size, size))
+        self.cameraButton.clicked.connect(self.createCameraWindow)
+        self.cameraButton.setEnabled(False)
 
-        #initialize pages
-        self.init_dashboard_ui(self.pages[0])
-        self.init_gps_ui(self.pages[1])
-        self.init_dashcam_ui(self.pages[2])
-        self.init_tpms_ui(self.pages[3])
-        self.init_ruuvitag(self.pages[4])
-        self.init_settings_ui(self.pages[5])
-        self.init_info_ui(self.pages[6])
+        # tpms
+        tpmsButton = QToolButton(self)
+        tpmsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        tpmsButton.setIcon(QIcon(self.prefix + 'tpms.png'))
+        tpmsButton.setText("TPMS")
+        tpmsButton.setIconSize(QSize(size, size))
+        tpmsButton.clicked.connect(self.createTPMSWindow)
 
-        # warn lights
-        self.temp_warn_off = QPixmap("")
-        self.temp_warn_on = QPixmap(self.prefix + "snowflake.png").scaled(32, 32, Qt.KeepAspectRatio)
-        self.tempWarnLabel = QLabel()
-        self.tempWarnLabel.setPixmap(self.temp_warn_off)
-        self.tempWarnLabel.setAlignment(Qt.AlignVCenter)
+        # Navit
+        navitButton = QToolButton(self)
+        navitButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        navitButton.setIcon(QIcon(self.prefix + 'navit.png'))
+        navitButton.setText("Navigation")
+        navitButton.setIconSize(QSize(size, size))
+        navitButton.clicked.connect(self.startNavigation)
 
-        self.tpms_warn_off = QPixmap(self.prefix + "tpms_warn_off.png").scaled(32, 32, Qt.KeepAspectRatio)
-        self.tpms_warn_on = QPixmap(self.prefix + "tpms_warn_on.png").scaled(32, 32, Qt.KeepAspectRatio)
-        self.tpmsWarnLabel = QLabel()
-        self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
-        self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
+        # GPS
+        gpsButton = QToolButton(self)
+        gpsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        gpsButton.setIcon(QIcon(self.prefix + 'compass.png'))
+        gpsButton.setText("Compass")
+        gpsButton.setIconSize(QSize(size, size))
+        gpsButton.clicked.connect(self.createGPSWindow)
 
-        self.gps_disconnected = QPixmap(self.prefix + "no_gps.png").scaled(32, 32, Qt.KeepAspectRatio)
-        self.gps_connected = QPixmap(self.prefix + "")
-        self.gpsWarnLabel = QLabel()
-        self.gpsWarnLabel.setPixmap(self.gps_disconnected)
-        self.gpsWarnLabel.setAlignment(Qt.AlignVCenter)
+        # ruuvitag
+        ruuviButton = QToolButton(self)
+        ruuviButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        ruuviButton.setIcon(QIcon(self.prefix + 'ruuvi.png'))
+        ruuviButton.setText("Ruuvitag")
+        ruuviButton.setIconSize(QSize(size, size))
+        ruuviButton.clicked.connect(self.createRuuviWindow)
 
-        self.dateLabel = QLabel()
-        self.dateLabel.setStyleSheet("QLabel {color: white; font: 14px}")
-        self.dateLabel.setAlignment(Qt.AlignCenter)
+        # apps
+        self.appsButton = QToolButton(self)
+        self.appsButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.appsButton.setIcon(QIcon(self.prefix + 'apps.png'))
+        self.appsButton.setText("Apps")
+        self.appsButton.setIconSize(QSize(size, size))
+        self.appsButton.clicked.connect(self.createAppsWindow)
+        self.appsButton.setEnabled(False)
 
-        self.timeLabel = QLabel()
-        self.timeLabel.setStyleSheet("QLabel {color: white; font: 22px}")
-        self.timeLabel.setAlignment(Qt.AlignCenter)
+        # vehicle info
+        infoButton = QToolButton(self)
+        infoButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        infoButton.setIcon(QIcon(self.prefix + 'info_128x128.png'))
+        infoButton.setText("Info")
+        infoButton.setIconSize(QSize(size, size))
+        infoButton.clicked.connect(self.createInfoWindow)
 
-        self.tempLabel = QLabel()
-        self.tempLabel.setStyleSheet("QLabel {color: white; font: 22px}")
-        self.tempLabel.setAlignment(Qt.AlignCenter)
-
+        # poweroff
         powerButton = QPushButton("", self)
         powerButton.setIcon(QIcon(self.prefix + 'power.png'))
         powerButton.setIconSize(QSize(32, 32))
-        powerButton.clicked.connect(self.poweroff)
-        powerButton.setStyleSheet("background-color: black;"
-                                  "border-style: outset;"
-                                  "border-width: 2px;"
-                                  "border-radius: 6px;"
-                                  "border-color: black;"
-                                  "font: bold 32px;"
-                                  "color: black;"
-                                  "min-width: 32px;"
-                                  "max-width: 32px;"
-                                  "min-height: 28px;"
-                                  "max-height: 28px;"
-                                  "padding: 1px;")
+        powerButton.clicked.connect(poweroff)
 
-        warnLayout = QHBoxLayout()
-        warnLayout.addWidget(self.tempWarnLabel)
-        warnLayout.addWidget(self.tpmsWarnLabel)
-        warnLayout.addWidget(self.gpsWarnLabel)
-        warnLayout.addWidget(self.dateLabel)
-        warnLayout.addWidget(self.timeLabel)
-        warnLayout.addWidget(self.tempLabel)
-        warnLayout.addWidget(powerButton)
+        # time
+        self.timeLabel = QLabel()
 
-        centralLayout = QVBoxLayout()
-        centralLayout.addWidget(self.TabWidget, 1)
-        centralLayout.addLayout(warnLayout)
+        # TPMS warn light
+        self.tpms_warn_off = QPixmap("")
+        self.tpms_warn_on = QPixmap(self.prefix + "tpms_warn_on.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.tpmsWarnLabel = QLabel()
+        self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
 
-        size = 32
-        self.dashboard_index = self.TabWidget.addTab(self.pages[0], "")
-        self.TabWidget.setTabIcon(self.dashboard_index, QIcon(self.prefix + 'speedometer.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+        # Ruuvitag
+        self.tempInfoLabel = QLabel()
 
-        self.gps_index = self.TabWidget.addTab(self.pages[1], "")
-        self.TabWidget.setTabIcon(self.gps_index, QIcon(self.prefix + 'gps.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+        self.temp_warn_off = QPixmap("")
+        self.temp_warn_on = QPixmap(self.prefix + "snowflake.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.tempWarnLabel = QLabel()
 
-        self.dc_index = self.TabWidget.addTab(self.pages[2], "")
-        self.TabWidget.setTabIcon(self.dc_index, QIcon(self.prefix + 'camera.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+        self.updateTemperature(self.ruuvi.temperature)
 
-        self.tpms_index = self.TabWidget.addTab(self.pages[3], "")
-        self.TabWidget.setTabIcon(self.tpms_index, QIcon(self.prefix + 'tpms_warn_off.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+        self.datetimer = QTimer()
+        self.datetimer.timeout.connect(self.updateTime)
+        self.datetimer.start(1000)
 
-        self.ruuvi_index = self.TabWidget.addTab(self.pages[4], "")
-        self.TabWidget.setTabIcon(self.ruuvi_index, QIcon(self.prefix + 'weather.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+        # recording
+        self.recInfoLabel = QLabel()
+        self.rec_off = QPixmap("")
+        self.rec_on = QPixmap(self.prefix + "rec.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.updateRecording(self.infobar.recording)
 
-        self.settings_index = self.TabWidget.addTab(self.pages[5], "")
-        self.TabWidget.setTabIcon(self.settings_index, QIcon(self.prefix + 'settings.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(size, size))
+        # gps
+        self.gpsInfoLabel = QLabel()
+        self.gps_connected = QPixmap("")
+        self.gps_disconnected = QPixmap(self.prefix + "no_gps.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.updateGPSFix(self.infobar.gpsFix)
+        self.gpsSpeedLabel = QLabel("-- km/h")
 
-        self.info_index = self.TabWidget.addTab(self.pages[6], "")
-        self.TabWidget.setTabIcon(self.info_index, QIcon(self.prefix + 'info.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(size, size))
-
-        self.TabWidget.setStyleSheet('''
-            QTabBar::tab { height: 32px; width: 64px; color: #000000;}
-            QTabBar::tab:selected {background-color: #373636;}
-            QTabBar::tab:selected {font: 16pt bold; color: #000000}
-            QTabBar::tab {margin: 0px;}
-            ''')
-
-        self.centralWidget.setLayout(centralLayout)
-        self.setCentralWidget(self.centralWidget)
-
-        self.TabWidget.currentChanged.connect(self.tabChanged)
-
-    def init_dashcam_ui(self, page):
-        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
-
-        recButton = QPushButton("", self)
-        recButton.setIcon(QIcon(self.prefix + 'rec.png'))
-        recButton.setIconSize(QSize(64, 64))
-        recButton.setCheckable(True)
-        recButton.clicked.connect(lambda: self.record(recButton))
-        recButton.setStyleSheet("background-color: darkgrey;"
-                                "border-style: outset;"
-                                "border-width: 2px;"
-                                "border-radius: 10px;"
-                                "border-color: beige;"
-                                "font: bold 32px;"
-                                "color: red;"
-                                "min-width: 64px;"
-                                "min-height: 64px;"
-                                "padding: 12px;")
-
-        snapshotButton = QPushButton("", self)
-        snapshotButton.setIcon(QIcon(self.prefix + 'snapshot.png'))
-        snapshotButton.setIconSize(QSize(64, 64))
-        snapshotButton.clicked.connect(lambda: self.snapshot(snapshotButton))
-        snapshotButton.setStyleSheet("background-color: darkgrey;"
-                                     "border-style: outset;"
-                                     "border-width: 2px;"
-                                     "border-radius: 10px;"
-                                     "border-color: beige;"
-                                     "font: bold 32px;"
-                                     "color: black;"
-                                     "min-width: 64px;"
-                                     "min-height: 64px;"
-                                     "padding: 12px;")
-
-        self.previewLabel = QLabel("", self)
-        self.previewLabel.setStyleSheet("background-color: black;"
-                                        "border-style: outset;"
-                                        "border-width: 1px;"
-                                        "border-radius: 8px;"
-                                        "border-color: beige;"
-                                        "font: bold 32px;"
-                                        "color: black;"
-                                        "min-width: 565px;"
-                                        "min-height: 320px;"
-                                        "padding: 4px;")
-
-        self.virbBattLabel = QLabel()
-        self.virbBattLabel.setText(" VBat -- %")
-        self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
-        self.virbBattLabel.setAlignment(Qt.AlignRight)
-
-        vbox = QVBoxLayout()
-        vbox.setAlignment(Qt.AlignCenter)
-        vbox.addWidget(recButton)
-        vbox.addWidget(snapshotButton)
-        vbox.addWidget(self.virbBattLabel)
-
-        hbox = QHBoxLayout()
-        hbox.setSpacing(20)
-        hbox.addLayout(vbox)
-        hbox.setAlignment(Qt.AlignCenter)
-        hbox.addWidget(self.previewLabel)
-
-        page.setLayout(hbox)
-
-    def init_dashboard_ui(self, page):
-        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
-        web = QWebView()
-        web.settings().setAttribute(QWebSettings.JavascriptEnabled, True)
-        web.settings().setAttribute(QWebSettings.LocalContentCanAccessRemoteUrls, True);
-        web.load(QUrl("http://my.dashboard.com"))
-
-        vbox = QVBoxLayout()
-        vbox.addWidget(web)
-        page.setLayout(vbox)
-
-    def init_gps_ui(self, page):
-        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
-
-        self.fix = QLabel("Status: no fix")
-        self.fix.setStyleSheet("font: bold 20px;"
-                               "color: white;")
-
+        #infobar
         hbox1 = QHBoxLayout()
-        hbox1.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
-        hbox1.addWidget(self.fix)
+        hbox1.addWidget(self.tpmsWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.tempWarnLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.gpsInfoLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.recInfoLabel, alignment=Qt.AlignTop|Qt.AlignLeft)
+        hbox1.addWidget(self.gpsSpeedLabel, alignment=Qt.AlignTop|Qt.AlignRight)
+        hbox1.addWidget(self.tempInfoLabel, alignment=Qt.AlignTop|Qt.AlignRight)
+        hbox1.addWidget(self.timeLabel, alignment=Qt.AlignTop|Qt.AlignRight)
 
-        lat_label = QLabel("Latitude")
-        lat_label.setFixedWidth(200)
-        lat_label.setStyleSheet("font: bold 16px;"
-                                "color: white;")
+        grid = QGridLayout()
+        grid.addWidget(speedoButton, 0, 0)
+        grid.addWidget(self.cameraButton, 0, 1)
+        grid.addWidget(tpmsButton, 0, 2)
 
-        lon_label = QLabel("Longitude")
-        lon_label.setFixedWidth(200)
-        lon_label.setStyleSheet("font: bold 16px;"
-                                "color: white;")
+        grid.addWidget(navitButton, 1, 0)
+        grid.addWidget(gpsButton, 1, 1)
+        grid.addWidget(ruuviButton, 1, 2)
 
-        alt_label = QLabel("Altitude")
-        alt_label.setFixedWidth(200)
-        alt_label.setStyleSheet("font: bold 16px;"
-                                "color: white;")
-        hbox2 = QHBoxLayout()
-        hbox2.setSpacing(20)
-        hbox2.setAlignment(Qt.AlignHCenter | Qt.AlignBottom)
-        hbox2.addWidget(lat_label)
-        hbox2.addWidget(lon_label)
-        hbox2.addWidget(alt_label)
+        grid.addWidget(self.appsButton, 2, 0)
+        grid.addWidget(infoButton, 2, 1)
 
-        self.lat = QLabel("--")
-        self.lat.setFixedWidth(200)
-        self.lat.setStyleSheet("font: bold 32px;"
-                               "color: white;")
-
-        self.lon = QLabel("--")
-        self.lon.setFixedWidth(200)
-        self.lon.setStyleSheet("font: bold 32px;"
-                                "color: white;")
-
-        self.alt = QLabel("--")
-        self.alt.setFixedWidth(200)
-        self.alt.setStyleSheet("font: bold 32px;"
-                               "color: white;")
-        hbox3 = QHBoxLayout()
-        hbox3.setSpacing(20)
-        hbox3.setAlignment(Qt.AlignHCenter | Qt.AlignTop)
-        hbox3.addWidget(self.lat)
-        hbox3.addWidget(self.lon)
-        hbox3.addWidget(self.alt)
-
-        self.address = QLabel("")
-        self.address.setStyleSheet("font: 24px;"
-                                   "color: white;")
-        hbox4 = QHBoxLayout()
-        hbox4.setSpacing(20)
-        hbox4.setAlignment(Qt.AlignCenter)
-        hbox4.addWidget(self.address)
+        grid.setSpacing(10)
 
         vbox = QVBoxLayout()
         vbox.addLayout(hbox1)
-        vbox.addLayout(hbox2)
-        vbox.addLayout(hbox3)
-        vbox.addLayout(hbox4)
+        vbox.addLayout(grid)
+        vbox.addWidget(powerButton, alignment=Qt.AlignRight)
 
-        page.setLayout(vbox)
+        self.centralWidget.setLayout(vbox)
+        self.setCentralWidget(self.centralWidget)
 
-    def init_tpms_ui(self, page):
-        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
-        pressure = "-- bar"
-        temperature = "-- "
-        self.fl_label = QLabel(pressure + "\n" + temperature + "\u2103")
-        self.fr_label = QLabel(pressure + "\n" + temperature + "\u2103")
-        self.rl_label = QLabel(pressure + "\n" + temperature + "\u2103")
-        self.rr_label = QLabel(pressure + "\n" + temperature + "\u2103")
+    def createSpeedoWindow(self):
+        """ create window for speedometer """
+        self.speedoWindow.create_window(self.infobar)
+        self.info.connect(self.speedoWindow.update_infobar)
+        self.speedoWindow.show()
 
-        font = self.fl_label.font()
-        font.setPointSize(32)
-        font.setBold(True)
-        self.fl_label.setFont(font)
-        self.fr_label.setFont(font)
-        self.rl_label.setFont(font)
-        self.rr_label.setFont(font)
+    def createCameraWindow(self):
+        """ create window for dashcam """
+        self.cameraWindow.createWindow(self.infobar, self.virb)
+        self.cameraWindow.recording.connect(self.getRecSignal)
+        self.info.connect(self.cameraWindow.updateInfobar)
+        self.cameraWindow.show()
 
-        self.fl_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-        self.fr_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-        self.rl_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-        self.rr_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+    def createTPMSWindow(self):
+        """ create window for tire pressure monitor system """
+        self.tpmsWindow.createWindow(self.infobar, self.tpms)
+        self.info.connect(self.tpmsWindow.updateInfobar)
+        self.tpmsWindow.show()
 
-        pixmap = QPixmap(self.prefix + "tire.png").scaled(128, 128, Qt.KeepAspectRatio)
+    def startNavigation(self):
+        """ Navit navigation """
+        print("motorhome: Launching Navit navigation")
+        try:
+            os.system('/usr/bin/navit')
+        except:
+            print("motorhome: unable to launch Navit navigation")
 
-        tire1_label = QLabel()
-        tire1_label.setPixmap(pixmap)
-        tire1_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+    def createGPSWindow(self):
+        """ create window for GPS data """
+        self.gpsWindow.createWindow(self.infobar, self.gps)
+        self.info.connect(self.gpsWindow.updateInfobar)
+        self.gpsWindow.show()
 
-        tire2_label = QLabel()
-        tire2_label.setPixmap(pixmap)
-        tire2_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+    def createRuuviWindow(self):
+        """ create window for Ruuvitag data """
+        self.ruuviWindow.createWindow(self.infobar, self.ruuvi)
+        self.info.connect(self.ruuviWindow.updateInfobar)
+        self.ruuviWindow.show()
 
-        tire3_label = QLabel()
-        tire3_label.setPixmap(pixmap)
-        tire3_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+    def createAppsWindow(self):
+        """ create window for 3rd party apps """
+        self.appsWindow.createWindow(self.infobar)
+        self.info.connect(self.appsWindow.updateInfobar)
+        self.appsWindow.show()
 
-        tire4_label = QLabel()
-        tire4_label.setPixmap(pixmap)
-        tire4_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+    def createInfoWindow(self):
+        """ create window for system information """
+        self.infoWindow.createWindow(self.infobar, self.virb.ip)
+        self.info.connect(self.infoWindow.updateInfobar)
+        self.infoWindow.show()
 
-        vbox = QGridLayout()
-        vbox.addWidget(self.fl_label, 0, 0)
-        vbox.addWidget(tire1_label, 0, 1)
-        vbox.addWidget(tire2_label, 0, 2)
-        vbox.addWidget(self.fr_label, 0, 3)
-        vbox.addWidget(self.rl_label, 1, 0)
-        vbox.addWidget(tire3_label, 1, 1)
-        vbox.addWidget(tire4_label, 1, 2)
-        vbox.addWidget(self.rr_label, 1, 3)
-        page.setLayout(vbox)
+    def getRecSignal(self, data):
+        """ get dashcam recording status """
+        self.infobar.recording = data
+        self.updateRecording(self.infobar.recording)
 
-    def init_ruuvitag(self, page):
-        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+    def updateTime(self):
+        """ update date and time """
+        t = datetime.now()
+        self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
+        self.infobar.time = t
 
-        outdoor = QLabel("OUTDOOR:")
-        outdoor.setStyleSheet("font: bold 32px;"
-                              "color: white;")
-        outdoor.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        data = dict(time=self.infobar.time,
+                    temperature=self.infobar.temperature,
+                    tpms=self.infobar.tpmsWarn,
+                    gpsFix=self.infobar.gpsFix,
+                    speed=self.infobar.speed,
+                    recording=self.infobar.recording)
+        self.info.emit(data)
 
-        self.temperatureLabel = QLabel(" --\u2103")
-        self.temperatureLabel.setStyleSheet("font: bold 48px;"
-                                            "color: white;")
-        self.temperatureLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+    def initGPSThread(self):
+        """ initialize GPS thread """
+        self.gpsThread = QThread()
+        self.gpsWorker = Location()
+        self.exit_signal.connect(self.gpsWorker.stop)
+        self.virb_ip.connect(self.gpsWorker.init_virb)
+        self.gpsWorker.moveToThread(self.gpsThread)
+        self.gpsWorker.finished.connect(self.gpsThread.quit)
+        self.gpsWorker.finished.connect(self.gpsWorker.deleteLater)
+        self.gpsThread.finished.connect(self.gpsThread.deleteLater)
+        self.gpsThread.started.connect(self.gpsWorker.run)
 
-        self.humidityLabel = QLabel("-- %")
-        self.humidityLabel.setStyleSheet("font: bold 48px;"
-                                         "color: white;")
-        self.humidityLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.gpsWorker.gpsFix.connect(self.updateGPSFix)
+        self.gpsWorker.gpsLocation.connect(self.updateLocation)
 
-        self.pressureLabel = QLabel("-- hPa")
-        self.pressureLabel.setStyleSheet("font: bold 48px;"
-                                         "color: white;")
-        self.pressureLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
+        self.gpsThread.start()
 
-        self.voltageLabel = QLabel()
-        self.voltageLabel.setStyleSheet("font: bold 32px;"
-                                        "color: yellow")
-        self.voltageLabel.setAlignment(Qt.AlignRight)
+    def initSearchVirbThread(self):
+        """ initialize search for Garmin Virb ip """
+        self.virbThread = QThread()
+        self.virbWorker = SearchVirb()
+        self.exit_signal.connect(self.virbWorker.stop)
+        self.virbWorker.moveToThread(self.virbThread)
+        self.virbWorker.finished.connect(self.virbThread.quit)
+        self.virbWorker.finished.connect(self.virbWorker.deleteLater)
+        self.virbThread.finished.connect(self.virbThread.deleteLater)
+        self.virbThread.started.connect(self.virbWorker.run)
 
-        vbox = QVBoxLayout()
-        vbox.addWidget(outdoor)
-        vbox.addWidget(self.temperatureLabel)
-        vbox.addWidget(self.humidityLabel)
-        vbox.addWidget(self.pressureLabel)
-        vbox.addWidget(self.voltageLabel)
-        page.setLayout(vbox)
+        self.virbWorker.ip.connect(self.setVirbIP)
 
-        self.initRuuvitagThread()
+        self.virbThread.start()
 
-    def init_settings_ui(self, page):
-        # Tire pressure warnig level
-        page.setGeometry(0, 0, self.resolution.width(), self.resolution.height())
+    def setVirbIP(self, ip):
+        """ set Garmin Virb ip """
+        self.virb.ip = ip
+        self.virb_ip.emit(self.virb.ip)
 
-        self.season = QCheckBox("Winter tires")
-        self.season.toggled.connect(self.updateSeason)
-        self.season.setStyleSheet("QCheckBox {color: white; font: bold 32px}")
+        self.cameraButton.setEnabled(True)
 
-        self.low_pressure = QSlider(Qt.Horizontal, self)
-        self.low_pressure.setFocusPolicy(Qt.NoFocus)
-        self.low_pressure.setRange(10, 50)
-        self.low_pressure.setPageStep(1)
-        self.low_pressure.valueChanged.connect(self.changePressureLevel)
-        self.low_pressure.sliderReleased.connect(self.updateConfig)
-        self.low_pressure.setStyleSheet('''
-            QSlider::handle:horizontal { width: 32px; }
-            QSlider::groove:horizontal { height: 8px; }
-            QSlider::handle:vertical { height: 32px; }
-            ''')
+        if self.virb.ip != "192.168.0.1":
+            print("enabling apps button")
+            self.appsButton.setEnabled(True)
 
-        self.ptitle_label = QLabel("TPMS warn level", self)
-        self.ptitle_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.ptitle_label.setStyleSheet("font: bold 32px; color: white")
-
-        self.pslider_label = QLabel(" 1 bar", self)
-        self.pslider_label.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-        self.pslider_label.setMinimumWidth(60)
-        self.pslider_label.setStyleSheet("font: bold 32px; color: white")
-
-        hbox = QHBoxLayout()
-        hbox.addWidget(self.low_pressure)
-        hbox.addWidget(self.pslider_label)
-
-        vbox = QVBoxLayout()
-        vbox.addWidget(self.season)
-        vbox.addWidget(self.ptitle_label)
-        vbox.addLayout(hbox)
-
-        page.setLayout(vbox)
-
-        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
-        config = configparser.ConfigParser()
 
         try:
-            config.read(conf_file)
-            season = config['Season']['season']
-
-            if season == "winter":
-                self.season.setChecked(True)
-        except:
+            self.cameraWindow.setVirbIP(ip)
+        except AttributeError:
             pass
 
-    def init_info_ui(self, page):
-        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
-        config = configparser.ConfigParser()
-
-        config.read(conf_file)
-        try:
-            model = config['Maker']['model']
-            year = config['Maker']['year']
-            typeLabel = config['Maker']['typeLabel']
-            makerLabel = config['Maker']['makerLabel']
-            vin = config['Maker']['vin']
-        except:
-            model = ""
-            year = ""
-            typeLabel = ""
-            makerLabel = ""
-
-        modelLabel = QLabel(model + ", " + year)
-        modelLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
-        modelLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-        try:
-            chassisLabel = QLabel(config['Maker']['chassis'])
-        except:
-            chassisLabel = QLabel()
-        chassisLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
-        chassisLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-        pixmap = QPixmap(typeLabel).scaled(320, 320, Qt.KeepAspectRatio)
-        typeLabel = QLabel()
-        typeLabel.setPixmap(pixmap)
-        typeLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-        pixmap = QPixmap(makerLabel).scaled(300, 300, Qt.KeepAspectRatio)
-        makerLabel = QLabel()
-        makerLabel.setPixmap(pixmap)
-        makerLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-        try:
-            vinLabel = QLabel("VIN " + config['Maker']['vin'])
-        except:
-            vinLabel = QLabel()
-
-        vinLabel.setStyleSheet("QLabel {color: white; font: bold 16px}")
-        vinLabel.setAlignment(Qt.AlignCenter | Qt.AlignVCenter)
-
-        hbox = QHBoxLayout()
-        hbox.addWidget(typeLabel)
-        hbox.addWidget(makerLabel)
-
-        vbox = QVBoxLayout()
-        vbox.addWidget(modelLabel)
-        vbox.addWidget(chassisLabel)
-        vbox.addWidget(vinLabel)
-        vbox.addLayout(hbox)
-
-        page.setLayout(vbox)
-
-    def initStartRecThread(self):
-        self.startRecThread = QThread()
-        self.startRecWorker = Camcorder(self.ip)
-        self.startRecWorker.moveToThread(self.startRecThread)
-        self.startRecWorker.finished.connect(self.startRecThread.quit)
-        self.startRecWorker.finished.connect(self.startRecWorker.deleteLater)
-        self.startRecThread.finished.connect(self.startRecThread.deleteLater)
-        self.startRecThread.started.connect(self.startRecWorker.start_recording)
-
-        self.TabWidget.setTabIcon(self.dc_index, QIcon(self.prefix + 'cam_rec.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(32, 32))
-
-        self.startRecThread.start()
-
-    def initStopRecThread(self):
-        self.stopRecThread = QThread()
-        self.stopRecWorker = Camcorder(self.ip)
-        self.stopRecWorker.moveToThread(self.stopRecThread)
-        self.stopRecWorker.finished.connect(self.stopRecThread.quit)
-        self.stopRecWorker.finished.connect(self.stopRecWorker.deleteLater)
-        self.stopRecThread.finished.connect(self.stopRecThread.deleteLater)
-        self.stopRecThread.started.connect(self.stopRecWorker.stop_recording)
-
-        self.TabWidget.setTabIcon(self.dc_index, QIcon(self.prefix + 'camera.png'))
-        self.TabWidget.setIconSize(QtCore.QSize(32, 32))
-
-        self.stopRecThread.start()
-
-    def initSnapshotThread(self, button):
-        self.snapshotThread = QThread()
-        self.snapshotWorker = Camcorder(self.ip)
-        self.snapshotWorker.moveToThread(self.snapshotThread)
-        self.snapshotWorker.finished.connect(self.snapshotThread.quit)
-        self.snapshotWorker.finished.connect(self.snapshotWorker.deleteLater)
-        self.snapshotThread.finished.connect(self.snapshotThread.deleteLater)
-        self.snapshotThread.finished.connect(lambda: self.updateSnapshotButton(button))
-        self.snapshotThread.started.connect(self.snapshotWorker.snapshot)
-
-        self.snapshotThread.start()
-
-    def initPreviewThread(self):
-        if self.ip == "":
-            return
-
-        self.previewThread = QThread()
-        self.previewWorker = Camcorder(self.ip)
-        self.stop_preview.connect(self.previewWorker.stop_preview)
-        self.previewWorker.moveToThread(self.previewThread)
-        self.previewWorker.finished.connect(self.previewThread.quit)
-        self.previewWorker.finished.connect(self.previewWorker.deleteLater)
-        self.previewThread.finished.connect(self.previewThread.deleteLater)
-        self.previewThread.started.connect(self.previewWorker.live_preview)
-        #self.previewWorker.stop_preview.connect(self.previewWorker.stop_preview)
-
-        self.previewWorker.image.connect(self.updatePreview)
-
-        self.previewThread.start()
-
     def initTPMSThread(self):
+        """ initialize TPMS thread """
         self.tpmsThread = QThread()
         self.tpmsWorker = TPMS()
         self.exit_signal.connect(self.tpmsWorker.stop)
@@ -645,49 +430,48 @@ class MainApp(QMainWindow):
         self.tpmsThread.started.connect(self.tpmsWorker.run)
 
         self.tpmsWorker.tpms.connect(self.setTPMS)
+        self.tpmsWorker.tpms_warn.connect(self.setTPMSWarn)
 
         self.tpmsThread.start()
 
-    def initGPSThread(self):
-        if self.ip == "":
-            return
+    def setTPMSWarn(self, warn):
+        """ Set TPMS warn on/off """
+        if warn:
+            self.infobar.tpmsWarn = True
+            self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
+        else:
+            self.infobar.tpmsWarn = False
+            self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
 
-        self.thread =  QThread()
-        self.worker = GPS(self.ip)
-        self.stop_signal.connect(self.worker.halt)
-        self.start_signal.connect(self.worker.get_status)
-        self.exit_signal.connect(self.worker.stop)
-        self.worker.moveToThread(self.thread)
+        try:
+            self.tpmsWindow.setTPMSWarn(warn)
+        except AttributeError:
+            print("Error sending tpms warn to tpms")
 
-        self.worker.finished.connect(self.thread.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.thread.finished.connect(self.thread.deleteLater)
+    def setTPMS(self, sensor):
+        """ set TPMS data """
+        tire = sensor[0]
+        self.tpms.set_pressure(tire, sensor[1])
+        self.tpms.set_temperature(tire, sensor[2])
+        self.tpms.set_warn(tire, sensor[3])
 
-        self.thread.started.connect(self.worker.run)
-
-        self.worker.start_signal.connect(self.worker.get_status)
-        self.worker.stop_signal.connect(self.worker.halt)
-        self.worker.exit_signal.connect(self.worker.stop)
-
-        self.worker.gpsBatt.connect(self.updateBatt)
-        self.worker.gpsFix.connect(self.updateGPSFix)
-        self.worker.gpsLocation.connect(self.updateLocation)
-
-        self.thread.started.connect(self.worker.run)
-
-        self.thread.start()
+        try:
+            self.tpmsWindow.setTPMS(self.tpms, tire)
+        except AttributeError:
+            pass
 
     def initRuuvitagThread(self):
+        """ initialize Ruuvitag thread """
         conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
         config = configparser.ConfigParser()
 
         try:
             config.read(conf_file)
             mac = config['RuuviTag']['mac']
-        except:
+        except IOError:
             return
 
-        self.ruuviThread =  QThread()
+        self.ruuviThread = QThread()
         self.ruuviWorker = RuuviTag(mac)
         self.exit_signal.connect(self.ruuviWorker.stop)
         self.ruuviWorker.moveToThread(self.ruuviThread)
@@ -709,266 +493,109 @@ class MainApp(QMainWindow):
 
         self.ruuviThread.start()
 
-    def record(self, button):
-        if button.isChecked():
-            button.setIcon(QIcon(self.prefix + 'stop.png'))
-            button.setIconSize(QSize(64, 64))
-            button.setStyleSheet("background-color: #373636;"
-                                 "border-style: outset;"
-                                 "border-width: 2px;"
-                                 "border-radius: 10px;"
-                                 "border-color: beige;"
-                                 "font: bold 32px;"
-                                 "color: red;"
-                                 "min-width: 72px;"
-                                 "min-height: 72px;"
-                                 "padding: 12px;")
-            self.initStartRecThread()
-        else:
-            # set autorecording when moving
-            button.setIcon(QIcon(self.prefix + 'rec.png'))
-            button.setIconSize(QSize(64, 64))
-            button.setStyleSheet("background-color: darkgrey;"
-                                 "border-style: outset;"
-                                 "border-width: 2px;"
-                                 "border-radius: 10px;"
-                                 "border-color: beige;"
-                                 "font: bold 32px;"
-                                 "color: red;"
-                                 "min-width: 72px;"
-                                 "min-height: 72px;"
-                                 "padding: 12px;")
-            self.initStopRecThread()
-
-    def snapshot(self, button):
-        button.setStyleSheet("background-color: #373636;"
-                             "border-style: outset;"
-                             "border-width: 2px;"
-                             "border-radius: 10px;"
-                             "border-color: beige;"
-                             "font: bold 32px;"
-                             "color: red;"
-                             "min-width: 72px;"
-                             "min-height: 72px;"
-                             "padding: 12px;")
-        button.setEnabled(False)
-        self.initSnapshotThread(button)
-
-    def updateSnapshotButton(self, button):
-        button.setEnabled(True)
-        button.setStyleSheet("background-color: darkgrey;"
-                             "border-style: outset;"
-                             "border-width: 2px;"
-                             "border-radius: 10px;"
-                             "border-color: beige;"
-                             "font: bold 32px;"
-                             "color: black;"
-                             "min-width: 72px;"
-                             "min-height: 72px;"
-                             "padding: 12px;")
-
-    def tabChanged(self, index):
-        if index == self.dc_index:
-            self.previewEnabled = True
-            self.setup_camera()
-        else:
-            self.previewEnabled = False
-            self.setup_camera()
-
-        if index == self.gps_index and self.network_available:
-            self.updateAddress = True
-        else:
-            self.updateAddress = False
-
-
-    def updateGPSFix(self, fix):
-        if fix == 1:
-            self.fix.setText("Status: No fix")
-        elif fix == 2:
-            self.fix.setText("Status: 2D fix")
-        elif fix == 3:
-            self.fix.setText("Status: 3D fix")
-
-    def updateLocation(self, location):
-        geolocation = Geolocation("motorhome")
-
-        self.lat.setText("{:.5f}".format(location[0]))
-        self.lon.setText("{:.5f}".format(location[1]))
-        self.alt.setText("{:.0f}".format(location[2]))
-
-        if self.updateAddress:
-            self.address.setText(geolocation.get_address((location[0], location[1])))
-
-        self.gps_ts = datetime.now()
-
-    def updateBatt(self, batt):
-       if batt < 5:
-           self.virbBattLabel.setStyleSheet("QLabel {color: red; font: bold 24px}")
-       elif batt >= 5 and batt < 20:
-           self.virbBattLabel.setStyleSheet("QLabel {color: yellow; font: bold 24px}")
-       else:
-           self.virbBattLabel.setStyleSheet("QLabel {color: white; font: bold 24px}")
-
-       self.virbBattLabel.setText("VBat " + str(batt) + "%")
-
-    def updatePreview(self, pixmap):
-        self.previewLabel.setPixmap(pixmap.scaled(int(704*self.previewScale/100), int(396*self.previewScale/100),
-                                                  QtCore.Qt.KeepAspectRatio))
-
     def updateTemperature(self, temperature):
-        if temperature < 3:
-            self.tempWarnLabel.setPixmap(self.temp_warn_on)
-        elif temperature > 3.2:
-            self.tempWarnLabel.setPixmap(self.temp_warn_off)
+        """ update temperature """
+        if math.isnan(temperature):
+            return
 
-        self.tempLabel.setText("{:.1f}".format(round(temperature, 1)) + " \u2103")
-        self.temperatureLabel.setText("{:.1f}".format(round(temperature, 1)) + " \u2103")
-
-    def updateHumidity(self, humidity):
-        self.humidityLabel.setText("{:.0f}".format(round(humidity)) + " %")
-
-    def updatePressure(self, pressure):
-        self.pressureLabel.setText("{:.0f}".format(round(pressure)) + " hPa")
-
-    def updateRuuviBatt(self, voltage):
-        if voltage < 2.75:
-            self.voltageLabel.setText("RuuviTag battery low: " + "{:.2f}".format(round(voltage/1000, 2)) + " V")
-
-    def updateDateTime(self):
-        t = datetime.now()
-        self.dateLabel.setText("{:02d}".format(t.day) + "." + "{:02d}".format(t.month) + "\n" + str(t.year))
-        self.timeLabel.setText("{:02d}".format(t.hour) + ":" + "{:02d}".format(t.minute))
-
-        if not self.previewEnabled:
-            diff = t - self.gps_ts
-            if diff.total_seconds() > 5:
-                self.gpsWarnLabel.setPixmap(self.gps_disconnected)
-                self.gps_connection = False
-            elif not self.gps_connection:
-                self.gpsWarnLabel.setPixmap(self.gps_connected)
-                self.gps_connection = True
-
-    def updateSeason(self):
-        self.set_season.emit(self.season.isChecked())
-        self.getTPMSwarn()
-        self.updateConfig()
-
-    def setup_camera(self):
-        if self.previewEnabled:
-            print("preview enabled")
-            self.stop_signal.emit()
-
-            self.initPreviewThread()
-
-        else:
-            print("preview disabled")
-            self.start_signal.emit()
-
-            self.stop_preview.emit()
-
-    def getTPMSwarn(self):
-        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
-        config = configparser.ConfigParser()
+        self.infobar.temperature = temperature
+        self.ruuvi.temperature = temperature
 
         try:
-            config.read(conf_file)
+            self.ruuviWindow.updateTemperature(self.ruuvi.temperature)
+        except AttributeError:
+            pass
 
-            if self.season.isChecked():
-                season = "TPMS_winter"
-            else:
-                season = "TPMS_summer"
-            val = float(config[season]['warn'])
-            val = int(val * 10)
+        if self.ruuvi.temperature < 3.0:
+            self.tempWarnLabel.setPixmap(self.temp_warn_on)
+        elif self.ruuvi.temperature > 3.2:
+            self.tempWarnLabel.setPixmap(self.temp_warn_off)
 
-            self.low_pressure.setValue(val)
-            self.tire.warnPressure = val/10.0
-        except:
-            return 48
+        self.tempInfoLabel.setText("{0:d}".format(round(self.ruuvi.temperature)) + "\u2103")
 
-        return val
+    def updateHumidity(self, humidity):
+        """ update humidity """
+        if math.isnan(humidity):
+            return
+        self.ruuvi.humidity = humidity
+        try:
+            self.ruuviWindow.updateHumidity(self.ruuvi.humidity)
+        except AttributeError:
+            pass
 
-    def changePressureLevel(self, value):
-        self.tire.setWarnPressure(value/10.0)
-        self.pslider_label.setText(str(self.tire.warnPressure) + " bar")
+    def updatePressure(self, pressure):
+        """ update air pressure """
+        if math.isnan(pressure):
+            return
 
-    def updateConfig(self):
-        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
-        config = configparser.ConfigParser()
-        config.read(conf_file)
+        self.ruuvi.pressure = pressure
+        try:
+            self.ruuviWindow.updatePressure(self.ruuvi.pressure)
+        except AttributeError:
+            pass
 
-        if self.season.isChecked():
-            season = config['Season']
-            season['season'] = "winter"
-            data = config['TPMS_winter']
-            data['warn'] = str(self.low_pressure.value()/10)
+    def updateRuuviBatt(self, voltage):
+        """ update Ruuvitag battery voltage """
+        if math.isnan(voltage):
+            return
+
+        self.ruuvi.vbatt = voltage
+        try:
+            self.ruuviWindow.updateRuuviBatt(self.ruuvi.vbatt)
+        except AttributeError:
+            pass
+
+    def updateGPSFix(self, fix):
+        """ Update GPS fix status """
+        if fix <= 1:
+            self.infobar.gpsFix = False
         else:
-            season = config['Season']
-            season['season'] = "summer"
-            data = config['TPMS_summer']
-            data['warn'] = str(self.low_pressure.value()/10)
+            self.infobar.gpsFix = True
 
-        with open(conf_file, 'w') as configfile:
-            config.write(configfile)
+        self.gps.fix = fix
 
-    def setTPMS(self, sensor):
-        self.tire.setPressure(sensor[0], sensor[1])
-        self.tire.setTemperature(sensor[0], sensor[2])
-
-        if sensor[0] == 'FL':
-            if sensor[3] == '1':
-                self.fl_label.setStyleSheet("color:yellow")
-            else:
-                self.fl_label.setStyleSheet("color:green")
-            self.fl_label.setText(str(self.tire.FrontLeftPressure)  + " bar\n" + str(self.tire.FrontLeftTemp) + " \u2103")
-        elif sensor[0] == 'FR':
-            if sensor[3] == '1':
-                self.fr_label.setStyleSheet("color:yellow")
-            else:
-                self.fr_label.setStyleSheet("color:green")
-            self.fr_label.setText(str(self.tire.FrontRightPressure)  + " bar\n" + str(self.tire.FrontRightTemp) + " \u2103")
-        elif sensor[0] == 'RL':
-            if sensor[3] == '1':
-                self.rl_label.setStyleSheet("color:yellow")
-            else:
-                self.rl_label.setStyleSheet("color:green")
-            self.rl_label.setText(str(self.tire.RearLeftPressure)  + " bar\n" + str(self.tire.RearLeftTemp) + " \u2103")
-        elif sensor[0] == 'RR':
-            if sensor[3] == '1':
-                self.rr_label.setStyleSheet("color:yellow")
-            else:
-                self.rr_label.setStyleSheet("color:green")
-            self.rr_label.setText(str(self.tire.RearRightPressure)  + " bar\n" + str(self.tire.RearRightTemp) + " \u2103")
-
-        # turn on/off TPMS warn light
-        if self.tpmsFLflag or self.tpmsFRflag or self.tpmsRLflag or self.tpmsRRflag:
-            self.tpmsWarnLabel.setPixmap(self.tpms_warn_on)
-            self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
-            self.TabWidget.setTabIcon(self.tpms_index, QIcon(self.prefix + 'tpms_warn_on.png'))
-            self.TabWidget.setCurrentIndex(self.tabs, self.tpms_index)
+        if self.infobar.gpsFix:
+            self.gpsInfoLabel.setPixmap(self.gps_connected)
         else:
-            self.tpmsWarnLabel.setPixmap(self.tpms_warn_off)
-            self.tpmsWarnLabel.setAlignment(Qt.AlignVCenter)
-            self.TabWidget.setTabIcon(self.tpms_index, QIcon(self.prefix + 'tpms_warn_off.png'))
+            self.gpsInfoLabel.setPixmap(self.gps_disconnected)
 
-    def poweroff(self):
-        os.system("sudo shutdown -h now")
+        try:
+            self.gpsWindow.updateFix(self.gps.fix)
+        except AttributeError:
+            pass
+
+    def updateLocation(self, location):
+        """ update location """
+        self.gps.lat = location[0]
+        self.gps.lon = location[1]
+        self.gps.alt = location[2]
+        self.gps.speed = location[3]
+        self.gps.course = location[4]
+
+        self.infobar.speed = self.gps.speed
+
+        try:
+            self.gpsWindow.updateLocation(self.gps)
+        except AttributeError:
+            pass
+
+        self.gpsSpeedLabel.setText("{:d}".format(round(self.infobar.speed*3.6)) + " km/h")
+
+    def updateRecording(self, recording):
+        """ Update recording info on infobar """
+        if recording:
+            self.recInfoLabel.setPixmap(self.rec_on)
+        else:
+            self.recInfoLabel.setPixmap(self.rec_off)
 
     def keyPressEvent(self, event):
+        """ check if ESC is pressed """
         if event.key() == Qt.Key_Escape:
-            try:
-                self.datetimer.stop()
-            except:
-                pass
-
             self.exit_signal.emit()
-            #ugly but efficient
-            time.sleep(5)
-            system = psutil.Process(os.getpid())
-            system.terminate()
+            self.datetimer.stop()
+            sys.exit()
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    app.setStyleSheet(qdarkgraystyle.load_stylesheet())
-    win = MainApp()
-    sys.exit(app.exec_())
-
+    APP = QApplication(sys.argv)
+    WIN = MainApp()
+    sys.exit(APP.exec_())
