@@ -27,6 +27,23 @@ def update_datetime(date, update):
 
     return True
 
+def get_virb_location(virb):
+    lat = virb.get_latitude()
+    lon = virb.get_longitude()
+    alt = virb.get_altitude()
+    speed = virb.get_speed()
+    course = math.nan
+    src = 1
+
+    if lat != -999 or lon != -999 or alt != -999:
+        mode = 3
+    else:
+        mode = 0
+
+    location = (lat, lon, alt, speed, course, src)
+
+    return location, mode
+
 class Location(QObject):
     """ location class """
     finished = pyqtSignal()
@@ -67,31 +84,31 @@ class Location(QObject):
                         alt = float(self.gps_thread.data_stream.alt)
                         speed = float(self.gps_thread.data_stream.speed)
                         course = float(self.gps_thread.data_stream.track)
+                        src = 0
                     elif self.virb_initialized:
-                        lat = self.virb.get_latitude()
-                        lon = self.virb.get_longitude()
-                        alt = self.virb.get_altitude()
-                        speed = self.virb.get_speed()
-                        course = math.nan
-
-                        if lat != -999 or lon != -999 or alt != -999:
-                            mode = 3
-                        else:
-                            mode = 0
-
+                        location, mode = get_virb_location(self.virb)
                         time.sleep(0.9)
 
                     # emit GPS fix if changed
                     if mode != mode_prev:
                         self.gpsFix.emit(mode)
                         mode_prev = mode
-
                     if mode > 1:
-                        location = (lat, lon, alt, speed, course)
                         self.gpsLocation.emit(location)
 
                 except ValueError:
-                    pass
+                    if self.virb_initialized:
+                        location, mode = get_virb_location(self.virb)
+                        time.sleep(0.9)
+
+                        # emit GPS fix if changed
+                        if mode != mode_prev:
+                            self.gpsFix.emit(mode)
+                            mode_prev = mode
+                        if mode > 1:
+                            self.gpsLocation.emit(location)
+                    else:
+                        pass
 
             time.sleep(0.1)
 

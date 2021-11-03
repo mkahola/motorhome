@@ -102,6 +102,7 @@ class GPS:
         self.course = math.nan
         self.fix = 0
         self.speed = math.nan
+        self.src = -1
 
     def get_speed(self):
         """ get GPS speed """
@@ -571,6 +572,7 @@ class MainApp(QMainWindow):
         self.gps.alt = location[2]
         self.gps.speed = location[3]
         self.gps.course = location[4]
+        self.gps.src = location[5]
 
         self.infobar.speed = self.gps.speed
 
