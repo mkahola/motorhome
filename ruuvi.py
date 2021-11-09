@@ -58,13 +58,14 @@ class RuuviTag(QObject):
                     data = await websocket.recv()
                     data = json.loads(data)
 
-                    try:
-                        self.temperature.emit(data['temperature'])
-                        self.humidity.emit(data['humidity'])
-                        self.pressure.emit(data['pressure'])
-                        self.ruuvi_batt.emit(data['battery'])
-                    except KeyError:
-                        print("ruuvitag failed due to key error")
+                    if data['id'] == "ruuvi":
+                        try:
+                            self.temperature.emit(data['temperature'])
+                            self.humidity.emit(data['humidity'])
+                            self.pressure.emit(data['pressure'])
+                            self.ruuvi_batt.emit(data['battery'])
+                        except KeyError:
+                            print("ruuvitag failed due to key error")
         asyncio.run(ruuvi())
 
         print("thread finished")

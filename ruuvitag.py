@@ -31,13 +31,15 @@ def run_ruuvitag(timeout):
     sensor = RuuviTag(mac)
 
     async def ruuvi(websocket, path):
-        state = {'temperature': 0.0,
+        state = {'id': 'ruuvi',
+                 'temperature': 0.0,
                  'humidity': 0.0,
                  'pressure': 0.0,
                  'battery': 0.0,
                 }
         while True:
             state = sensor.update()
+            state['id'] = 'ruuvi'
             data = json.dumps(state)
             await websocket.send(data)
             await asyncio.sleep(timeout)
