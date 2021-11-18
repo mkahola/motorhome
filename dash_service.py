@@ -181,7 +181,7 @@ def run_dash_server():
             await asyncio.sleep(0.2)
 
     try:
-        start_server = websockets.serve(gps, 'localhost', 5678)
+        start_server = websockets.serve(gps, port=5678)
     except:
         print("unable to start server")
         pass

@@ -44,7 +44,7 @@ def run_ruuvitag(timeout):
             await websocket.send(data)
             await asyncio.sleep(timeout)
     try:
-        start_server = websockets.serve(ruuvi, "127.0.0.1", 5679)
+        start_server = websockets.serve(ruuvi, port=5679)
     except:
         print("unable to start server")
         pass
