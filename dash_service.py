@@ -6,62 +6,16 @@ import asyncio
 import websockets
 import subprocess
 import configparser
-import nmap
 import time
 import math
 import json
-import threading
 
 from datetime import datetime, timedelta
 from pathlib import Path
-from netifaces import interfaces, ifaddresses, AF_INET
 from gps3.agps3threaded import AGPS3mechanism
 from virb import Virb
 
-virb_ip = ""
-
-def ping_ok(ip):
-    if not ip:
-        return False
-
-    try:
-        cmd = "ping -c 1 " + ip
-        output = subprocess.check_output(cmd, shell=True)
-    except Exception as e:
-        return False
-
-    return True
-
-def search_with_nmap():
-    virb_ip = ""
-
-    for iface_name in netifaces.interfaces():
-        addresses = [i['addr'] for i in netifaces.ifaddresses(iface_name).setdefault(netifaces.AF_INET, [{'addr':'No IP addr'}])]
-        if iface_name == "wlan0":
-            my_ip = addresses[0].split('.')
-            break
-
-    my_ip[3] = "0/24"
-    ip_addr = "."
-    ip_addr = ip_addr.join(my_ip)
-
-    nm = nmap.PortScanner()
-    nm.scan(hosts=ip_addr, arguments='-sP')
-
-    for i in nm.all_hosts():
-        try:
-            device = socket.gethostbyaddr(i)[0]
-            if device == "Garmin-WiFi":
-                virb_ip = i
-                break
-        except Exception as e:
-            print("searchvirb: no hostname for " + i)
-            pass
-
-    return virb_ip
-
 def search_virb():
-    global virb_ip
 
     conf_file = str(Path.home()) + "/.motorhome/network.conf"
     config = configparser.ConfigParser()
@@ -70,19 +24,11 @@ def search_virb():
     ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
 
     try:
-        virb_ip = config[ssid]['ip']
+        ip = config[ssid]['ip']
     except Exception as e:
-        virb_ip = ""
+        ip = ""
 
-    if not ping_ok(virb_ip):
-        print("dash server: Searching Garmin Virb with nmap")
-        virb_ip = search_with_nmap()
-        if virb_ip:
-            data = config[ssid]
-            data['ip'] = virb_ip
-
-            with open(conf_file, 'w') as configfile:
-                config.write(configfile)
+    return ip
 
 def update_datetime(date, update):
     """ update date and time for system clock """
@@ -105,12 +51,9 @@ def run_dash_server():
     gps_thread.stream_data()
     gps_thread.run_thread()
 
-    threading.Thread(target=search_virb, daemon=True).start()
-
     print("running dash server")
 
     async def gps(websocket, path):
-        global virb_ip
         virb_initialized = False
         time_updated = False
 
@@ -125,10 +68,6 @@ def run_dash_server():
             }
 
         while True:
-            if virb_ip and not virb_initialized:
-                cam = Virb((virb_ip, 80))
-                virb_initialized = True
-
             try:
                 time_updated = update_datetime(gps_thread.data_stream.time,
                                                time_updated)
@@ -137,7 +76,9 @@ def run_dash_server():
 
             try:
                 mode = int(gps_thread.data_stream.mode)
-            except KeyError:
+            except ValueError:
+                print("dash server: Value not defined for GPS mode")
+                await asyncio.sleep(1)
                 continue
 
             if mode > 1:
@@ -170,11 +111,17 @@ def run_dash_server():
                         d['mode'] = mode
                         time.sleep(0.8)
                     except:
+                        virb_initialized = False
                         pass
-
+                else:
+                    virb_ip = search_virb()
+                    if virb_ip:
+                        cam = Virb((virb_ip, 80))
+                        virb_initialized = True
             try:
                 if mode > 1:
                     data = json.dumps(d)
+                    print(data)
                     await websocket.send(data)
             except:
                 pass

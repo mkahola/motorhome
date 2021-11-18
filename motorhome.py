@@ -125,13 +125,13 @@ class MainApp(QMainWindow):
         self.setWindowTitle("Motorhome Info")
         self.setStyleSheet(STYLESHEET)
 
+        self.init_gui()
+
         # start threads
-        self.initGPSThread()
         self.initTPMSThread()
         self.initRuuvitagThread()
         self.initSearchVirbThread()
-
-        self.init_gui()
+        self.initGPSThread()
 
         self.showFullScreen()
 #        self.showMaximized()
