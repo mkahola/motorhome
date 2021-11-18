@@ -102,7 +102,7 @@ class GPS:
         self.course = math.nan
         self.fix = 0
         self.speed = math.nan
-        self.src = -1
+        self.src = ""
 
     def get_speed(self):
         """ get GPS speed """
@@ -374,7 +374,6 @@ class MainApp(QMainWindow):
         self.gpsThread = QThread()
         self.gpsWorker = Location()
         self.exit_signal.connect(self.gpsWorker.stop)
-        self.virb_ip.connect(self.gpsWorker.init_virb)
         self.gpsWorker.moveToThread(self.gpsThread)
         self.gpsWorker.finished.connect(self.gpsThread.quit)
         self.gpsWorker.finished.connect(self.gpsWorker.deleteLater)

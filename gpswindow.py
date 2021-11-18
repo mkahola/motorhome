@@ -188,9 +188,9 @@ class GPSWindow(QWidget):
     def updateLocation(self, gps):
 #        geolocation = Geolocation("motorhome")
 
-        if gps.src == 0:
+        if gps.src == "internal":
             self.src_label.setPixmap(self.gps_src_internal)
-        elif gps.src == 1:
+        elif gps.src == "garmin":
             self.src_label.setPixmap(self.gps_src_garmin)
 
         if not math.isnan(gps.lat):
