@@ -87,7 +87,10 @@ def run_dash_server():
                 d['lon'] = gps_thread.data_stream.lon
                 d['alt'] = gps_thread.data_stream.alt
                 d['speed']  = gps_thread.data_stream.speed
-                d['course'] = gps_thread.data_stream.track
+
+                course= gps_thread.data_stream.track
+                if course != "n/a":
+                    d['course'] = course
                 d['src'] = "internal"
                 d['mode'] = mode
             else:
