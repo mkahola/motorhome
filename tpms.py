@@ -157,6 +157,7 @@ class TPMS(QObject):
 
     def run(self):
         """ run TPMS service """
+        mac_list = []
         while self.running:
             def le_advertise_packet_handler(mac, adv_type, data, rssi):
                 data_str = raw_packet_to_str(data)
@@ -173,11 +174,11 @@ class TPMS(QObject):
 
             # Blocking call (the given handler will be called each time a new LE
             # advertisement packet is detected)
-            index = self.get_season()
-            mac_list = [self.front_left.mac[index],
-                        self.front_right.mac[index],
-                        self.rear_left.mac[index],
-                        self.rear_right.mac[index]]
+            for i in range(0, 2):
+                mac_list.append(self.front_left.mac[i])
+                mac_list.append(self.front_right.mac[i])
+                mac_list.append(self.rear_left.mac[i])
+                mac_list.append(self.rear_right.mac[i])
 
             parse_le_advertising_events(self.sock, mac_addr=mac_list,
                                         handler=le_advertise_packet_handler,
