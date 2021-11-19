@@ -49,6 +49,9 @@ class GPSWindow(QWidget):
         self.setWindowTitle("Location")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 
+        src_label = QLabel("")
+        src_label.setStyleSheet("font: bold 24px")
+
         lat_label = QLabel("Latitude")
         lat_label.setStyleSheet("font: bold 24px")
 
@@ -102,6 +105,10 @@ class GPSWindow(QWidget):
         self.rec_off = QPixmap("")
         self.rec_on = QPixmap(self.prefix + "rec.png").scaled(32, 32, Qt.KeepAspectRatio)
 
+        self.src_label = QLabel()
+        self.gps_src_internal = QPixmap(self.prefix + "gps_internal.png").scaled(32, 32, Qt.KeepAspectRatio)
+        self.gps_src_garmin = QPixmap(self.prefix + "garmin.png").scaled(32, 32, Qt.KeepAspectRatio)
+
         self.updateTemperature(infobar.temperature)
         self.updateTime(datetime.now())
         self.updateTPMSWarn(infobar.tpmsWarn)
@@ -120,12 +127,14 @@ class GPSWindow(QWidget):
         hbox1.addWidget(self.timeLabel, alignment=Qt.AlignTop|Qt.AlignRight)
 
         hbox2 = QHBoxLayout()
+        hbox2.addWidget(src_label, alignment=Qt.AlignCenter)
         hbox2.addWidget(lat_label, alignment=Qt.AlignCenter)
         hbox2.addWidget(lon_label, alignment=Qt.AlignCenter)
         hbox2.addWidget(alt_label, alignment=Qt.AlignCenter)
         hbox2.addWidget(course_label, alignment=Qt.AlignCenter)
 
         hbox3 = QHBoxLayout()
+        hbox3.addWidget(self.src_label, alignment=Qt.AlignCenter)
         hbox3.addWidget(self.lat, alignment=Qt.AlignCenter|Qt.AlignTop)
         hbox3.addWidget(self.lon, alignment=Qt.AlignCenter|Qt.AlignTop)
         hbox3.addWidget(self.alt, alignment=Qt.AlignCenter|Qt.AlignTop)
@@ -178,6 +187,11 @@ class GPSWindow(QWidget):
 
     def updateLocation(self, gps):
 #        geolocation = Geolocation("motorhome")
+
+        if gps.src == "internal":
+            self.src_label.setPixmap(self.gps_src_internal)
+        elif gps.src == "garmin":
+            self.src_label.setPixmap(self.gps_src_garmin)
 
         if not math.isnan(gps.lat):
             self.lat.setText("{:.5f}".format(round(gps.lat, 5)))

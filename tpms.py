@@ -149,16 +149,19 @@ class TPMS(QObject):
             tire.timestamp = now
             self.tpms.emit(data)
 
+    def get_season(self):
+        if self.season == "TPMS_summer":
+            return 0
+        else:
+            return 1
+
     def run(self):
         """ run TPMS service """
+        mac_list = []
         while self.running:
             def le_advertise_packet_handler(mac, adv_type, data, rssi):
                 data_str = raw_packet_to_str(data)
-
-                if self.season == "TPMS_summer":
-                    index = 0
-                else:
-                    index = 1
+                index = self.get_season()
 
                 if mac == self.front_left.mac[index]:
                     self.send_pressure_temp(self.front_left, time.time(), data_str)
@@ -171,7 +174,13 @@ class TPMS(QObject):
 
             # Blocking call (the given handler will be called each time a new LE
             # advertisement packet is detected)
-            parse_le_advertising_events(self.sock,
+            for i in range(0, 2):
+                mac_list.append(self.front_left.mac[i])
+                mac_list.append(self.front_right.mac[i])
+                mac_list.append(self.rear_left.mac[i])
+                mac_list.append(self.rear_right.mac[i])
+
+            parse_le_advertising_events(self.sock, mac_addr=mac_list,
                                         handler=le_advertise_packet_handler,
                                         debug=False)
 

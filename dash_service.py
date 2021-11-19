@@ -3,111 +3,135 @@
 # WS server that sends dasboard data
 
 import asyncio
-import datetime
-import random
 import websockets
 import subprocess
 import configparser
-from pathlib import Path
-import nmap3
 import time
 import math
 import json
 
-from netifaces import interfaces, ifaddresses, AF_INET
+from datetime import datetime, timedelta
+from pathlib import Path
 from gps3.agps3threaded import AGPS3mechanism
 from virb import Virb
 
-use_virb = False
+def search_virb():
 
-def search_virb(my_device):
-    virb_ip = ""
+    conf_file = str(Path.home()) + "/.motorhome/network.conf"
+    config = configparser.ConfigParser()
+    config.read(conf_file)
 
-    def is_virb_ssid():
-        ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
-        if ssid == "VIRB-6267":
-            return True
+    ssid = subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
 
-        return False
+    try:
+        ip = config[ssid]['ip']
+    except Exception as e:
+        ip = ""
 
-    if is_virb_ssid():
-        return "192.168.0.1"
+    return ip
 
-    while virb_ip == "":
-        print("Dashboard searching Garmin Virb")
+def update_datetime(date, update):
+    """ update date and time for system clock """
+    if date == "n/a" or update:
+        return update
 
-        for ifaceName in interfaces():
-            addresses = [i['addr'] for i in ifaddresses(ifaceName).setdefault(AF_INET, [{'addr':'No IP addr'}] )]
-            if ifaceName == "wlan0":
-                my_ip = addresses[0].split('.')
-                break
+    print("dash server: Update date and time")
+    utc_offset = time.localtime().tm_gmtoff
+    my_time = datetime.strptime(date, "%Y-%m-%dT%H:%M:%S.%fZ")
+    timezone = timedelta(seconds=utc_offset)
+    my_time += timezone
 
-        my_ip[3] = "0/24"
-        ip = "."
-        ip = ip.join(my_ip)
-        nmap = nmap3.NmapHostDiscovery()
-        result=nmap.nmap_no_portscan(ip, "-sP")
+    cur_date = my_time.strftime('{:}'.format(my_time.strftime('%Y-%m-%d %H:%M:%S')))
+    subprocess.call(['sudo', 'date', '-s', cur_date])
 
-        for i in range(len(result)):
-             try:
-                device = result[list(result.keys())[i]]['hostname'][0]['name']
-                if device == my_device:
-                    virb_ip = list(result)[i]
-                    break
-             except:
-                    pass
-
-             time.sleep(1)
-
-    return virb_ip
+    return True
 
 def run_dash_server():
+    gps_thread = AGPS3mechanism()
+    gps_thread.stream_data()
+    gps_thread.run_thread()
+
+    print("running dash server")
+
     async def gps(websocket, path):
-        d = {'speed':0.0,
+        virb_initialized = False
+        time_updated = False
+
+        d = {'id': "gps",
+             'lat': 0.0,
+             'lon': 0.0,
+             'alt': 0.0,
+             'speed':0.0,
              'course': 0,
+             'mode': 0,
+             'src': "internal",
             }
-
-        gps_thread = AGPS3mechanism()
-        gps_thread.stream_data()
-        gps_thread.run_thread()
-
-        global use_virb
-
-        if use_virb:
-            ip = search_virb("Garmin-WiFi")
-            print("Virb ip: " + ip)
-            cam = Virb((ip, 80))
 
         while True:
             try:
-                # speed in knots, convert to km/h
-                speed = round(gps_thread.data_stream.speed*3.6)
-                course = round(gps_thread.data_stream.track)
-
-                d['speed']  = '{:d}'.format(speed)
-                d['course'] = '{:d}'.format(course)
+                time_updated = update_datetime(gps_thread.data_stream.time,
+                                               time_updated)
             except:
-                if use_virb:
-                    print("GPS speed failed, trying Garmin Virb")
-                    speed = round(cam.get_speed()*3.6, 1)
-                    d['speed'] = '{:.1f}'.format(speed)
-                    d['course'] = "0"
-                else:
-                    pass
+                pass
 
             try:
-                data = json.dumps(d)
-                await websocket.send(data)
-            except:
-                d['speed'] = "--"
-                d['course'] = "0"
-                data = json.dumps(d)
-                await websocket.send(data)
+                mode = int(gps_thread.data_stream.mode)
+            except ValueError:
+                print("dash server: Value not defined for GPS mode")
+                await asyncio.sleep(1)
+                continue
 
+            if mode > 1:
+                # speed in knots, convert to km/h
+                d['lat'] = gps_thread.data_stream.lat
+                d['lon'] = gps_thread.data_stream.lon
+                d['alt'] = gps_thread.data_stream.alt
+                d['speed']  = gps_thread.data_stream.speed
+
+                course= gps_thread.data_stream.track
+                if course != "n/a":
+                    d['course'] = course
+                d['src'] = "internal"
+                d['mode'] = mode
+            else:
+                if virb_initialized:
+                    try:
+                        lat = cam.get_latitude()
+                        lon = cam.get_longitude()
+                        alt = cam.get_altitude()
+
+                        if lat != -999 or lon != -999 or alt != -999:
+                            mode = 3
+                        else:
+                            mode = 0
+
+                        d['lat'] = lat
+                        d['lon'] = lon
+                        d['alt'] = alt
+                        d['speed'] = cam.get_speed()
+                        d['course'] = 0
+                        d['src'] = "garmin"
+                        d['mode'] = mode
+                        time.sleep(0.8)
+                    except:
+                        virb_initialized = False
+                        pass
+                else:
+                    virb_ip = search_virb()
+                    if virb_ip:
+                        cam = Virb((virb_ip, 80))
+                        virb_initialized = True
+            try:
+                if mode > 1:
+                    data = json.dumps(d)
+                    print(data)
+                    await websocket.send(data)
+            except:
+                pass
             await asyncio.sleep(0.2)
 
     try:
-        start_server = websockets.serve(gps, "127.0.0.1", 5678)
+        start_server = websockets.serve(gps, port=5678)
     except:
         print("unable to start server")
         pass

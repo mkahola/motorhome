@@ -102,6 +102,7 @@ class GPS:
         self.course = math.nan
         self.fix = 0
         self.speed = math.nan
+        self.src = ""
 
     def get_speed(self):
         """ get GPS speed """
@@ -124,13 +125,13 @@ class MainApp(QMainWindow):
         self.setWindowTitle("Motorhome Info")
         self.setStyleSheet(STYLESHEET)
 
+        self.init_gui()
+
         # start threads
-        self.initGPSThread()
         self.initTPMSThread()
         self.initRuuvitagThread()
         self.initSearchVirbThread()
-
-        self.init_gui()
+        self.initGPSThread()
 
         self.showFullScreen()
 #        self.showMaximized()
@@ -373,7 +374,6 @@ class MainApp(QMainWindow):
         self.gpsThread = QThread()
         self.gpsWorker = Location()
         self.exit_signal.connect(self.gpsWorker.stop)
-        self.virb_ip.connect(self.gpsWorker.init_virb)
         self.gpsWorker.moveToThread(self.gpsThread)
         self.gpsWorker.finished.connect(self.gpsThread.quit)
         self.gpsWorker.finished.connect(self.gpsWorker.deleteLater)
@@ -571,6 +571,7 @@ class MainApp(QMainWindow):
         self.gps.alt = location[2]
         self.gps.speed = location[3]
         self.gps.course = location[4]
+        self.gps.src = location[5]
 
         self.infobar.speed = self.gps.speed
 
