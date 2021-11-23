@@ -16,7 +16,7 @@ STYLESHEET = """
     QLabel {
         background: transparent;
         color: white;
-        font: 28px;
+        font: 24px;
     }
     QToolButton {
         background: rgba(192, 192, 192, 170);
