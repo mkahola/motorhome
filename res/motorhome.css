@@ -1,0 +1,42 @@
+QMainWindow {
+    border-image: url(res/background.png) 0 0 0 0 stretch stretch;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+QLabel {
+    background: transparent;
+    color: white;
+    font: 24px
+}
+QToolButton {
+    background: rgba(192, 192, 192, 170);
+    border-style: outset;
+    border-width: 2px;
+    border-radius: 10px;
+    border-color: rgba(192, 192, 192, 170);
+    font: 16px;
+    color: black;
+    min-width: 64px;
+    min-height: 64px;
+    max-width: 128px;
+    max-height: 128px;
+    padding: 12px;
+}
+QToolButton:pressed {
+    background: rgba(0, 64, 128, 170);
+    border-style: outset;
+    border-width: 2px;
+    border-radius: 10px;
+    border-color: rgba(0, 64, 128, 170);
+    font: 16px;
+    color: black;
+    min-width: 64px;
+    min-height: 64px;
+    max-width: 128px;
+    max-height: 128px;
+    padding: 12px;
+}
+QPushButton {
+    background: transparent;
+    border: 0px;
+}

@@ -10,35 +10,6 @@ from datetime import datetime, timedelta
 import subprocess
 from pathlib import Path
 
-stylesheet = """
-    QWidget {
-        background: #323232;
-    }
-    QLabel {
-        background: transparent;
-        color: white;
-        font: 24px;
-    }
-    QToolButton {
-        background: rgba(192, 192, 192, 170);
-        border-style: outset;
-        border-width: 2px;
-        border-radius: 10px;
-        border-color: beige;
-        font: 16px;
-        color: black;
-        min-width: 64px;
-        min-height: 64px;
-        max-width: 128px;
-        max-height: 128px;
-        padding: 12px;
-    }
-    QPushButton {
-        background: transparent;
-        border: 0px;
-    }
-"""
-
 class AppsWindow(QWidget):
     info = pyqtSignal()
 
@@ -48,7 +19,7 @@ class AppsWindow(QWidget):
 
         size = 64
 
-        self.setStyleSheet(stylesheet)
+        self.setStyleSheet(open('res/childs.css', 'r').read())
         self.setWindowTitle("Applications")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 

@@ -11,53 +11,6 @@ import netifaces
 from datetime import datetime, timedelta
 from pathlib import Path
 
-stylesheet = """
-    QWidget {
-        background: #323232;
-    }
-    QLabel {
-        background: transparent;
-        color: white;
-        font: 24px;
-    }
-    QToolButton {
-        background: rgba(192, 192, 192, 170);
-        border-style: outset;
-        border-width: 2px;
-        border-radius: 10px;
-        border-color: beige;
-        font: 16px;
-        color: black;
-        min-width: 64px;
-        min-height: 64px;
-        max-width: 128px;
-        max-height: 128px;
-        padding: 12px;
-    }
-    QPushButton {
-        background: transparent;
-        border: 0px;
-    }
-    QTabBar::tab {
-        height: 32px;
-        width: 128px;
-        color: #ffffff;
-        margin: 0px;
-    }
-    QTabBar::tab:selected {
-        background-color: #323232;
-        font: 24pt;
-        color: #ffffff;
-        margin: 0px;
-    }
-    QTabBar::tab:!selected {
-        background-color: #323232;
-        font: 12pt;
-        color: #ffffff;
-        margin: 0px;
-    }
-"""
-
 def get_ssid():
     return subprocess.check_output(['sudo', 'iwgetid']).decode("utf-8").split('"')[1]
 
@@ -89,7 +42,7 @@ class InfoWindow(QWidget):
         parent = None
         super(InfoWindow, self).__init__(parent)
 
-        self.setStyleSheet(stylesheet)
+        self.setStyleSheet(open('res/childs.css', 'r').read())
         self.setWindowTitle("Information")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 

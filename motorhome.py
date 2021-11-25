@@ -28,37 +28,6 @@ from ruuviwindow import RuuviWindow
 from appswindow import AppsWindow
 from infowindow import InfoWindow
 
-STYLESHEET = """
-    QMainWindow {
-        border-image: url(res/background.png) 0 0 0 0 stretch stretch;
-        background-repeat: no-repeat;
-        background-position: center;
-    }
-    QLabel {
-        background: transparent;
-        color: white;
-        font: 24px
-    }
-    QToolButton {
-        background: rgba(192, 192, 192, 170);
-        border-style: outset;
-        border-width: 2px;
-        border-radius: 10px;
-        border-color: beige;
-        font: 16px;
-        color: black;
-        min-width: 64px;
-        min-height: 64px;
-        max-width: 128px;
-        max-height: 128px;
-        padding: 12px;
-    }
-    QPushButton {
-        background: transparent;
-        border: 0px;
-    }
-"""
-
 def poweroff():
     """ power off the system """
     os.system("sudo shutdown -h now")
@@ -123,7 +92,7 @@ class MainApp(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("Motorhome Info")
-        self.setStyleSheet(STYLESHEET)
+        self.setStyleSheet(open('res/motorhome.css', 'r').read())
 
         self.init_gui()
 

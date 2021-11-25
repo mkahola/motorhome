@@ -13,45 +13,6 @@ from PyQt5.QtCore import Qt, QThread, QTimer, QSize, pyqtSignal
 from virb import Virb
 from camcorder import Preview, StartRec, StopRec, Snapshot
 
-STYLESHEET = """
-    QWidget {
-        background: #323232;
-    }
-    QLabel {
-        background: transparent;
-        color: white;
-        font: 24px;
-    }
-    QToolButton {
-        background: rgba(192, 192, 192, 170);
-        border-style: outset;
-        border-width: 2px;
-        border-radius: 10px;
-        border-color: beige;
-        font: 16px;
-        color: black;
-        min-width: 64px;
-        min-height: 64px;
-        max-width: 128px;
-        max-height: 128px;
-        padding: 12px;
-    }
-    QPushButton {
-        background-color: darkgrey;
-        border-style: outset;
-        border-width: 2px;
-        border-radius: 10px;
-        border-color: beige;
-        font: bold 32px;
-        color: red;
-        min-width: 64px;
-        min-height: 64px;
-        max-width: 64px;
-        max-height: 64px;
-        padding: 12px;
-    }
-"""
-
 def ping_ok(ip):
     """ Check if we can ping to ip """
     try:
@@ -77,7 +38,7 @@ class CameraWindow(QWidget):
         self.previewScale = 80
         self.rec = infobar.recording
 
-        self.setStyleSheet(STYLESHEET)
+        self.setStyleSheet(open('res/childs.css', 'r').read())
         self.setWindowTitle("Dashcam")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 
@@ -117,6 +78,16 @@ class CameraWindow(QWidget):
         self.snapshotButton = QPushButton("", self)
         self.snapshotButton.setIcon(QIcon(self.prefix + 'snapshot.png'))
         self.snapshotButton.setIconSize(QSize(64, 64))
+        self.snapshotButton.setStyleSheet("background-color: darkgrey;"
+                                          "border-style: outset;"
+                                          "border-width: 2px;"
+                                          "border-radius: 10px;"
+                                          "border-color: beige;"
+                                          "font: bold 32px;"
+                                          "color: red;"
+                                          "min-width: 72px;"
+                                          "min-height: 72px;"
+                                          "padding: 12px;")
         self.snapshotButton.clicked.connect(self.snapshot)
 
         self.previewLabel = QLabel("No preview available", self)

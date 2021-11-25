@@ -13,35 +13,6 @@ from pathlib import Path
 from tires import Tires
 from tpms import TPMS
 
-stylesheet = """
-    QWidget {
-        background: #323232;
-    }
-    QLabel {
-        background: transparent;
-        color: white;
-        font: 24px;
-    }
-    QToolButton {
-        background: rgba(192, 192, 192, 170);
-        border-style: outset;
-        border-width: 2px;
-        border-radius: 10px;
-        border-color: beige;
-        font: 16px;
-        color: black;
-        min-width: 64px;
-        min-height: 64px;
-        max-width: 128px;
-        max-height: 128px;
-        padding: 12px;
-    }
-    QPushButton {
-        background: transparent;
-        border: 0px;
-    }
-"""
-
 class TPMSWindow(QWidget):
     set_season = pyqtSignal(int)
     info = pyqtSignal(dict)
@@ -50,7 +21,7 @@ class TPMSWindow(QWidget):
         parent = None
         super(TPMSWindow, self).__init__(parent)
 
-        self.setStyleSheet(stylesheet)
+        self.setStyleSheet(open('res/childs.css', 'r').read())
         self.setWindowTitle("TPMS")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 

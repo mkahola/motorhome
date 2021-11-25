@@ -9,35 +9,6 @@ from PyQt5.QtWidgets import QWidget, QLabel, QPushButton, QHBoxLayout, QVBoxLayo
 from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 
-STYLESHEET = """
-    QWidget {
-        background: #323232;
-    }
-    QLabel {
-        background: transparent;
-        color: white;
-        font: 24px;
-    }
-    QToolButton {
-        background: rgba(192, 192, 192, 170);
-        border-style: outset;
-        border-width: 2px;
-        border-radius: 10px;
-        border-color: beige;
-        font: 16px;
-        color: black;
-        min-width: 64px;
-        min-height: 64px;
-        max-width: 128px;
-        max-height: 128px;
-        padding: 12px;
-    }
-    QPushButton {
-        background: transparent;
-        border: 0px;
-    }
-"""
-
 class SpeedoWindow(QWidget):
     """ Speedometer GUI implementation """
     info = pyqtSignal(dict)
@@ -46,7 +17,8 @@ class SpeedoWindow(QWidget):
         """ Create window for speedometer """
         super(SpeedoWindow, self).__init__(None)
 
-        self.setStyleSheet(STYLESHEET)
+        self.setStyleSheet(open('res/childs.css', 'r').read())
+
         self.setWindowTitle("Speedometer")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
 
