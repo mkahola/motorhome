@@ -17,7 +17,8 @@ from tires import Tires
 from tpms import TPMS
 from virb import Virb
 from gps import Location
-from ruuvi import RuuviTag, Ruuvi
+from ruuvi import Ruuvi
+from mqtt_subscriber import MQTT
 from searchvirb import SearchVirb
 
 from speedowindow import SpeedoWindow
@@ -98,7 +99,7 @@ class MainApp(QMainWindow):
 
         # start threads
         self.initTPMSThread()
-        self.initRuuvitagThread()
+        self.initMqttThread()
         self.initSearchVirbThread()
         self.initGPSThread()
 
@@ -125,7 +126,6 @@ class MainApp(QMainWindow):
         self.virb = Virb()
         self.tpms = Tires()
         self.ruuvi = Ruuvi()
-
         self.centralWidget = QWidget()
         size = 64
 
@@ -429,38 +429,29 @@ class MainApp(QMainWindow):
         except AttributeError:
             pass
 
-    def initRuuvitagThread(self):
-        """ initialize Ruuvitag thread """
-        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
-        config = configparser.ConfigParser()
+    def initMqttThread(self):
+        """ initialize MQTT thread """
+        self.mqttThread = QThread()
+        self.mqttWorker = MQTT()
+        self.exit_signal.connect(self.mqttWorker.stop)
+        self.mqttWorker.moveToThread(self.mqttThread)
 
-        try:
-            config.read(conf_file)
-            mac = config['RuuviTag']['mac']
-        except IOError:
-            return
+        self.mqttWorker.finished.connect(self.mqttThread.quit)
+        self.mqttWorker.finished.connect(self.mqttWorker.deleteLater)
+        self.mqttThread.finished.connect(self.mqttThread.deleteLater)
 
-        self.ruuviThread = QThread()
-        self.ruuviWorker = RuuviTag(mac)
-        self.exit_signal.connect(self.ruuviWorker.stop)
-        self.ruuviWorker.moveToThread(self.ruuviThread)
+        self.mqttThread.started.connect(self.mqttWorker.run)
 
-        self.ruuviWorker.finished.connect(self.ruuviThread.quit)
-        self.ruuviWorker.finished.connect(self.ruuviWorker.deleteLater)
-        self.ruuviThread.finished.connect(self.ruuviThread.deleteLater)
+        self.mqttWorker.exit_signal.connect(self.mqttWorker.stop)
 
-        self.ruuviThread.started.connect(self.ruuviWorker.run)
+        self.mqttWorker.temperature.connect(self.updateTemperature)
+        self.mqttWorker.humidity.connect(self.updateHumidity)
+        self.mqttWorker.pressure.connect(self.updatePressure)
+        self.mqttWorker.ruuvi_batt.connect(self.updateRuuviBatt)
 
-        self.ruuviWorker.exit_signal.connect(self.ruuviWorker.stop)
+        self.mqttThread.started.connect(self.mqttWorker.run)
 
-        self.ruuviWorker.temperature.connect(self.updateTemperature)
-        self.ruuviWorker.humidity.connect(self.updateHumidity)
-        self.ruuviWorker.pressure.connect(self.updatePressure)
-        self.ruuviWorker.ruuvi_batt.connect(self.updateRuuviBatt)
-
-        self.ruuviThread.started.connect(self.ruuviWorker.run)
-
-        self.ruuviThread.start()
+        self.mqttThread.start()
 
     def updateTemperature(self, temperature):
         """ update temperature """

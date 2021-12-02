@@ -7,7 +7,7 @@ import time
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
-from ruuvi import RuuviTag, Ruuvi
+from ruuvi import Ruuvi
 
 class RuuviWindow(QWidget):
     info = pyqtSignal(dict)
@@ -135,7 +135,7 @@ class RuuviWindow(QWidget):
         if math.isnan(vbatt):
             return
         if vbatt < 2.75:
-            self.voltageLabel.setText("low batt: " + "{:.2f}".format(round(vbatt/1000, 2)) + " V")
+            self.voltageLabel.setText("low batt: " + "{:.2f}".format(round(vbatt, 2)) + " V")
 
     def updateInfobar(self, data):
         self.updateTime(data['time'])

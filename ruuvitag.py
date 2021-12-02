@@ -7,12 +7,22 @@ import os
 import configparser
 import time
 import json
-import asyncio
-import websockets
-
+import signal
+import paho.mqtt.client as mqtt
 from pathlib import Path
 
 from ruuvitag_sensor.ruuvitag import RuuviTag
+
+running = True
+
+# trap ctrl-c, SIGINT and come down nicely
+def signal_handler(signal, frame):
+    global running
+
+    print("Ruuvitag: terminating.")
+    running = False
+
+signal.signal(signal.SIGINT, signal_handler)
 
 def get_ruuvitag_mac(conf_file):
     config = configparser.ConfigParser()
@@ -25,32 +35,45 @@ def get_ruuvitag_mac(conf_file):
 
     return mac
 
+# The callback for when the client receives a CONNACK response from the MQTT server.
+def on_connect(client, userdata, flags, rc):
+    print("Connected to MQTT broker with result code "+str(rc))
+
+    # Subscribing in on_connect() means that if we lose the connection and
+    # reconnect then subscriptions will be renewed.
+    client.subscribe("$SYS/#")
+
 def run_ruuvitag(timeout):
-    os.environ['RUUVI_BLE_ADAPTER'] = "Bleson"
+    global running
+
     mac = get_ruuvitag_mac(str(Path.home()) + "/.motorhome/motorhome.conf")
     sensor = RuuviTag(mac)
 
-    async def ruuvi(websocket, path):
-        state = {'id': 'ruuvi',
-                 'temperature': 0.0,
-                 'humidity': 0.0,
-                 'pressure': 0.0,
-                 'battery': 0.0,
-                }
-        while True:
-            state = sensor.update()
-            state['id'] = 'ruuvi'
-            data = json.dumps(state)
-            await websocket.send(data)
-            await asyncio.sleep(timeout)
-    try:
-        start_server = websockets.serve(ruuvi, port=5679)
-    except:
-        print("unable to start server")
-        pass
+    state = {'id': 'ruuvi',
+             'location': 'indoor',
+             'temperature': None,
+             'humidity': None,
+             'pressure': None,
+             'battery': None,
+             }
 
-    asyncio.get_event_loop().run_until_complete(start_server)
-    asyncio.get_event_loop().run_forever()
+    mqttBroker = 'localhost'
+    client = mqtt.Client("Ruuvitag")
+    client.on_connect = on_connect
+    client.connect(mqttBroker)
+
+    while running:
+        data = sensor.update()
+        state['temperature'] = data['temperature']
+        state['humidity'] = data['humidity']
+        state['pressure'] = data['pressure']
+        state['battery'] = data['battery']
+        print(state)
+        client.publish("/motorhome/ruuvitag", json.dumps(state))
+        time.sleep(timeout)
+
+    client.disconnect()
 
 if __name__ == "__main__":
+    os.environ['RUUVI_BLE_ADAPTER'] = "Bleson"
     run_ruuvitag(15)
