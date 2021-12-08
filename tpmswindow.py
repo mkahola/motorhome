@@ -8,10 +8,18 @@ from qtwidgets import Toggle, AnimatedToggle
 import time
 import math
 import configparser
+import paho.mqtt.client as mqtt
 from datetime import datetime, timedelta
 from pathlib import Path
 from tires import Tires
-from tpms import TPMS
+
+# The callback for when the client receives a CONNACK response from the MQTT se>
+def on_connect(client, userdata, flags, rc):
+    print("Connected to MQTT broker with result code " + str(rc))
+
+    # Subscribing in on_connect() means that if we lose the connection and
+    # reconnect then subscriptions will be renewed.
+    client.subscribe("$SYS/#")
 
 class TPMSWindow(QWidget):
     set_season = pyqtSignal(int)
@@ -24,6 +32,11 @@ class TPMSWindow(QWidget):
         self.setStyleSheet(open('res/childs.css', 'r').read())
         self.setWindowTitle("TPMS")
         self.prefix = str(Path.home()) + "/.motorhome/res/"
+
+        mqttBroker = 'localhost'
+        self.client = mqtt.Client("TPMS_window")
+        self.client.on_connect = on_connect
+        self.client.connect(mqttBroker)
 
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
@@ -193,11 +206,12 @@ class TPMSWindow(QWidget):
         self.showFullScreen()
 
     def updateSeason(self, value):
-        self.set_season.emit(value)
 
         if value:
+            self.client.publish("/motorhome/tpms/season", 1)
             print("tpmswindow: season set to winter")
         else:
+            self.client.publish("/motorhome/tpms/season", 0)
             print("tpmswindow: season set to summer")
 
     def setTPMSWarn(self, warn):
@@ -268,12 +282,12 @@ class TPMSWindow(QWidget):
                 if tpms.rear_right.warn:
                     self.rr_pressure_label.setStyleSheet("font: bold 24px;"
                                                          "color: #ff9933;")
-                    self.rl_temp_label.setStyleSheet("font: bold 20px;"
+                    self.rr_temp_label.setStyleSheet("font: bold 20px;"
                                                      "color: #ff9933;")
                 else:
                     self.rr_pressure_label.setStyleSheet("font: bold 24px;"
                                                          "color: #73E420;")
-                    self.rl_temp_label.setStyleSheet("font: bold 20px;"
+                    self.rr_temp_label.setStyleSheet("font: bold 20px;"
                                                      "color: #73E420;")
 
     def updateInfobar(self, data):
@@ -322,6 +336,5 @@ class TPMSWindow(QWidget):
             self.recInfoLabel.setPixmap(self.rec_off)
 
     def exit(self):
+        self.client.disconnect()
         self.close()
-
-

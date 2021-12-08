@@ -14,7 +14,6 @@ from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import Qt, QThread, QTimer, QSize, pyqtSignal
 
 from tires import Tires
-from tpms import TPMS
 from virb import Virb
 from gps import Location
 from ruuvi import Ruuvi
@@ -98,8 +97,7 @@ class MainApp(QMainWindow):
         self.init_gui()
 
         # start threads
-        self.initTPMSThread()
-        self.initMqttThread()
+        self.initSensorThread()
         self.initSearchVirbThread()
         self.initGPSThread()
 
@@ -386,23 +384,6 @@ class MainApp(QMainWindow):
         except AttributeError:
             pass
 
-    def initTPMSThread(self):
-        """ initialize TPMS thread """
-        self.tpmsThread = QThread()
-        self.tpmsWorker = TPMS()
-        self.exit_signal.connect(self.tpmsWorker.stop)
-        self.set_season.connect(self.tpmsWorker.update_season)
-        self.tpmsWorker.moveToThread(self.tpmsThread)
-        self.tpmsWorker.finished.connect(self.tpmsThread.quit)
-        self.tpmsWorker.finished.connect(self.tpmsWorker.deleteLater)
-        self.tpmsThread.finished.connect(self.tpmsThread.deleteLater)
-        self.tpmsThread.started.connect(self.tpmsWorker.run)
-
-        self.tpmsWorker.tpms.connect(self.setTPMS)
-        self.tpmsWorker.tpms_warn.connect(self.setTPMSWarn)
-
-        self.tpmsThread.start()
-
     def setTPMSWarn(self, warn):
         """ Set TPMS warn on/off """
         if warn:
@@ -415,7 +396,7 @@ class MainApp(QMainWindow):
         try:
             self.tpmsWindow.setTPMSWarn(warn)
         except AttributeError:
-            print("Error sending tpms warn to tpms")
+            pass
 
     def setTPMS(self, sensor):
         """ set TPMS data """
@@ -429,29 +410,33 @@ class MainApp(QMainWindow):
         except AttributeError:
             pass
 
-    def initMqttThread(self):
+    def initSensorThread(self):
         """ initialize MQTT thread """
-        self.mqttThread = QThread()
-        self.mqttWorker = MQTT()
-        self.exit_signal.connect(self.mqttWorker.stop)
-        self.mqttWorker.moveToThread(self.mqttThread)
+        self.sensorThread = QThread()
+        self.sensorWorker = MQTT()
+        self.exit_signal.connect(self.sensorWorker.stop)
+        self.sensorWorker.moveToThread(self.sensorThread)
 
-        self.mqttWorker.finished.connect(self.mqttThread.quit)
-        self.mqttWorker.finished.connect(self.mqttWorker.deleteLater)
-        self.mqttThread.finished.connect(self.mqttThread.deleteLater)
+        self.sensorWorker.finished.connect(self.sensorThread.quit)
+        self.sensorWorker.finished.connect(self.sensorWorker.deleteLater)
+        self.sensorThread.finished.connect(self.sensorThread.deleteLater)
 
-        self.mqttThread.started.connect(self.mqttWorker.run)
+        self.sensorThread.started.connect(self.sensorWorker.run)
+        self.sensorWorker.exit_signal.connect(self.sensorWorker.stop)
 
-        self.mqttWorker.exit_signal.connect(self.mqttWorker.stop)
+        """ ruuvitag signals """
+        self.sensorWorker.temperature.connect(self.updateTemperature)
+        self.sensorWorker.humidity.connect(self.updateHumidity)
+        self.sensorWorker.pressure.connect(self.updatePressure)
+        self.sensorWorker.ruuvi_batt.connect(self.updateRuuviBatt)
 
-        self.mqttWorker.temperature.connect(self.updateTemperature)
-        self.mqttWorker.humidity.connect(self.updateHumidity)
-        self.mqttWorker.pressure.connect(self.updatePressure)
-        self.mqttWorker.ruuvi_batt.connect(self.updateRuuviBatt)
+        """ tpms signals """
+        self.sensorWorker.tpms.connect(self.setTPMS)
+        self.sensorWorker.tpms_warn.connect(self.setTPMSWarn)
 
-        self.mqttThread.started.connect(self.mqttWorker.run)
+        self.sensorThread.started.connect(self.sensorWorker.run)
 
-        self.mqttThread.start()
+        self.sensorThread.start()
 
     def updateTemperature(self, temperature):
         """ update temperature """

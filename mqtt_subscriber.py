@@ -4,7 +4,9 @@ MQTT subscriber
 import paho.mqtt.client as mqtt
 import time
 import json
+import configparser
 
+from pathlib import Path
 from PyQt5.QtCore import pyqtSignal, QObject
 
 class MQTT(QObject):
@@ -19,6 +21,10 @@ class MQTT(QObject):
     humidity = pyqtSignal(float)
     pressure = pyqtSignal(float)
     ruuvi_batt = pyqtSignal(float)
+
+    """ TPMS """
+    tpms = pyqtSignal(tuple)
+    tpms_warn = pyqtSignal(int)
 
     def __init__(self, parent=None):
         QObject.__init__(self, parent=parent)
@@ -36,13 +42,21 @@ class MQTT(QObject):
                 self.pressure.emit(data['pressure'])
                 self.ruuvi_batt.emit(data['battery'])
             except KeyError:
-                print("ruuvitag failed due to key error")
+                print("failed to send ruuvitag data to gui due to key error")
+        elif data['id'] == "tpms":
+            try:
+                self.tpms_warn.emit(data['tire']['warn'])
+                tire = (data['tire']['position'], data['tire']['pressure'], data['tire']['temperature'], data['tire']['warn'])
+                self.tpms.emit(tire)
+            except KeyError:
+                print("failed to send tpms data to gui due to key error")
 
     def run(self):
         self.client = mqtt.Client("RPi")
         self.client.connect(self.mqttBroker)
         self.client.loop_start()
         self.client.subscribe("/motorhome/ruuvitag")
+        self.client.subscribe("/motorhome/tpms")
         self.client.on_message = self.on_message
 
         while self.running:

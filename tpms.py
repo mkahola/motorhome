@@ -1,10 +1,12 @@
+#!/usr/bin/env python3
 """
 TPMS for motorhome infotainment
 """
+import paho.mqtt.client as mqtt
 import time
 import configparser
+import json
 from pathlib import Path
-from PyQt5.QtCore import pyqtSignal, QObject
 
 import bluetooth._bluetooth as bluez
 
@@ -12,6 +14,7 @@ from bluetooth_utils import (toggle_device,
                              enable_le_scan, parse_le_advertising_events,
                              disable_le_scan, raw_packet_to_str)
 
+season = 0
 
 def get_pressure(data):
     """ get tire pressure """
@@ -33,9 +36,24 @@ def get_temperature(data):
 
     return temp/100.0
 
+def get_season(client, userdata, message):
+    global season
+    season = message.payload.decode("utf-8", "ignore")
+    print("season: " + str(season))
+
+def update_season(self, season):
+    """ set tire season summer/winter """
+    if season:
+        self.season = "TPMS_winter"
+    else:
+        self.season = "TPMS_summer"
+
+    print("TPMS: " + self.season)
+
 class Tire:
     """ Tire class """
     def __init__(self, tire):
+        global season
         self.name = tire
         self.timestamp = time.monotonic()
         self.mac = []
@@ -46,8 +64,13 @@ class Tire:
 
         try:
             config.read(conf_file)
-            self.season = "TPMS_" + config['Season']['season']
-            self.warn_pressure = float(config[self.season]['warn'])
+            season_str = "TPMS_" + config['Season']['season']
+            self.warn_pressure = float(config[season_str]['warn'])
+
+            if season_str == "TPMS_summer":
+                season = 0
+            else:
+                season = 1
 
             if tire == 'FL':
                 self.mac.append(config['TPMS_summer']['frontLeft'])
@@ -82,122 +105,96 @@ class Tire:
 
     def check_pressure(self, pressure, season):
         """ check pressure agains TPMS warn level """
-        self.update_warn_level(season)
+        #self.update_warn_level(season)
 
         if pressure > self.warn_pressure:
             return 0
 
         return 1
 
-class TPMS(QObject):
-    """ TPMS class """
-    start_signal = pyqtSignal()
-    finished = pyqtSignal()
-    exit_signal = pyqtSignal()
-    set_season = pyqtSignal(int)
+    def send_data(self, now, client, data_str):
+        global season
+        tpms = {'id': 'tpms',
+                'tire': {'position': '', 'pressure': '', 'temperature': '', 'warn': 0},
+               }
 
-    tpms = pyqtSignal(tuple)
-    tpms_warn = pyqtSignal(int)
-
-    def __init__(self, parent=None):
-        QObject.__init__(self, parent=parent)
-        self.front_left = Tire('FL')
-        self.front_right = Tire('FR')
-        self.rear_left = Tire('RL')
-        self.rear_right = Tire('RR')
-        self.running = True
-
-        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
-        config = configparser.ConfigParser()
-
-        try:
-            config.read(conf_file)
-            self.season = "TPMS_" + config['Season']['season']
-        except (configparser.Error, IOError, OSError) as __err:
-            self.season = "TPMS_summer"
-
-        print("tpms: " + self.season)
-
-        dev_id = 0  # the bluetooth device is hci0
-        try:
-            toggle_device(dev_id, True)
-        except PermissionError:
-            print("No permission for bluetooth")
-            self.running = False
-
-        try:
-            self.sock = bluez.hci_open_dev(dev_id)
-        except:
-            print("Cannot open bluetooth device %i" % dev_id)
-            raise
-
-        if self.running:
-            enable_le_scan(self.sock, filter_duplicates=False)
-
-    def send_pressure_temp(self, tire, now, data_str):
         """ send pressure and temperature data to GUI """
-        if (now - tire.timestamp) > 5:
+        if (now - self.timestamp) > 1:
             #print("BLE packet: %s %02x %s %d" % (mac, adv_type, data_str, rssi))
             pressure = get_pressure(data_str)
-            temp = get_temperature(data_str)
-            warn = tire.check_pressure(pressure, self.season)
-            if warn != tire.tpms_warn:
-                self.tpms_warn.emit(warn)
-                tire.tpms_warn = warn
 
-            data = (tire.name, pressure, temp, warn)
-            tire.timestamp = now
-            self.tpms.emit(data)
+            warn = self.check_pressure(pressure, season)
+            if warn != self.tpms_warn:
+                self.tpms_warn = warn
+                client.publish("/motorhome/tpms_warn", warn)
 
-    def get_season(self):
-        if self.season == "TPMS_summer":
-            return 0
-        else:
-            return 1
+            tpms['tire']['position'] = self.name
+            tpms['tire']['pressure'] = pressure
+            tpms['tire']['temperature'] = get_temperature(data_str)
+            tpms['tire']['warn'] = self.tpms_warn
 
-    def run(self):
-        """ run TPMS service """
-        mac_list = []
-        while self.running:
-            def le_advertise_packet_handler(mac, adv_type, data, rssi):
-                data_str = raw_packet_to_str(data)
-                index = self.get_season()
+            client.publish("/motorhome/tpms", json.dumps(tpms))
+            self.timestamp = now
 
-                if mac == self.front_left.mac[index]:
-                    self.send_pressure_temp(self.front_left, time.time(), data_str)
-                elif mac == self.front_right.mac[index]:
-                    self.send_pressure_temp(self.front_right, time.time(), data_str)
-                elif mac == self.rear_left.mac[index]:
-                    self.send_pressure_temp(self.rear_left, time.time(), data_str)
-                elif mac == self.rear_right.mac[index]:
-                    self.send_pressure_temp(self.rear_right, time.time(), data_str)
+def run_tpms():
+    front_left = Tire('FL')
+    front_right = Tire('FR')
+    rear_left = Tire('RL')
+    rear_right = Tire('RR')
 
-            # Blocking call (the given handler will be called each time a new LE
-            # advertisement packet is detected)
-            for i in range(0, 2):
-                mac_list.append(self.front_left.mac[i])
-                mac_list.append(self.front_right.mac[i])
-                mac_list.append(self.rear_left.mac[i])
-                mac_list.append(self.rear_right.mac[i])
+    mqttBroker = 'localhost'
+    client = mqtt.Client("TPMS")
+    client.connect(mqttBroker)
 
-            parse_le_advertising_events(self.sock, mac_addr=mac_list,
-                                        handler=le_advertise_packet_handler,
-                                        debug=False)
+    client.loop_start()
+    client.subscribe("/motorhome/tpms/season")
+    client.on_message = get_season
 
-        print("TPMS: thread finished")
-        self.finished.emit()
+    print("tpms: " + str(season))
 
-    def update_season(self, season):
-        """ set tire season summer/winter """
-        if season:
-            self.season = "TPMS_winter"
-        else:
-            self.season = "TPMS_summer"
+    dev_id = 0  # the bluetooth device is hci0
+    try:
+        toggle_device(dev_id, True)
+    except PermissionError:
+        print("TPMS: No permission for bluetooth")
+        return
 
-        print("TPMS: " + self.season)
+    try:
+        sock = bluez.hci_open_dev(dev_id)
+    except:
+        print("Cannot open bluetooth device %i" % dev_id)
+        raise
 
-    def stop(self):
-        """ Stop TPMS service """
-        print("TPMS: received exit signal")
-        disable_le_scan(self.sock)
-        self.running = False
+    enable_le_scan(sock, filter_duplicates=True)
+
+    mac_list = []
+    for i in range(0, 2):
+        mac_list.append(front_left.mac[i])
+        mac_list.append(front_right.mac[i])
+        mac_list.append(rear_left.mac[i])
+        mac_list.append(rear_right.mac[i])
+
+    while True:
+        def le_advertise_packet_handler(mac, adv_type, data, rssi):
+            global season
+            data_str = raw_packet_to_str(data)
+            pressure = get_pressure(data_str)
+            temperature = get_temperature(data_str)
+
+            if mac == front_left.mac[season]:
+                front_left.send_data(time.time(), client, data_str)
+            elif mac == front_right.mac[season]:
+                front_right.send_data(time.time(), client, data_str)
+            elif mac == rear_left.mac[season]:
+                rear_left.send_data(time.time(), client, data_str)
+            elif mac == rear_right.mac[season]:
+                rear_right.send_data(time.time(), client, data_str)
+
+        # Blocking call (the given handler will be called each time a new LE
+        # advertisement packet is detected)
+        parse_le_advertising_events(sock, mac_addr=mac_list,
+                                    handler=le_advertise_packet_handler,
+                                    debug=False)
+
+if __name__ == "__main__":
+    run_tpms()
