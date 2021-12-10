@@ -15,7 +15,6 @@ from PyQt5.QtCore import Qt, QThread, QTimer, QSize, pyqtSignal
 
 from tires import Tires
 from virb import Virb
-from gps import Location
 from ruuvi import Ruuvi
 from mqtt_subscriber import MQTT
 from searchvirb import SearchVirb
@@ -99,7 +98,7 @@ class MainApp(QMainWindow):
         # start threads
         self.initSensorThread()
         self.initSearchVirbThread()
-        self.initGPSThread()
+        #self.initGPSThread()
 
         self.showFullScreen()
 #        self.showMaximized()
@@ -336,22 +335,6 @@ class MainApp(QMainWindow):
                     recording=self.infobar.recording)
         self.info.emit(data)
 
-    def initGPSThread(self):
-        """ initialize GPS thread """
-        self.gpsThread = QThread()
-        self.gpsWorker = Location()
-        self.exit_signal.connect(self.gpsWorker.stop)
-        self.gpsWorker.moveToThread(self.gpsThread)
-        self.gpsWorker.finished.connect(self.gpsThread.quit)
-        self.gpsWorker.finished.connect(self.gpsWorker.deleteLater)
-        self.gpsThread.finished.connect(self.gpsThread.deleteLater)
-        self.gpsThread.started.connect(self.gpsWorker.run)
-
-        self.gpsWorker.gpsFix.connect(self.updateGPSFix)
-        self.gpsWorker.gpsLocation.connect(self.updateLocation)
-
-        self.gpsThread.start()
-
     def initSearchVirbThread(self):
         """ initialize search for Garmin Virb ip """
         self.virbThread = QThread()
@@ -433,6 +416,10 @@ class MainApp(QMainWindow):
         """ tpms signals """
         self.sensorWorker.tpms.connect(self.setTPMS)
         self.sensorWorker.tpms_warn.connect(self.setTPMSWarn)
+
+        """ gps signals """
+        self.sensorWorker.gpsFix.connect(self.updateGPSFix)
+        self.sensorWorker.gpsLocation.connect(self.updateLocation)
 
         self.sensorThread.started.connect(self.sensorWorker.run)
 

@@ -2,18 +2,29 @@
 
 # WS server that sends dasboard data
 
-import asyncio
-import websockets
 import subprocess
 import configparser
 import time
 import math
 import json
+import signal
+import paho.mqtt.client as mqtt
 
 from datetime import datetime, timedelta
 from pathlib import Path
 from gps3.agps3threaded import AGPS3mechanism
 from virb import Virb
+
+running = True
+
+# trap ctrl-c, SIGINT and come down nicely
+def signal_handler(signal, frame):
+    global running
+
+    print("dash_server: terminating.")
+    running = False
+
+signal.signal(signal.SIGINT, signal_handler)
 
 def search_virb():
 
@@ -46,98 +57,103 @@ def update_datetime(date, update):
 
     return True
 
+# The callback for when the client receives a CONNACK response from the MQTT server.
+def on_connect(client, userdata, flags, rc):
+    print("Connected to MQTT broker with result code "+str(rc))
+
+    # Subscribing in on_connect() means that if we lose the connection and
+    # reconnect then subscriptions will be renewed.
+    client.subscribe("$SYS/#")
+
 def run_dash_server():
+    global running
+    mode = 0
+
     gps_thread = AGPS3mechanism()
     gps_thread.stream_data()
     gps_thread.run_thread()
 
     print("running dash server")
 
-    async def gps(websocket, path):
-        virb_initialized = False
-        time_updated = False
+    mqttBroker = 'localhost'
+    client = mqtt.Client("GPS")
+    client.on_connect = on_connect
+    client.connect(mqttBroker)
 
-        d = {'id': "gps",
-             'lat': 0.0,
-             'lon': 0.0,
-             'alt': 0.0,
-             'speed':0.0,
-             'course': 0,
-             'mode': 0,
-             'src': "internal",
-            }
+    virb_initialized = False
+    time_updated = False
 
-        while True:
-            try:
-                time_updated = update_datetime(gps_thread.data_stream.time,
-                                               time_updated)
-            except:
-                pass
+    d = {'id': "gps",
+         'lat': 0.0,
+         'lon': 0.0,
+         'alt': 0.0,
+         'speed':0.0,
+         'course': 0,
+         'mode': 0,
+         'src': "internal",
+        }
 
-            try:
-                mode = int(gps_thread.data_stream.mode)
-            except ValueError:
-                print("dash server: Value not defined for GPS mode")
-                await asyncio.sleep(1)
-                continue
+    while running:
+        try:
+            time_updated = update_datetime(gps_thread.data_stream.time,
+                                           time_updated)
+        except:
+            pass
 
-            if mode > 1:
-                # speed in knots, convert to km/h
-                d['lat'] = gps_thread.data_stream.lat
-                d['lon'] = gps_thread.data_stream.lon
-                d['alt'] = gps_thread.data_stream.alt
-                d['speed']  = gps_thread.data_stream.speed
+        try:
+            mode = int(gps_thread.data_stream.mode)
+        except ValueError:
+            print("dash server: Value not defined for GPS mode")
+            mode = 0
+            time.sleep(1)
+            pass
 
-                course= gps_thread.data_stream.track
-                if course != "n/a":
-                    d['course'] = course
+        if mode > 1:
+            # speed in knots, convert to km/h
+            d['lat'] = gps_thread.data_stream.lat
+            d['lon'] = gps_thread.data_stream.lon
+            d['alt'] = gps_thread.data_stream.alt
+            d['speed']  = gps_thread.data_stream.speed
+
+            course= gps_thread.data_stream.track
+            if course != "n/a":
+                d['course'] = course
                 d['src'] = "internal"
                 d['mode'] = mode
+        else:
+            if virb_initialized:
+                try:
+                    lat = cam.get_latitude()
+                    lon = cam.get_longitude()
+                    alt = cam.get_altitude()
+
+                    if lat != -999 or lon != -999 or alt != -999:
+                        mode = 3
+                    else:
+                        mode = 0
+
+                    d['lat'] = lat
+                    d['lon'] = lon
+                    d['alt'] = alt
+                    d['speed'] = cam.get_speed()
+                    d['course'] = 0
+                    d['src'] = "garmin"
+                    d['mode'] = mode
+                    time.sleep(0.8)
+                except:
+                    virb_initialized = False
+                    pass
             else:
-                if virb_initialized:
-                    try:
-                        lat = cam.get_latitude()
-                        lon = cam.get_longitude()
-                        alt = cam.get_altitude()
+                virb_ip = search_virb()
+                if virb_ip:
+                    cam = Virb((virb_ip, 80))
+                    virb_initialized = True
+        if mode > 1:
+            client.publish("/motorhome/gps", json.dumps(d))
 
-                        if lat != -999 or lon != -999 or alt != -999:
-                            mode = 3
-                        else:
-                            mode = 0
+        time.sleep(0.2)
 
-                        d['lat'] = lat
-                        d['lon'] = lon
-                        d['alt'] = alt
-                        d['speed'] = cam.get_speed()
-                        d['course'] = 0
-                        d['src'] = "garmin"
-                        d['mode'] = mode
-                        time.sleep(0.8)
-                    except:
-                        virb_initialized = False
-                        pass
-                else:
-                    virb_ip = search_virb()
-                    if virb_ip:
-                        cam = Virb((virb_ip, 80))
-                        virb_initialized = True
-            try:
-                if mode > 1:
-                    data = json.dumps(d)
-                    print(data)
-                    await websocket.send(data)
-            except:
-                pass
-            await asyncio.sleep(0.2)
-
-    try:
-        start_server = websockets.serve(gps, port=5678)
-    except:
-        print("unable to start server")
-        pass
-
-    asyncio.get_event_loop().run_until_complete(start_server)
-    asyncio.get_event_loop().run_forever()
+    client.disconnect()
 
 if __name__ == "__main__":
     run_dash_server()
