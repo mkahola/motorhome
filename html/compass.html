@@ -6,6 +6,7 @@
 <body style="background-color:#323232;">
 <div style = "text-align:center;">
 <canvas id="compass" width="245" height="245" style="width: 245px; height: 245px;"></canvas>
+<script src="mqttws31.min.js" type="text/javascript"></script>
 <script>
 function initCompass() {
 var gaugeCompass = new RadialGauge({
@@ -62,11 +63,35 @@ var gaugeCompass = new RadialGauge({
     colorTitle: "#f5f5f5",
     animationDuration: 150
 }).draw();
-    var ws = new WebSocket("ws://127.0.0.1:5678/");
-    ws.onmessage = function (event) {
-        var obj  = JSON.parse(event.data);
+    client = new Paho.MQTT.Client("localhost", 9001, "web");
+
+    // set callback handlers
+    client.onConnectionLost = onConnectionLost;
+    client.onMessageArrived = onMessageArrived;
+
+    // connect the client
+    client.connect({onSuccess:onConnect});
+
+    // called when the client connects
+    function onConnect() {
+        // Once a connection has been made, make a subscription and send a message.
+        console.log("onConnect");
+        client.subscribe("/motorhome/gps")
+    }
+
+    // called when the client loses its connection
+    function onConnectionLost(responseObject) {
+        if (responseObject.errorCode !== 0) {
+            console.log("onConnectionLost:");
+        }
+    }
+
+    // called when a message arrives
+    function onMessageArrived(message) {
+        obj  = JSON.parse(message.payloadString);
+        console.log("Course: " + obj.course);
         gaugeCompass.value = obj.course
-	}
+    }
 }
 </script>
 <script async src="gauge.min.js" onload="initCompass()"></script>

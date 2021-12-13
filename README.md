@@ -22,4 +22,5 @@ Ruuvitag sensor uses Bleson bluetooth library from
 
 https://github.com/TheCellule/python-bleson
 
-
+For MQTT install
+pip install paho-mqtt￼

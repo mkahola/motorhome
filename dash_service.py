@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from gps3.agps3threaded import AGPS3mechanism
 from virb import Virb
+from searchvirb import ping_ok
 
 running = True
 
@@ -37,7 +38,10 @@ def search_virb():
     try:
         ip = config[ssid]['ip']
     except Exception as e:
-        ip = ""
+        return ""
+
+    if not ping_ok(ip):
+        return ""
 
     return ip
 
