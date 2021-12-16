@@ -177,15 +177,8 @@ class TPMSWindow(QWidget):
         hbox3.addWidget(tire_rr_label, alignment=Qt.AlignRight)
         hbox3.addLayout(vbox4)
 
-        hbox_tmp = QHBoxLayout()
-        hbox_tmp.addWidget(self.tire_sel, alignment=Qt.AlignLeft)
-        hbox_tmp.addWidget(tireSelLabel,  alignment=Qt.AlignLeft)
-        hbox_tmp.addStretch()
-
         hbox4 = QHBoxLayout()
-        hbox4.addLayout(hbox_tmp)
         hbox4.addWidget(homeButton,    alignment=Qt.AlignCenter)
-        hbox4.addStretch()
 
         vbox5 = QVBoxLayout()
         vbox5.addLayout(hbox1)
