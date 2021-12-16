@@ -3,7 +3,6 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5 import QtWidgets, QtCore, QtGui
-from qtwidgets import Toggle, AnimatedToggle
 
 import time
 import math
@@ -138,13 +137,6 @@ class TPMSWindow(QWidget):
         tire_rr_label = QLabel()
         tire_rr_label.setPixmap(pixmap)
 
-        # summer/winter tire selection
-        self.tire_sel = AnimatedToggle(
-            checked_color="#FF1E90FF",
-            pulse_checked_color="#FF1E90FF"
-        )
-        self.tire_sel.clicked.connect(self.updateSeason)
-
         tireSelLabel = QLabel("Winter tires")
         tireSelLabel.setStyleSheet("QLabel {background: transparent; color: #1E90FF; font: 16px}")
 
@@ -204,15 +196,6 @@ class TPMSWindow(QWidget):
         self.setLayout(vbox5)
 
         self.showFullScreen()
-
-    def updateSeason(self, value):
-
-        if value:
-            self.client.publish("/motorhome/tpms/season", 1)
-            print("tpmswindow: season set to winter")
-        else:
-            self.client.publish("/motorhome/tpms/season", 0)
-            print("tpmswindow: season set to summer")
 
     def setTPMSWarn(self, warn):
         if warn:

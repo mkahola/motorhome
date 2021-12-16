@@ -529,6 +529,6 @@ class MainApp(QMainWindow):
             sys.exit()
 
 if __name__ == "__main__":
-    APP = QApplication(sys.argv)
-    WIN = MainApp()
-    sys.exit(APP.exec_())
+    app = QApplication(sys.argv)
+    win = MainApp()
+    sys.exit(app.exec_())

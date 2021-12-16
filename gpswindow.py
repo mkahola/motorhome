@@ -2,12 +2,25 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 from PyQt5 import QtWidgets, QtCore, QtGui
-from PyQt5.QtWebKitWidgets import QWebView
 
 import time
 import math
+import cv2
+import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
+
+def rotate(image, angle):
+    row,col = image.shape[:2]
+
+    center = tuple(np.array([row,col])/2)
+    rot_mat = cv2.getRotationMatrix2D(center,angle,1.0)
+    new_image = cv2.warpAffine(image, rot_mat, (col,row), borderValue=(50,50,50))
+
+    frame = cv2.cvtColor(new_image, cv2.COLOR_BGR2RGB)
+    rotated = QImage(frame, frame.shape[1], frame.shape[0], QImage.Format_RGB888)
+
+    return rotated
 
 class GPSWindow(QWidget):
     info = pyqtSignal(dict)
@@ -40,10 +53,6 @@ class GPSWindow(QWidget):
         self.lon = QLabel()
         self.alt = QLabel()
         self.course = QLabel()
-
-        # compass
-        web = QWebView()
-        web.load(QUrl("http://my.dashboard.com/compass.html"))
 
         homeButton = QPushButton()
         homeButton.setIcon(QIcon(self.prefix + 'home.png'))
@@ -79,6 +88,10 @@ class GPSWindow(QWidget):
         self.src_label = QLabel()
         self.gps_src_internal = QPixmap(self.prefix + "gps_internal.png").scaled(32, 32, Qt.KeepAspectRatio)
         self.gps_src_garmin = QPixmap(self.prefix + "garmin.png").scaled(32, 32, Qt.KeepAspectRatio)
+
+        # compass
+        self.compassLabel = QLabel()
+        self.compass = cv2.imread(self.prefix + "compass2.png", cv2.IMREAD_UNCHANGED)
 
         self.updateTemperature(infobar.temperature)
         self.updateTime(datetime.now())
@@ -116,7 +129,7 @@ class GPSWindow(QWidget):
 #        vbox.addWidget(self.fix, alignment=Qt.AlignCenter|Qt.AlignTop)
         vbox.addLayout(hbox2)
         vbox.addLayout(hbox3)
-        vbox.addWidget(web, alignment=Qt.AlignCenter)
+        vbox.addWidget(self.compassLabel, alignment=Qt.AlignCenter)
         vbox.addWidget(homeButton, alignment=Qt.AlignCenter)
         self.setLayout(vbox)
 
@@ -181,6 +194,7 @@ class GPSWindow(QWidget):
 
         if not math.isnan(gps.course):
             self.course.setText("{0:d}".format(round(gps.course)) + "\u00b0")
+            self.compassLabel.setPixmap(QPixmap.fromImage(rotate(self.compass, gps.course)))
         else:
             self.course.setText("--\u00b0")
 
