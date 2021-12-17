@@ -7,7 +7,6 @@ import time
 import math
 from datetime import datetime, timedelta
 from pathlib import Path
-from ruuvi import Ruuvi
 
 class RuuviWindow(QWidget):
     info = pyqtSignal(dict)
