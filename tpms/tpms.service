@@ -1,0 +1,13 @@
+[Unit]
+Description="Tire Pressure Monitoring System"
+PartOf=graphical.target
+After=bluetooth.service
+
+[Service]
+User=pi
+ExecStart=/home/pi/motorhome/tpms/tpms.py
+RestartSec=15
+Restart=on-failure
+
+[Install]
+WantedBy=graphical.target

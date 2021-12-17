@@ -1,0 +1,14 @@
+[Unit]
+Description="Ruuvitag sensors"
+After=bluetooth.service mosquitto.service
+
+[Service]
+Environment="RUUVI_BLE_ADAPTER="Bleson""
+User=pi
+ExecStartPre=/bin/sleep 30
+ExecStart=/home/pi/motorhome/ruuvitag/ruuvitag.py
+RestartSec=15
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

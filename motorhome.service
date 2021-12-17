@@ -1,0 +1,15 @@
+[Unit]
+Description="Motorhome infotainment"
+PartOf=graphical.target
+After=mosquitto.service
+
+[Service]
+Environment="DISPLAY=:0"
+Environment="XAUTHORITY=/home/pi/.Xauthority"
+User=pi
+WorkingDirectory=/home/pi/motorhome
+ExecStart=/home/pi/motorhome/motorhome.py
+Restart=on-failure
+
+[Install]
+WantedBy=graphical.target

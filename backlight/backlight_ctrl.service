@@ -1,0 +1,12 @@
+[Unit]
+Description="Backlight control"
+After=gpsd.socket
+
+[Service]
+User=pi
+WorkingDirectory=/home/pi/motorhome
+ExecStart=/home/pi/motorhome/backlight/backlight.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,13 @@
+[Unit]
+Description="Dashboard sensor data service"
+After=gpsd.socket mosquitto.service
+
+[Service]
+User=pi
+Group=pi
+ExecStart=/home/pi/motorhome/gps/dash_service.py
+RestartSec=15
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
