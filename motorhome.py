@@ -4,6 +4,7 @@ Motorhome infotainment project
 """
 import math
 import sys
+import os
 import os.path
 import configparser
 from pathlib import Path
@@ -184,6 +185,14 @@ class MainApp(QMainWindow):
         self.appsButton.clicked.connect(self.createAppsWindow)
         self.appsButton.setEnabled(False)
 
+        # screencopy
+        scrcpyButton = QToolButton(self)
+        scrcpyButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        scrcpyButton.setIcon(QIcon(self.prefix + 'android.png'))
+        scrcpyButton.setText("Screen Copy")
+        scrcpyButton.setIconSize(QSize(size, size))
+        scrcpyButton.clicked.connect(self.launch_scrcpy)
+
         # vehicle info
         infoButton = QToolButton(self)
         infoButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
@@ -253,7 +262,8 @@ class MainApp(QMainWindow):
         grid.addWidget(ruuviButton, 1, 2)
 
         grid.addWidget(self.appsButton, 2, 0)
-        grid.addWidget(infoButton, 2, 1)
+        grid.addWidget(scrcpyButton, 2, 1)
+        grid.addWidget(infoButton, 2, 2)
 
         grid.setSpacing(10)
 
@@ -334,6 +344,11 @@ class MainApp(QMainWindow):
                     speed=self.infobar.speed,
                     recording=self.infobar.recording)
         self.info.emit(data)
+
+    def launch_scrcpy(self):
+        print("motorhome: Launching scrcpy")
+        app = str(Path.home()) + "/apps/scrcpy/scrcpy"
+        os.system(app + " --fullscreen")
 
     def initSearchVirbThread(self):
         """ initialize search for Garmin Virb ip """
