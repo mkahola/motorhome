@@ -18,17 +18,42 @@ season = 0
 
 def get_pressure(data):
     """ get tire pressure """
-    p_word1 = int(str(data[36:38]), 16)
-    p_word2 = int(str(data[38:40]), 16) << 8
-    p_word3 = int(str(data[40:42]), 16) << 16
-    p_word4 = int(str(data[42:44]), 16) << 24
+
+    try:
+        p_word1 = int(str(data[36:38]), 16)
+    except ValueError:
+        p_word1 = 0
+
+    try:
+        p_word2 = int(str(data[38:40]), 16) << 8
+    except ValueError:
+        p_word2 = 0
+
+    try:
+        p_word3 = int(str(data[40:42]), 16) << 16
+    except ValueError:
+        p_word3 = 0
+
+    try:
+        p_word4 = int(str(data[42:44]), 16) << 24
+    except ValueError:
+        p_word4 = 0
 
     return (p_word4 + p_word3 + p_word2 + p_word1)/100000
 
 def get_temperature(data):
     """ get tire temperature """
-    t_word1 = int(str(data[44:46]), 16)
-    t_word2 = int(str(data[46:48]), 16) << 8
+
+    try:
+        t_word1 = int(str(data[44:46]), 16)
+    except ValueError:
+        t_word1 = 0
+
+    try:
+        t_word2 = int(str(data[46:48]), 16) << 8
+    except ValueError:
+        t_word2 = 0
+
     temp = t_word1 + t_word2
 
     if temp > 2**15:
