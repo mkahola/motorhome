@@ -84,6 +84,9 @@ class Tire:
             elif tire == 'RR':
                 self.mac.append(config['TPMS_summer']['rearRight'])
                 self.mac.append(config['TPMS_winter']['rearRight'])
+            elif tire == 'Spear':
+                self.mac.append(config['TPMS_summer']['spear'])
+                self.mac.append(config['TPMS_winter']['spear'])
         except (configparser.Error, IOError, OSError) as __err:
             print("TPMS: unable to read conf file for tire " + tire)
             self.warn_pressure = 0.0
@@ -141,6 +144,7 @@ def run_tpms():
     front_right = Tire('FR')
     rear_left = Tire('RL')
     rear_right = Tire('RR')
+    spear = Tire('Spear')
 
     mqttBroker = 'localhost'
     client = mqtt.Client("TPMS")
@@ -173,6 +177,7 @@ def run_tpms():
         mac_list.append(front_right.mac[i])
         mac_list.append(rear_left.mac[i])
         mac_list.append(rear_right.mac[i])
+        mac_list.append(spear.mac[i])
 
     while True:
         def le_advertise_packet_handler(mac, adv_type, data, rssi):
@@ -189,6 +194,8 @@ def run_tpms():
                 rear_left.send_data(time.time(), client, data_str)
             elif mac == rear_right.mac[season]:
                 rear_right.send_data(time.time(), client, data_str)
+            elif mac == spear.mac[season]:
+                spear.send_data(time.time(), client, data_str)
 
         # Blocking call (the given handler will be called each time a new LE
         # advertisement packet is detected)

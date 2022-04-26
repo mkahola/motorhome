@@ -29,6 +29,7 @@ class Tires:
         self.front_right = Tire()
         self.rear_left = Tire()
         self.rear_right = Tire()
+        self.spear = Tire()
         self.warn_pressure = 0.0
 
     def set_pressure(self, tire, pressure):
@@ -41,6 +42,8 @@ class Tires:
             self.rear_left.set_pressure(pressure)
         elif tire == 'RR':
             self.rear_right.set_pressure(pressure)
+        elif tire == "Spear":
+            self.spear.set_pressure(pressure)
 
     def set_temperature(self, tire, temperature):
         """ set tire temperature """
@@ -52,6 +55,8 @@ class Tires:
             self.rear_left.set_temperature(temperature)
         elif tire == 'RR':
             self.rear_right.set_temperature(temperature)
+        elif tire == "Spear":
+            self.spear.set_temperature(temperature)
 
     def set_warn(self, tire, val):
         """ set tire pressure warn level """
@@ -63,6 +68,8 @@ class Tires:
             self.rear_left.set_warn(val)
         elif tire == 'RR':
             self.rear_right.set_warn(val)
+        elif tire == "Spear":
+            self.spear.set_warn(val)
 
     def set_warn_pressure(self, val):
         """ set tire pressure warn level """
@@ -81,6 +88,8 @@ class Tires:
             pressure = self.rear_left.pressure
         elif tire == 'RR':
             pressure = self.rear_right.pressure
+        elif tire == "Spear":
+            pressure = self.spear.pressure
 
         return pressure
 
@@ -97,6 +106,8 @@ class Tires:
             temperature = self.rear_left.temperature
         elif tire == 'RR':
             temperature = self.rear_right.temperature
+        elif tire == "Spear":
+            temperature = self.spear.temperature
 
         return temperature
 

@@ -99,6 +99,9 @@ class TPMSWindow(QWidget):
         rear_right = QLabel("Rear Right")
         rear_right.setStyleSheet("font: bold 20px;")
 
+        self.spear = QLabel()
+        self.spear.setStyleSheet("font: bold 18px;")
+
         self.fl_pressure_label = QLabel()
         self.fl_pressure_label.setStyleSheet("font: bold 28px;")
 
@@ -144,6 +147,7 @@ class TPMSWindow(QWidget):
         self.setTPMS(tpms, "FR")
         self.setTPMS(tpms, "RL")
         self.setTPMS(tpms, "RR")
+        self.setTPMS(tpms, "Spear")
 
         vbox1 = QVBoxLayout()
         vbox1.addWidget(front_left, alignment=Qt.AlignCenter|Qt.AlignBottom)
@@ -178,13 +182,17 @@ class TPMSWindow(QWidget):
         hbox3.addLayout(vbox4)
 
         hbox4 = QHBoxLayout()
-        hbox4.addWidget(homeButton,    alignment=Qt.AlignCenter)
+        hbox4.addWidget(self.spear, alignment=Qt.AlignLeft)
+
+        hbox5 = QHBoxLayout()
+        hbox5.addWidget(homeButton, alignment=Qt.AlignCenter)
 
         vbox5 = QVBoxLayout()
         vbox5.addLayout(hbox1)
         vbox5.addLayout(hbox2)
         vbox5.addLayout(hbox3)
         vbox5.addLayout(hbox4)
+        vbox5.addLayout(hbox5)
 
         self.setLayout(vbox5)
 
@@ -265,6 +273,9 @@ class TPMSWindow(QWidget):
                                                          "color: #73E420;")
                     self.rr_temp_label.setStyleSheet("font: bold 20px;"
                                                      "color: #73E420;")
+        elif tire == "Spear":
+            if not math.isnan(tpms.spear.pressure):
+                self.spear.setText("Spear     {:.1f}".format(round(tpms.spear.pressure, 1)) + " bar / {0:d}".format(round(tpms.spear.temperature)) + "\u2103")
 
     def updateInfobar(self, data):
         self.updateTime(data['time'])
