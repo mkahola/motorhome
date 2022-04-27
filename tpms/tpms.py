@@ -120,28 +120,15 @@ class Tire:
         """ set timestamp of last received tpms data """
         self.timestamp = timestamp
 
-    def update_warn_level(self, season):
-        """ update TPMS pressure warn level """
-        conf_file = str(Path.home()) + "/.motorhome/motorhome.conf"
-        config = configparser.ConfigParser()
-
-        try:
-            config.read(conf_file)
-            self.warn_pressure = float(config[season]['warn'])
-        except (configparser.Error, IOError, OSError) as __err:
-            self.warn_pressure = 0
-
-    def check_pressure(self, pressure, season):
+    def check_pressure(self, pressure):
         """ check pressure agains TPMS warn level """
-        #self.update_warn_level(season)
 
-        if pressure > self.warn_pressure:
-            return 0
+        if pressure <= self.warn_pressure:
+            return 1
 
-        return 1
+        return 0
 
     def send_data(self, now, client, data_str):
-        global season
         tpms = {'id': 'tpms',
                 'tire': {'position': '', 'pressure': '', 'temperature': '', 'warn': 0},
                }
@@ -151,7 +138,7 @@ class Tire:
             #print("BLE packet: %s %02x %s %d" % (mac, adv_type, data_str, rssi))
             pressure = get_pressure(data_str)
 
-            warn = self.check_pressure(pressure, season)
+            warn = self.check_pressure(pressure)
             if warn != self.tpms_warn:
                 self.tpms_warn = warn
                 client.publish("/motorhome/tpms_warn", warn)
