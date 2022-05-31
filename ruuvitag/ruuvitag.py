@@ -64,10 +64,10 @@ def run_ruuvitag(timeout):
 
     while running:
         data = sensor.update()
-        state['temperature'] = data['temperature']
-        state['humidity'] = data['humidity']
-        state['pressure'] = data['pressure']
-        state['battery'] = data['battery']
+        state['temperature'] = data.get('temperature')
+        state['humidity'] = data.get('humidity')
+        state['pressure'] = data.get('pressure')
+        state['battery'] = data.get('battery')
         print(state)
         client.publish("/motorhome/ruuvitag", json.dumps(state))
         time.sleep(timeout)

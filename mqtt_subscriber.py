@@ -39,24 +39,18 @@ class MQTT(QObject):
         decoded = str(message.payload.decode("utf-8","ignore"))
         data = json.loads(decoded)
 
-        if data['id'] == "ruuvi":
-            try:
-                self.temperature.emit(data['temperature'])
-                self.humidity.emit(data['humidity'])
-                self.pressure.emit(data['pressure'])
-                self.ruuvi_batt.emit(data['battery'])
-            except KeyError:
-                print("failed to send ruuvitag data to gui due to key error")
-        elif data['id'] == "tpms":
-            try:
-                self.tpms_warn.emit(data['tire']['warn'])
-                tire = (data['tire']['position'], data['tire']['pressure'], data['tire']['temperature'], data['tire']['warn'])
-                self.tpms.emit(tire)
-            except KeyError:
-                print("failed to send tpms data to gui due to key error")
-        elif data['id'] == "gps":
-            self.gpsFix.emit(data['mode'])
-            location = (data['lat'], data['lon'], data['alt'], data['speed'], data['course'], data['src'])
+        if data.get('id') == "ruuvi":
+            self.temperature.emit(data.get('temperature'))
+            self.humidity.emit(data.get('humidity'))
+            self.pressure.emit(data.get('pressure'))
+            self.ruuvi_batt.emit(data.get('battery'))
+        elif data.get('id') == "tpms":
+            self.tpms_warn.emit(data.get('tire').get('warn'))
+            tire = (data.get('tire').get('position'), data.get('tire').get('pressure'), data.get('tire').get('temperature'), data.get('tire').get('warn'))
+            self.tpms.emit(tire)
+        elif data.get('id') == "gps":
+            self.gpsFix.emit(data.get('mode'))
+            location = (data.get('lat'), data.get('lon'), data.get('alt'), data.get('speed'), data.get('course'), data.get('src'))
             self.gpsLocation.emit(location)
 
     def run(self):
